@@ -1,8 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { GoogleMap, useLoadScript, DrawingManager } from '@react-google-maps/api';
 
 const containerStyle = {
-  width: '100%',
+  width: '100vw',
   height: '100vh'
 };
 
@@ -12,7 +12,6 @@ const center = {
 };
 
 function App() {
- 
   const [polygons, setPolygons] = useState([]);
   const mapRef = useRef();
 
@@ -20,28 +19,35 @@ function App() {
     googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
     libraries: ['drawing']
   });
-  
+
+  useEffect(() => {
+    if (isLoaded && !window.google?.maps?.ControlPosition) {
+      console.error('Google Maps loaded but ControlPosition is undefined');
+    }
+  }, [isLoaded]);
+
   const onPolygonComplete = (polygon) => {
     const path = polygon.getPath().getArray().map(latlng => ({
       lat: latlng.lat(),
       lng: latlng.lng()
     }));
-    setPolygons([...polygons, path]);
+    setPolygons(prev => [...prev, path]);
     polygon.setMap(null); // Optionally remove the polygon from the map
-    // You could send this data to the backend here for clearcut detection
   };
 
-  console.log("Map loaded?", isLoaded);
+  if (!isLoaded) {
+    return <div>Loading map...</div>;
+  }
 
-  if (isLoaded) {
-    return (
-      <div>
-        <GoogleMap
-          mapContainerStyle={containerStyle}
-          center={center}
-          zoom={8}
-          onLoad={map => (mapRef.current = map)}
-        >
+  return (
+    <div style={{ width: '100vw', height: '100vh' }}>
+      <GoogleMap
+        mapContainerStyle={containerStyle}
+        center={center}
+        zoom={8}
+        onLoad={map => (mapRef.current = map)}
+      >
+        {window.google?.maps?.ControlPosition && (
           <DrawingManager
             onPolygonComplete={onPolygonComplete}
             options={{
@@ -60,12 +66,10 @@ function App() {
               }
             }}
           />
-        </GoogleMap>
-      </div>
-    );
-  } else {
-    return <div>Loading...</div>;
-  }
+        )}
+      </GoogleMap>
+    </div>
+  );
 }
 
 export default App;
