@@ -43,6 +43,37 @@ function DrawingTools({ mapRef }) {
   return null;
 }
 
+import { useMap } from "react-leaflet";
+import "leaflet.vectorgrid";
+
+function VectorTileLayer() {
+  const map = useMap();
+
+  React.useEffect(() => {
+    const vectorLayer = L.vectorGrid.protobuf("/results/tiles/{z}/{x}/{y}.pbf", {
+      vectorTileLayerStyles: {
+        layer0: {
+          fill: true,
+          fillColor: "#FF0000",
+          fillOpacity: 0.4,
+          stroke: true,
+          color: "#000",
+          weight: 1,
+        },
+      },
+      interactive: true,
+    });
+
+    vectorLayer.addTo(map);
+
+    return () => {
+      map.removeLayer(vectorLayer);
+    };
+  }, [map]);
+
+  return null;
+}
+
 function App() {
   const mapRef = useRef(null);
   const searchRef = useRef(null);
@@ -86,6 +117,7 @@ function App() {
           attribution="&copy; Esri, DigitalGlobe, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, and others"
         />
         <DrawingTools mapRef={mapRef} />
+        <VectorTileLayer />  {/* Add this line here */}
       </MapContainer>
     </div>
   );
