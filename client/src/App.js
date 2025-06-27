@@ -1,79 +1,92 @@
-import React, { useState, useRef } from "react";
-import { GoogleMap, useLoadScript, DrawingManager, Autocomplete } from "@react-google-maps/api";
-import DrawingToolbar from "./components/DrawingToolbar";
-import { onShapeComplete, handlePlaceChanged, handleLocateUser } from "./utils/mapUtils";
+import React, { useRef } from "react";
+import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import "@geoman-io/leaflet-geoman-free";
+import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
+import L from "leaflet";
+
 import Menu from './components/Menu';
 import TopMenu from './components/TopMenu';
-
+import { handleLocateUser, handlePlaceChanged } from "./utils/mapUtils";
 
 import "./styles/map.css";
 import "./styles/topmenu.css";
 import "./styles/menu.css";
 
-const containerStyle = { width: "100vw", height: "100vh" };
-const center = { lat: 45.0, lng: -122.0 };
+const center = [45.0, -122.0];
+
+function DrawingTools({ mapRef }) {
+  const map = useMap();
+  mapRef.current = map;
+
+  React.useEffect(() => {
+    map.pm.addControls({
+      position: "topleft",
+      drawPolygon: true,
+      drawCircle: true,
+      drawRectangle: true,
+      editMode: true,
+      dragMode: true,
+      cutPolygon: false,
+      removalMode: true,
+    });
+
+    map.on("pm:create", (e) => {
+      console.log("Shape created:", e.layer.toGeoJSON());
+    });
+
+    return () => {
+      map.off("pm:create");
+    };
+  }, [map]);
+
+  return null;
+}
 
 function App() {
-  const [isMapDraggable, setIsMapDraggable] = useState(true);
-  const [activeTool, setActiveTool] = useState(null);
-  const [shapes, setShapes] = useState([]);
-  const mapRef = useRef();
-  const drawingManagerRef = useRef(null);
-  const autocompleteRef = useRef(null);
-
-  const { isLoaded } = useLoadScript({
-    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
-    libraries: ["drawing", "places"],
-  });
-
-  if (!isLoaded) return <div>Loading map...</div>;
+  const mapRef = useRef(null);
+  const searchRef = useRef(null);
 
   return (
     <div className="map-container">
       <TopMenu />
-      <Menu onSelect={(option) => console.log('Selected:', option)} />
+      <Menu onSelect={(option) => console.log("Selected:", option)} />
 
-      <Autocomplete
-        onLoad={(auto) => (autocompleteRef.current = auto)}
-        onPlaceChanged={() => handlePlaceChanged(autocompleteRef, mapRef)}
-      >
-        <input className="search-box" placeholder="Search a place" />
-      </Autocomplete>
-
-      <DrawingToolbar
-        isMapDraggable={isMapDraggable}
-        setIsMapDraggable={setIsMapDraggable}
-        activeTool={activeTool}
-        setActiveTool={setActiveTool}
-        shapes={shapes}
-        setShapes={setShapes}
-        mapRef={mapRef}
-        drawingManagerRef={drawingManagerRef}
+      <input
+        className="search-box"
+        placeholder="Search a place"
+        ref={searchRef}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") handlePlaceChanged(searchRef, mapRef);
+        }}
       />
 
-      <button className="locate-btn" onClick={() => handleLocateUser(mapRef)} title="Locate Me">
-        <svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke="black" strokeWidth="2"/><circle cx="12" cy="12" r="9" stroke="black" strokeWidth="2"/><line x1="12" y1="2" x2="12" y2="5" stroke="black" strokeWidth="2"/><line x1="12" y1="19" x2="12" y2="22" stroke="black" strokeWidth="2"/><line x1="2" y1="12" x2="5" y2="12" stroke="black" strokeWidth="2"/><line x1="19" y1="12" x2="22" y2="12" stroke="black" strokeWidth="2"/></svg>
+      <button
+        className="locate-btn"
+        onClick={() => handleLocateUser(mapRef)}
+        title="Locate Me"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3" stroke="black" strokeWidth="2" />
+          <circle cx="12" cy="12" r="9" stroke="black" strokeWidth="2" />
+          <line x1="12" y1="2" x2="12" y2="5" stroke="black" strokeWidth="2" />
+          <line x1="12" y1="19" x2="12" y2="22" stroke="black" strokeWidth="2" />
+          <line x1="2" y1="12" x2="5" y2="12" stroke="black" strokeWidth="2" />
+          <line x1="19" y1="12" x2="22" y2="12" stroke="black" strokeWidth="2" />
+        </svg>
       </button>
 
-      <GoogleMap
-        mapContainerStyle={containerStyle}
+      <MapContainer
         center={center}
         zoom={8}
-        onLoad={(map) => (mapRef.current = map)}
+        style={{ width: "100vw", height: "100vh", zIndex: 0 }}
       >
-        <DrawingManager
-          onLoad={(dm) => (drawingManagerRef.current = dm)}
-          onPolygonComplete={(shape) => onShapeComplete(shape, setShapes)}
-          onCircleComplete={(shape) => onShapeComplete(shape, setShapes)}
-          onRectangleComplete={(shape) => onShapeComplete(shape, setShapes)}
-          options={{
-            drawingControl: false,
-            polygonOptions: { fillColor: "#00FF00", fillOpacity: 0.3, strokeWeight: 2 },
-            circleOptions: { fillColor: "#FF0000", fillOpacity: 0.3, strokeWeight: 2 },
-            rectangleOptions: { fillColor: "#0000FF", fillOpacity: 0.3, strokeWeight: 2 },
-          }}
+        <TileLayer
+          url="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+          attribution="&copy; Esri, DigitalGlobe, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, and others"
         />
-      </GoogleMap>
+        <DrawingTools mapRef={mapRef} />
+      </MapContainer>
     </div>
   );
 }
