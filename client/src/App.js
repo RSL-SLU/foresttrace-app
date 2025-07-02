@@ -1,9 +1,15 @@
 import React, { useRef } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "@geoman-io/leaflet-geoman-free";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
-import L from "leaflet";
+import "leaflet.vectorgrid";  // ✅ Move here
+import { VectorTile } from "@mapbox/vector-tile";
+import Protobuf from "pbf";
+
+
+import { useEffect, useState } from 'react';
 
 import Menu from './components/Menu';
 import TopMenu from './components/TopMenu';
@@ -13,7 +19,7 @@ import "./styles/map.css";
 import "./styles/topmenu.css";
 import "./styles/menu.css";
 
-const center = [45.0, -122.0];
+const center = [49.80318325874751, -92.8087780822145];
 
 function DrawingTools({ mapRef }) {
   const map = useMap();
@@ -43,36 +49,117 @@ function DrawingTools({ mapRef }) {
   return null;
 }
 
-import { useMap } from "react-leaflet";
-import "leaflet.vectorgrid";
-
 function VectorTileLayer() {
   const map = useMap();
+  const layerRef = useRef(L.layerGroup());
+  const [loading, setLoading] = useState(false);
 
-  React.useEffect(() => {
-    const vectorLayer = L.vectorGrid.protobuf("/results/tiles/{z}/{x}/{y}.pbf", {
-      vectorTileLayerStyles: {
-        layer0: {
-          fill: true,
-          fillColor: "#FF0000",
-          fillOpacity: 0.4,
-          stroke: true,
-          color: "#000",
-          weight: 1,
-        },
-      },
-      interactive: true,
-    });
+  function getTileCoords(lat, lng, z) {
+    const tileSize = 256;
+    const worldCoord = map.project([lat, lng], z);
+    return {
+      x: Math.floor(worldCoord.x / tileSize),
+      y: Math.floor(worldCoord.y / tileSize),
+      z,
+    };
+  }
 
-    vectorLayer.addTo(map);
+  useEffect(() => {
+    layerRef.current.addTo(map);
+
+    function loadTiles() {
+      const bounds = map.getBounds();
+      const zoom = map.getZoom();
+      if (zoom < 6 || zoom > 10) return;
+
+      const nw = bounds.getNorthWest();
+      const se = bounds.getSouthEast();
+
+      const nwTile = getTileCoords(nw.lat, nw.lng, zoom);
+      const seTile = getTileCoords(se.lat, se.lng, zoom);
+
+      console.log(`🗺️ Loading tiles for zoom ${zoom}:`, nwTile, seTile);
+
+      layerRef.current.clearLayers();
+      setLoading(true);
+
+      const promises = [];
+
+      for (let x = nwTile.x; x <= seTile.x; x++) {
+        for (let y = nwTile.y; y <= seTile.y; y++) {
+          const url = `http://127.0.0.1:5000/tiles/${zoom}/${x}/${y}.geojson`;
+          console.log("📦 Fetching:", url);
+
+          const promise = fetch(url)
+            .then(res => {
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              return res.json();
+            })
+            .then(data => {
+              if (!data || !data.features || data.features.length === 0) {
+                console.log(`📭 Empty tile: ${zoom}/${x}/${y}`);
+                return;
+              }
+
+              const geoJsonLayer = L.geoJSON(data, {
+                style: {
+                  color: "#FF0000",
+                  weight: 1,
+                  fillOpacity: 0.3,
+                },
+                onEachFeature: (feature, layer) => {
+                  const { cluster, area } = feature.properties || {};
+                  if (cluster !== undefined) {
+                    layer.bindPopup(`Cluster: ${cluster}, Area: ${area}`);
+                  }
+                }
+              });
+
+              geoJsonLayer.addTo(layerRef.current);
+            })
+            .catch(err => {
+              console.warn("❌ Tile fetch failed:", url, err);
+            });
+
+          promises.push(promise);
+        }
+      }
+
+      Promise.allSettled(promises).then(() => {
+        setLoading(false);
+      });
+    }
+
+    map.on("moveend", loadTiles);
+    loadTiles();
 
     return () => {
-      map.removeLayer(vectorLayer);
+      map.off("moveend", loadTiles);
+      map.removeLayer(layerRef.current);
     };
   }, [map]);
 
-  return null;
+  return (
+    <>
+      {loading && (
+        <div style={{
+          position: "absolute",
+          top: "10px",
+          right: "10px",
+          padding: "8px 12px",
+          backgroundColor: "rgba(255,255,255,0.9)",
+          border: "1px solid #ccc",
+          borderRadius: "8px",
+          zIndex: 1000
+        }}>
+          <span role="status">🔄 Loading tiles...</span>
+        </div>
+      )}
+    </>
+  );
 }
+
+
 
 function App() {
   const mapRef = useRef(null);
