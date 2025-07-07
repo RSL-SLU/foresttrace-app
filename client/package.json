@@ -10,6 +10,8 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
     "leaflet": "^1.9.4",
+    "leaflet.tilelayer.colorfilter": "^1.2.5",
+    "leaflet.tilelayer.glcolorscale": "^1.0.1",
     "leaflet.vectorgrid": "^1.3.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

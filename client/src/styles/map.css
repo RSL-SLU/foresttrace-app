@@ -63,3 +63,25 @@
     cursor: pointer;
   }
   
+
+.stats-box {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background-color: white;
+  padding: 10px 14px;
+  border-radius: 8px;
+  box-shadow: 0 0 4px rgba(0,0,0,0.2);
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 1000;
+}
+
+.red-square {
+  width: 16px;
+  height: 16px;
+  background-color: red;
+}

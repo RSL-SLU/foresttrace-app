@@ -50,3 +50,7 @@
 }
 
 
+.leaflet-tile {
+  filter: brightness(0) saturate(100%) invert(15%) sepia(100%) saturate(900%) hue-rotate(-50deg);
+}
+

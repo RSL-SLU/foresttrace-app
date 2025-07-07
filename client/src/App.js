@@ -4,9 +4,6 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "@geoman-io/leaflet-geoman-free";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
-import "leaflet.vectorgrid";  // ✅ Move here
-import { VectorTile } from "@mapbox/vector-tile";
-import Protobuf from "pbf";
 
 
 import { useEffect, useState } from 'react';
@@ -49,122 +46,74 @@ function DrawingTools({ mapRef }) {
   return null;
 }
 
-function VectorTileLayer() {
-  const map = useMap();
-  const layerRef = useRef(L.layerGroup());
-  const [loading, setLoading] = useState(false);
+function RasterTileLayer({ onStatsUpdate }) {
+  const clearcutTilesRef = useRef(0);
+  const totalTilesRef = useRef(0);
+  const handleTileLoad = (e) => {
+    const img = e.tile;
 
-  function getTileCoords(lat, lng, z) {
-    const tileSize = 256;
-    const worldCoord = map.project([lat, lng], z);
-    return {
-      x: Math.floor(worldCoord.x / tileSize),
-      y: Math.floor(worldCoord.y / tileSize),
-      z,
-    };
-  }
+    // Simple heuristic: if tile has any visible content (opacity > 0)
+    if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+      totalTilesRef.current++;
 
-  useEffect(() => {
-    layerRef.current.addTo(map);
+      const tmpCanvas = document.createElement("canvas");
+      tmpCanvas.width = img.naturalWidth;
+      tmpCanvas.height = img.naturalHeight;
+      const ctx = tmpCanvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      const pixels = ctx.getImageData(0, 0, tmpCanvas.width, tmpCanvas.height).data;
 
-    function loadTiles() {
-      const bounds = map.getBounds();
-      const zoom = map.getZoom();
-      if (zoom < 6 || zoom > 10) return;
-
-      const nw = bounds.getNorthWest();
-      const se = bounds.getSouthEast();
-
-      const nwTile = getTileCoords(nw.lat, nw.lng, zoom);
-      const seTile = getTileCoords(se.lat, se.lng, zoom);
-
-      console.log(`🗺️ Loading tiles for zoom ${zoom}:`, nwTile, seTile);
-
-      layerRef.current.clearLayers();
-      setLoading(true);
-
-      const promises = [];
-
-      for (let x = nwTile.x; x <= seTile.x; x++) {
-        for (let y = nwTile.y; y <= seTile.y; y++) {
-          const url = `http://127.0.0.1:5000/tiles/${zoom}/${x}/${y}.geojson`;
-          console.log("📦 Fetching:", url);
-
-          const promise = fetch(url)
-            .then(res => {
-              if (!res.ok) throw new Error(`HTTP ${res.status}`);
-              return res.json();
-            })
-            .then(data => {
-              if (!data || !data.features || data.features.length === 0) {
-                console.log(`📭 Empty tile: ${zoom}/${x}/${y}`);
-                return;
-              }
-
-              const geoJsonLayer = L.geoJSON(data, {
-                style: {
-                  color: "#FF0000",
-                  weight: 1,
-                  fillOpacity: 0.3,
-                },
-                onEachFeature: (feature, layer) => {
-                  const { cluster, area } = feature.properties || {};
-                  if (cluster !== undefined) {
-                    layer.bindPopup(`Cluster: ${cluster}, Area: ${area}`);
-                  }
-                }
-              });
-
-              geoJsonLayer.addTo(layerRef.current);
-            })
-            .catch(err => {
-              console.warn("❌ Tile fetch failed:", url, err);
-            });
-
-          promises.push(promise);
+      // Check if the tile contains any red pixel
+      let containsRed = false;
+      for (let i = 0; i < pixels.length; i += 4) {
+        const r = pixels[i];
+        const g = pixels[i + 1];
+        const b = pixels[i + 2];
+        if (r === 255 && g === 0 && b === 0) {
+          containsRed = true;
+          break;
         }
       }
 
-      Promise.allSettled(promises).then(() => {
-        setLoading(false);
-      });
+      if (containsRed) {
+        clearcutTilesRef.current++;
+      }
+
+      const percentage = (
+        (clearcutTilesRef.current / totalTilesRef.current) *
+        100
+      ).toFixed(2);
+
+      if (onStatsUpdate) onStatsUpdate(percentage);
     }
+  };
 
-    map.on("moveend", loadTiles);
-    loadTiles();
 
-    return () => {
-      map.off("moveend", loadTiles);
-      map.removeLayer(layerRef.current);
-    };
-  }, [map]);
 
   return (
-    <>
-      {loading && (
-        <div style={{
-          position: "absolute",
-          top: "10px",
-          right: "10px",
-          padding: "8px 12px",
-          backgroundColor: "rgba(255,255,255,0.9)",
-          border: "1px solid #ccc",
-          borderRadius: "8px",
-          zIndex: 1000
-        }}>
-          <span role="status">🔄 Loading tiles...</span>
-        </div>
-      )}
-    </>
+    <TileLayer
+      url="/tiles/{z}/{x}/red_{y}.png"
+      minZoom={6}
+      maxZoom={12}
+      opacity={0.5}
+      zIndex={1000}
+      tms={true}
+      eventHandlers={{
+        tileload: handleTileLoad,
+        tileerror: (e) => console.warn("❌ Tile failed to load:", e.tile.src),
+      }}
+    />
   );
 }
-
 
 
 function App() {
   const mapRef = useRef(null);
   const searchRef = useRef(null);
+  const [mapReady, setMapReady] = useState(false); // ✅
+  const [clearcutPercent, setClearcutPercent] = useState(null);
 
+  console.log("mapReady", mapReady);
   return (
     <div className="map-container">
       <TopMenu />
@@ -184,28 +133,41 @@ function App() {
         onClick={() => handleLocateUser(mapRef)}
         title="Locate Me"
       >
-        <svg width="24" height="24" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="3" stroke="black" strokeWidth="2" />
-          <circle cx="12" cy="12" r="9" stroke="black" strokeWidth="2" />
-          <line x1="12" y1="2" x2="12" y2="5" stroke="black" strokeWidth="2" />
-          <line x1="12" y1="19" x2="12" y2="22" stroke="black" strokeWidth="2" />
-          <line x1="2" y1="12" x2="5" y2="12" stroke="black" strokeWidth="2" />
-          <line x1="19" y1="12" x2="22" y2="12" stroke="black" strokeWidth="2" />
-        </svg>
       </button>
 
+      
+      {clearcutPercent && (
+        <div className="stats-box">
+          <span className="red-square"></span>
+          Clearcut: {clearcutPercent}%
+        </div>
+      )}
+      <div className="loading-indicator" style={{ display: mapReady ? "none" : "block" }}>
+        Loading map...
+      </div>
       <MapContainer
         center={center}
         zoom={8}
+        minZoom={6}
+        maxZoom={12}
+        whenCreated={(mapInstance) => {
+      console.log("Map created", mapInstance);
+      mapRef.current = mapInstance;
+      setMapReady(true);
+    }}
         style={{ width: "100vw", height: "100vh", zIndex: 0 }}
       >
+        <RasterTileLayer onStatsUpdate={(p) => setClearcutPercent(p)} />
+
         <TileLayer
           url="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
           attribution="&copy; Esri, DigitalGlobe, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, and others"
         />
         <DrawingTools mapRef={mapRef} />
-        <VectorTileLayer />  {/* Add this line here */}
+        <RasterTileLayer />
       </MapContainer>
+
+
     </div>
   );
 }
