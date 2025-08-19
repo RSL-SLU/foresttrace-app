@@ -1,67 +1,75 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;  /* Prevent scrollbars */
+}
+
 .map-container {
     width: 100vw;
     height: 100vh;
     position: relative;
+    overflow: hidden;  /* Ensure no overflow inside */
   }
   
-  .search-box {
-    position: absolute;
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 300px;
-    height: 40px;
-    padding: 0 12px;
-    border-radius: 5px;
-    border: 1px solid #ccc;
-    font-size: 16px;
-    z-index: 20;
-  }
-  
-  .toolbar {
-    position: absolute;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 10;
-    display: flex;
-    flex-direction: row; /* changed from column to row */
-    gap: 10px;
-  }
-  
-  .toolbar button {
-    padding: 15px;
-    background: #fff;
-    border: 1px solid #ccc;
-    cursor: pointer;
-    font-size: 18px;
-    border-radius: 5px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-  
-  .toolbar button.active {
-    background: #ccc;
-  }
-  
-  .locate-btn {
-    position: absolute;
-    top: 50%;
-    right: 20px;
-    transform: translateY(-50%);
-    z-index: 5;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: #fff;
-    border: 2px solid #ccc;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-  }
+.search-box {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 300px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  font-size: 16px;
+  z-index: 20;
+}
+
+.toolbar {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  flex-direction: row; /* changed from column to row */
+  gap: 10px;
+}
+
+.toolbar button {
+  padding: 15px;
+  background: #fff;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  font-size: 18px;
+  border-radius: 5px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.toolbar button.active {
+  background: #ccc;
+}
+
+.locate-btn {
+  position: absolute;
+  top: 50%;
+  right: 20px;
+  transform: translateY(-50%);
+  z-index: 5;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #ccc;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
   
 
 .stats-box {
@@ -84,4 +92,31 @@
   width: 16px;
   height: 16px;
   background-color: red;
+}
+
+.search-box {
+  position: absolute;
+  top: 85px;
+  left: 200px;
+  z-index: 1200;
+  padding: 6px 12px;
+  font-size: 14px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  width: 220px;
+}
+
+.opacity-control {
+  position: absolute;
+  bottom: 20px;
+  right: 200px;
+  z-index: 1200;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.opacity-control input {
+  width: 150px;
 }

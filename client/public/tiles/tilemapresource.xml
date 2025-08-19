@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
     <TileMap version="1.0.0" tilemapservice="http://tms.osgeo.org/1.0.0">
-      <Title>wabigoon_01_2025_09_cluster_0.tif</Title>
+      <Title>temp.vrt</Title>
       <Abstract></Abstract>
       <SRS>EPSG:3857</SRS>
       <BoundingBox minx="-93.88426973071985" miny="49.19416180302605" maxx="-91.71301419690610" maxy="50.41183454332906"/>
       <Origin x="-93.88426973071985" y="49.19416180302605"/>
       <TileFormat width="256" height="256" mime-type="image/png" extension="png"/>
       <TileSets profile="mercator">
-        <TileSet href="11" units-per-pixel="76.43702827148438" order="11"/>
-        <TileSet href="12" units-per-pixel="38.21851413574219" order="12"/>
+        <TileSet href="13" units-per-pixel="19.10925706787109" order="13"/>
+        <TileSet href="14" units-per-pixel="9.55462853393555" order="14"/>
       </TileSets>
     </TileMap>
     
