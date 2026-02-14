@@ -11,6 +11,7 @@ import TopMenu from './components/TopMenu';
 import ModuleSelector from './components/ModuleSelector';
 import ModulePanel from './components/ModulePanel';
 import ClearcutDetection from './modules/ClearcutDetection';
+import BiomassModule from './modules/BiomassModule';
 import { handleLocateUser, handlePlaceChanged } from "./utils/mapUtils";
 
 import "./styles/map.css";
@@ -19,7 +20,7 @@ import "./styles/menu.css";
 import "./styles/layout.css";
 
 const center = [49.80318325874751, -92.8087780822145];
-const TILE_ZOOM_LEVELS = [6, 7, 8, 9, 13, 14];
+const TILE_ZOOM_LEVELS = [6, 7, 8, 9, 10, 11, 12, 13, 14];
 const TILE_ZOOM_RANGE = {
   min: Math.min(...TILE_ZOOM_LEVELS),
   max: Math.max(...TILE_ZOOM_LEVELS),
@@ -40,9 +41,10 @@ const MODULES = [
       { 
         id: 'clearcut-annual', 
         name: 'Annual Clearcuts', 
-        tileUrl: '/tiles/{z}/{x}/{year}/red_{y}.png',
+        tileUrl: '/tiles/clearcut/{year}/{z}/{x}/{y}.png',
         color: '#FF0000',
-        mode: 'annual'
+        mode: 'annual',
+        tms: false
       },
       { 
         id: 'clearcut-accumulated', 
@@ -64,18 +66,18 @@ const MODULES = [
     id: 'biomass',
     name: 'Biomass',
     icon: '🌿',
-    description: 'Mock visualization of biomass data',
-    component: ClearcutDetection,
+    description: 'Biomass density visualization',
+    component: BiomassModule,
     temporalOptions: {
-      yearRange: [2015, 2025],
+      yearRange: [2010, 2010],
     },
     layers: [
       { 
         id: 'biomass-density', 
         name: 'Biomass Density', 
-        tileUrl: '/tiles/{z}/{x}/{year}/biomass_{y}.png',
-        color: '#00AA00',
-        mode: 'annual'
+        tileUrl: '/tiles/biomass/agb/{year}/{z}/{x}/{y}.png',
+        mode: 'annual',
+        tms: false
       },
     ]
   },
@@ -92,14 +94,14 @@ const MODULES = [
       { 
         id: 'forest-mature', 
         name: 'Mature Forest', 
-        tileUrl: '/tiles/{z}/{x}/{year}/forest_mature_{y}.png',
+        tileUrl: '/tiles/{year}/{z}/{x}/forest_mature_{y}.png',
         color: '#1B4D1B',
         mode: 'annual'
       },
       { 
         id: 'forest-young', 
         name: 'Young Forest', 
-        tileUrl: '/tiles/{z}/{x}/{year}/forest_young_{y}.png',
+        tileUrl: '/tiles/{year}/{z}/{x}/forest_young_{y}.png',
         color: '#66BB6A',
         mode: 'annual'
       },
@@ -118,14 +120,14 @@ const MODULES = [
       { 
         id: 'wildlife-birds', 
         name: 'Bird Species', 
-        tileUrl: '/tiles/{z}/{x}/{year}/wildlife_birds_{y}.png',
+        tileUrl: '/tiles/{year}/{z}/{x}/wildlife_birds_{y}.png',
         color: '#FFD700',
         mode: 'annual'
       },
       { 
         id: 'wildlife-mammals', 
         name: 'Mammals', 
-        tileUrl: '/tiles/{z}/{x}/{year}/wildlife_mammals_{y}.png',
+        tileUrl: '/tiles/{year}/{z}/{x}/wildlife_mammals_{y}.png',
         color: '#8B4513',
         mode: 'annual'
       },
@@ -176,16 +178,17 @@ function ZoomControlPositioner({ position = "bottomleft" }) {
   return null;
 }
 
-function RasterTileLayer({ mapRef, onStatsUpdate, opacity = 0.50, tileUrl = '/tiles/{z}/{x}/red_{y}.png' }) {
+function RasterTileLayer({ mapRef, onStatsUpdate, opacity = 0.50, tileUrl = '/tiles/{z}/{x}/red_{y}.png', tms = true, layerId = '' }) {
   const map = useMap();
   const lowResLayerRef = useRef(null);
   const highResLayerRef = useRef(null);
+  const canvasLayerRef = useRef(null);
   const tileCountsRef = useRef(new Map());
   const styleTagRef = useRef(null);
 
   // Create/update dynamic CSS rule for tile opacity
   useEffect(() => {
-    console.log('RasterTileLayer useEffect - opacity changed to:', opacity);
+    console.log('RasterTileLayer useEffect - opacity changed to:', opacity, 'layerId:', layerId);
     
     // Create or update style tag with opacity rule
     if (!styleTagRef.current) {
@@ -196,16 +199,16 @@ function RasterTileLayer({ mapRef, onStatsUpdate, opacity = 0.50, tileUrl = '/ti
     }
     
     // Update the rule with current opacity - applies to all tiles
-    const rule = `img[src*="/tiles/"] { opacity: ${opacity} !important; }`;
+    const rule = `img[src*="/tiles/"], canvas.leaflet-tile { opacity: ${opacity} !important; }`;
     styleTagRef.current.textContent = rule;
     console.log('Updated CSS rule:', rule);
-  }, [opacity]);
+  }, [opacity, layerId]);
 
   const updateVisiblePercentage = () => {
     let visibleRed = 0;
     let visibleTotal = 0;
 
-    [lowResLayerRef.current, highResLayerRef.current].forEach((layer) => {
+    [lowResLayerRef.current, highResLayerRef.current, canvasLayerRef.current].forEach((layer) => {
       if (!layer || !layer._tiles) return;
       Object.values(layer._tiles).forEach((tile) => {
         if (!tile || !tile.coords) return;
@@ -270,6 +273,210 @@ function RasterTileLayer({ mapRef, onStatsUpdate, opacity = 0.50, tileUrl = '/ti
     };
   }, [map]);
 
+  // Create a custom canvas tile layer for colorizing biomass tiles
+  useEffect(() => {
+    if (!map || layerId !== 'biomass-density') return;
+
+    const CanvasTileLayer = L.GridLayer.extend({
+      createTile: function(coords, done) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 256;
+        const ctx = canvas.getContext('2d');
+        
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0);
+          
+          const imageData = ctx.getImageData(0, 0, 256, 256);
+          const pixels = imageData.data;
+          
+          // Continuous gradient with HIGH sensitivity to lower values
+          // Using power curve to emphasize low value differences
+          const getColorForIntensity = (rawIntensity) => {
+            // Apply power of 0.4 to make lower values VERY sensitive
+            const intensity = Math.pow(rawIntensity, 0.4);
+            
+            // Expanded gradient focused on low-value distinction
+            if (intensity < 0.3) {
+              // Light Yellow/Cream to Yellow (0-30%)
+              const t = intensity / 0.3;
+              return {
+                r: Math.round(255),
+                g: Math.round(200 + (55 * t)), // 200 → 255 (getting brighter)
+                b: Math.round(150 * (1 - t)) // 150 → 0 (losing cream/tan color)
+              };
+            } else if (intensity < 0.5) {
+              // Yellow to Yellow-Green (30-50%)
+              const t = (intensity - 0.3) / 0.2;
+              return {
+                r: Math.round(255 * (1 - t * 0.3)), // 255 → 178
+                g: Math.round(255),
+                b: Math.round(0)
+              };
+            } else if (intensity < 0.7) {
+              // Yellow-Green to Bright Green (50-70%)
+              const t = (intensity - 0.5) / 0.2;
+              return {
+                r: Math.round(178 * (1 - t)), // 178 → 0
+                g: Math.round(255),
+                b: Math.round(0)
+              };
+            } else {
+              // Bright Green to Dark Forest Green (70-100%)
+              const t = (intensity - 0.7) / 0.3;
+              return {
+                r: 0,
+                g: Math.round(255 - (155 * t)), // 255 → 100
+                b: Math.round(80 * t) // 0 → 80
+              };
+            }
+          };
+          
+          for (let i = 0; i < pixels.length; i += 4) {
+            const r = pixels[i];
+            const g = pixels[i + 1];
+            const b = pixels[i + 2];
+            const a = pixels[i + 3];
+            
+            // Skip transparent pixels
+            if (a === 0) continue;
+            
+            // Get grayscale value (all channels are the same in grayscale)
+            const intensity = g / 255;
+            
+            // Apply color gradient
+            const color = getColorForIntensity(intensity);
+            pixels[i] = color.r;
+            pixels[i + 1] = color.g;
+            pixels[i + 2] = color.b;
+          }
+          
+          ctx.putImageData(imageData, 0, 0);
+          done(null, canvas);
+        };
+        
+        img.onerror = () => done(null, canvas);
+        
+        const url = L.Util.template(tileUrl, coords);
+        img.src = url;
+        
+        return canvas;
+      }
+    });
+
+    const canvasLayer = new CanvasTileLayer({
+      minZoom: TILE_ZOOM_RANGE.min,
+      maxZoom: TILE_ZOOM_RANGE.max,
+      tms: tms,
+      zIndex: 10
+    });
+
+    canvasLayerRef.current = canvasLayer;
+    canvasLayer.addTo(map);
+
+    return () => {
+      map.removeLayer(canvasLayer);
+      canvasLayerRef.current = null;
+    };
+  }, [map, layerId, tileUrl, tms]);
+
+  // Create a custom canvas tile layer for colorizing clearcut tiles to red
+  useEffect(() => {
+    if (!map || layerId !== 'clearcut-annual') return;
+
+    const CanvasTileLayer = L.GridLayer.extend({
+      createTile: function(coords, done) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 256;
+        const ctx = canvas.getContext('2d');
+        
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0);
+          
+          const imageData = ctx.getImageData(0, 0, 256, 256);
+          const pixels = imageData.data;
+          
+          // Count clearcut pixels (bright/white pixels in grayscale)
+          let clearcutCount = 0;
+          let totalCount = 0;
+          
+          for (let i = 0; i < pixels.length; i += 4) {
+            const r = pixels[i];
+            const g = pixels[i + 1];
+            const b = pixels[i + 2];
+            const a = pixels[i + 3];
+            
+            totalCount++;
+            
+            // Count non-transparent white/bright pixels as clearcut areas
+            // In grayscale, clearcut areas are white/bright (high intensity)
+            if (a > 0 && r > 200) {  // Threshold for "clearcut" pixels
+              clearcutCount++;
+            }
+            
+            // Skip transparent pixels for colorization
+            if (a === 0) continue;
+            
+            // Get grayscale intensity (use any channel, they're all the same in grayscale)
+            const intensity = r / 255;
+            
+            // Convert white/gray to red, keeping the intensity
+            // White (255,255,255) becomes bright red (255,0,0)
+            // Gray becomes darker red proportionally
+            pixels[i] = Math.round(255 * intensity);     // Red channel
+            pixels[i + 1] = 0;                           // Green channel (0)
+            pixels[i + 2] = 0;                           // Blue channel (0)
+            // Keep alpha as is
+          }
+          
+          // Store tile counts for percentage calculation
+          const key = `${coords.z}/${coords.x}/${coords.y}`;
+          tileCountsRef.current.set(key, { red: clearcutCount, total: totalCount });
+          
+          ctx.putImageData(imageData, 0, 0);
+          done(null, canvas);
+          
+          // Update percentage after tile is processed
+          updateVisiblePercentage();
+        };
+        
+        img.onerror = () => done(null, canvas);
+        
+        const url = L.Util.template(tileUrl, coords);
+        img.src = url;
+        
+        return canvas;
+      }
+    });
+
+    const canvasLayer = new CanvasTileLayer({
+      minZoom: TILE_ZOOM_RANGE.min,
+      maxZoom: TILE_ZOOM_RANGE.max,
+      tms: tms,
+      zIndex: 10
+    });
+
+    canvasLayerRef.current = canvasLayer;
+    canvasLayer.addTo(map);
+
+    return () => {
+      map.removeLayer(canvasLayer);
+      canvasLayerRef.current = null;
+    };
+  }, [map, layerId, tileUrl, tms]);
+
+  // If using canvas colorization for biomass or clearcut, don't render standard TileLayers
+  if (layerId === 'biomass-density' || layerId === 'clearcut-annual') {
+    return null;
+  }
+
   return (
     <>
       <TileLayer
@@ -277,9 +484,9 @@ function RasterTileLayer({ mapRef, onStatsUpdate, opacity = 0.50, tileUrl = '/ti
         url={tileUrl}
         minZoom={TILE_ZOOM_RANGE.min}
         maxZoom={12}
-        maxNativeZoom={9}
+        maxNativeZoom={12}
         zIndex={10}
-        tms={true}
+        tms={tms}
         crossOrigin="anonymous"
         eventHandlers={{
           tileload: (e) => {
@@ -295,7 +502,7 @@ function RasterTileLayer({ mapRef, onStatsUpdate, opacity = 0.50, tileUrl = '/ti
         maxZoom={TILE_ZOOM_RANGE.max}
         maxNativeZoom={TILE_ZOOM_RANGE.max}
         zIndex={10}
-        tms={true}
+        tms={tms}
         crossOrigin="anonymous"
         eventHandlers={{
           tileload: (e) => {
@@ -317,14 +524,25 @@ function App() {
   const [clearcutPercent, setClearcutPercent] = useState(null);
   const [rasterOpacity, setRasterOpacity] = useState(0.50);
   const [selectedModule, setSelectedModule] = useState(MODULES[0]); // Default to first module
-  const [selectedYear, setSelectedYear] = useState(2025);
+  const [selectedYear, setSelectedYear] = useState(MODULES[0]?.temporalOptions?.yearRange?.[1] || 2025);
+  
+  // Store year per module
+  const [moduleYears, setModuleYears] = useState(() => {
+    const initial = {};
+    MODULES.forEach(module => {
+      if (module.temporalOptions?.yearRange) {
+        initial[module.id] = module.temporalOptions.yearRange[1]; // Max year
+      }
+    });
+    return initial;
+  });
   
   // Track which layers are active for each module
   const [activeLayers, setActiveLayers] = useState(() => {
     const initial = {};
     MODULES.forEach(module => {
-      // By default, enable the first layer of each module
-      initial[module.id] = [module.layers[0].id];
+      // By default, only enable the first layer of the first module
+      initial[module.id] = module === MODULES[0] ? [module.layers[0].id] : [];
     });
     return initial;
   });
@@ -388,6 +606,30 @@ function App() {
     opacity: rasterOpacity,
   };
 
+  // Handle module selection with year adjustment
+  const handleModuleSelect = useCallback((module) => {
+    setSelectedModule(module);
+    
+    // Restore the saved year for this module
+    if (moduleYears[module.id] !== undefined) {
+      setSelectedYear(moduleYears[module.id]);
+    } else if (module.temporalOptions?.yearRange) {
+      const [minYear, maxYear] = module.temporalOptions.yearRange;
+      setSelectedYear(maxYear);
+    }
+  }, [moduleYears]);
+  
+  // Handle year change and save it for the current module
+  const handleYearChange = useCallback((year) => {
+    setSelectedYear(year);
+    if (selectedModule?.id) {
+      setModuleYears(prev => ({
+        ...prev,
+        [selectedModule.id]: year
+      }));
+    }
+  }, [selectedModule]);
+
   return (
     <div className="app-wrapper">
       <TopMenu />
@@ -396,9 +638,9 @@ function App() {
         <ModuleSelector
           modules={MODULES}
           selectedModule={selectedModule}
-          onModuleSelect={setSelectedModule}
-          activeLayers={activeLayers[selectedModule?.id] || []}
-          onLayerToggle={(layerId) => handleLayerToggle(selectedModule?.id, layerId)}
+          onModuleSelect={handleModuleSelect}
+          activeLayers={activeLayers}
+          onLayerToggle={handleLayerToggle}
         />
 
         {/* Center - Map */}
@@ -448,24 +690,29 @@ function App() {
             />
 
             
-            {/* Render tile layers for all active layers in selected module */}
-            {(activeLayers[selectedModule?.id] || []).map((layerId) => {
-              const layer = selectedModule?.layers?.find(l => l.id === layerId);
-              if (!layer) return null;
-              
-              // Substitute year placeholder
-              let tileUrl = layer.tileUrl.replace('{year}', selectedYear);
-              
-              return (
-                <RasterTileLayer
-                  key={`${layer.id}-${selectedYear}`}
-                  mapRef={mapRef}
-                  onStatsUpdate={(p) => setClearcutPercent(p)}
-                  opacity={rasterOpacity}
-                  tileUrl={tileUrl}
-                  layerId={layer.id}
-                />
-              );
+            {/* Render tile layers for all active layers from ALL modules */}
+            {MODULES.flatMap((module) => {
+              const moduleActiveLayers = activeLayers[module.id] || [];
+              return moduleActiveLayers.map((layerId) => {
+                const layer = module.layers?.find(l => l.id === layerId);
+                if (!layer) return null;
+                
+                // Use the module's specific year instead of global selectedYear
+                const moduleYear = moduleYears[module.id] || selectedYear;
+                let tileUrl = layer.tileUrl.replace('{year}', moduleYear);
+                
+                return (
+                  <RasterTileLayer
+                    key={`${layer.id}-${moduleYear}`}
+                    mapRef={mapRef}
+                    onStatsUpdate={(p) => setClearcutPercent(p)}
+                    opacity={rasterOpacity}
+                    tileUrl={tileUrl}
+                    layerId={layer.id}
+                    tms={layer.tms !== undefined ? layer.tms : true}
+                  />
+                );
+              });
             })}
 
             <DrawingTools mapRef={mapRef} />
@@ -479,7 +726,7 @@ function App() {
             module={selectedModule} 
             data={moduleData}
             selectedYear={selectedYear}
-            onYearChange={setSelectedYear}
+            onYearChange={handleYearChange}
             yearRange={selectedModule?.temporalOptions?.yearRange || [2015, 2024]}
           />
           <div className="right-column-logo">
