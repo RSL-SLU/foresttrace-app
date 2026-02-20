@@ -1,5 +1,5 @@
-import React, { useRef, useState, useCallback } from "react";
-import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import React, { useRef, useState, useCallback, useMemo } from "react";
+import { MapContainer, TileLayer, useMap, GeoJSON } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "@geoman-io/leaflet-geoman-free";
@@ -10,6 +10,7 @@ import { useEffect } from 'react';
 import TopMenu from './components/TopMenu';
 import ModuleSelector from './components/ModuleSelector';
 import ModulePanel from './components/ModulePanel';
+import FMUSelector from './components/FMUSelector';
 import ClearcutDetection from './modules/ClearcutDetection';
 import BiomassModule from './modules/BiomassModule';
 import { handleLocateUser, handlePlaceChanged } from "./utils/mapUtils";
@@ -41,7 +42,7 @@ const MODULES = [
       { 
         id: 'clearcut-annual', 
         name: 'Annual Clearcuts', 
-        tileUrl: '/tiles/clearcut/{year}/{z}/{x}/{y}.png',
+        tileUrl: '/tiles/clearcut/{region}_{year}/{z}/{x}/{y}.png',
         color: '#FF0000',
         mode: 'annual',
         tms: false
@@ -75,7 +76,7 @@ const MODULES = [
       { 
         id: 'biomass-density', 
         name: 'Biomass Density', 
-        tileUrl: '/tiles/biomass/agb/{year}/{z}/{x}/{y}.png',
+        tileUrl: '/tiles/biomass/{region}_{year}_agb/{z}/{x}/{y}.png',
         mode: 'annual',
         tms: false
       },
@@ -163,6 +164,56 @@ function DrawingTools({ mapRef }) {
   return null;
 }
 
+function RegionBoundaries({ selectedFMUs }) {
+  const [regionsData, setRegionsData] = useState(null);
+  const map = useMap();
+
+  useEffect(() => {
+    // Load regions.json
+    fetch('/data/regions.json')
+      .then(res => res.json())
+      .then(data => setRegionsData(data))
+      .catch(err => console.error('Failed to load regions:', err));
+  }, []);
+
+  // Memoize the filtered GeoJSON to prevent unnecessary re-filtering
+  const filteredGeoJSON = useMemo(() => {
+    if (!regionsData || selectedFMUs.length === 0) return null;
+
+    const filteredFeatures = regionsData.features?.filter(feature => {
+      const regionId = feature.properties?.id?.toLowerCase();
+      return selectedFMUs.some(fmu => fmu.toLowerCase() === regionId);
+    }) || [];
+
+    if (filteredFeatures.length === 0) return null;
+
+    return {
+      type: 'FeatureCollection',
+      features: filteredFeatures
+    };
+  }, [regionsData, selectedFMUs]);
+
+
+
+  // Memoize the style callback to prevent unnecessary re-creation
+  const onEachFeature = useCallback((feature, layer) => {
+    layer.setStyle({
+      color: '#ffffff',
+      weight: 2,
+      opacity: 0.9,
+      fillOpacity: 0
+    });
+  }, []);
+
+  if (!filteredGeoJSON) return null;
+
+  // Create key based on sorted feature IDs to trigger updates when regions change
+  // This is necessary for react-leaflet's GeoJSON to detect data changes
+  const featureIds = filteredGeoJSON.features.map(f => f.properties?.id).sort().join('-');
+  
+  return <GeoJSON key={featureIds} data={filteredGeoJSON} onEachFeature={onEachFeature} />;
+}
+
 function ZoomControlPositioner({ position = "bottomleft" }) {
   const map = useMap();
 
@@ -188,8 +239,6 @@ function RasterTileLayer({ mapRef, onStatsUpdate, opacity = 0.50, tileUrl = '/ti
 
   // Create/update dynamic CSS rule for tile opacity
   useEffect(() => {
-    console.log('RasterTileLayer useEffect - opacity changed to:', opacity, 'layerId:', layerId);
-    
     // Create or update style tag with opacity rule
     if (!styleTagRef.current) {
       const style = document.createElement('style');
@@ -201,7 +250,6 @@ function RasterTileLayer({ mapRef, onStatsUpdate, opacity = 0.50, tileUrl = '/ti
     // Update the rule with current opacity - applies to all tiles
     const rule = `img[src*="/tiles/"], canvas.leaflet-tile { opacity: ${opacity} !important; }`;
     styleTagRef.current.textContent = rule;
-    console.log('Updated CSS rule:', rule);
   }, [opacity, layerId]);
 
   const updateVisiblePercentage = () => {
@@ -229,8 +277,6 @@ function RasterTileLayer({ mapRef, onStatsUpdate, opacity = 0.50, tileUrl = '/ti
 
   const handleTileLoad = useCallback((e) => {
     const img = e.tile;
-    // Opacity is controlled by CSS rule with !important
-    console.log('Tile loaded:', e.coords);
 
     if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
       const tmpCanvas = document.createElement("canvas");
@@ -490,7 +536,6 @@ function RasterTileLayer({ mapRef, onStatsUpdate, opacity = 0.50, tileUrl = '/ti
         crossOrigin="anonymous"
         eventHandlers={{
           tileload: (e) => {
-            console.log('TILELOAD EVENT FIRED', e);
             handleTileLoad(e);
           },
         }}
@@ -506,7 +551,6 @@ function RasterTileLayer({ mapRef, onStatsUpdate, opacity = 0.50, tileUrl = '/ti
         crossOrigin="anonymous"
         eventHandlers={{
           tileload: (e) => {
-            console.log('TILELOAD EVENT FIRED', e);
             handleTileLoad(e);
           },
         }}
@@ -525,6 +569,7 @@ function App() {
   const [rasterOpacity, setRasterOpacity] = useState(0.50);
   const [selectedModule, setSelectedModule] = useState(MODULES[0]); // Default to first module
   const [selectedYear, setSelectedYear] = useState(MODULES[0]?.temporalOptions?.yearRange?.[1] || 2025);
+  const [selectedFMUs, setSelectedFMUs] = useState(['wabigoon']); // Default to Wabigoon
   
   // Store year per module
   const [moduleYears, setModuleYears] = useState(() => {
@@ -657,6 +702,11 @@ function App() {
             />
           </div>
 
+          <FMUSelector 
+            values={selectedFMUs}
+            onChange={setSelectedFMUs}
+          />
+
           <button
             className="locate-btn"
             onClick={() => handleLocateUser(mapRef)}
@@ -693,27 +743,36 @@ function App() {
             {/* Render tile layers for all active layers from ALL modules */}
             {MODULES.flatMap((module) => {
               const moduleActiveLayers = activeLayers[module.id] || [];
-              return moduleActiveLayers.map((layerId) => {
+              return moduleActiveLayers.flatMap((layerId) => {
                 const layer = module.layers?.find(l => l.id === layerId);
                 if (!layer) return null;
                 
+                // Don't render tiles if no FMUs are selected
+                if (selectedFMUs.length === 0) return null;
+                
                 // Use the module's specific year instead of global selectedYear
                 const moduleYear = moduleYears[module.id] || selectedYear;
-                let tileUrl = layer.tileUrl.replace('{year}', moduleYear);
                 
-                return (
-                  <RasterTileLayer
-                    key={`${layer.id}-${moduleYear}`}
-                    mapRef={mapRef}
-                    onStatsUpdate={(p) => setClearcutPercent(p)}
-                    opacity={rasterOpacity}
-                    tileUrl={tileUrl}
-                    layerId={layer.id}
-                    tms={layer.tms !== undefined ? layer.tms : true}
-                  />
-                );
+                return selectedFMUs.map((region) => {
+                  let tileUrl = layer.tileUrl.replace('{year}', moduleYear);
+                  tileUrl = tileUrl.replace('{region}', region);
+                  
+                  return (
+                    <RasterTileLayer
+                      key={`${layer.id}-${region}-${moduleYear}`}
+                      mapRef={mapRef}
+                      onStatsUpdate={(p) => setClearcutPercent(p)}
+                      opacity={rasterOpacity}
+                      tileUrl={tileUrl}
+                      layerId={layer.id}
+                      tms={layer.tms !== undefined ? layer.tms : true}
+                    />
+                  );
+                });
               });
             })}
+
+            <RegionBoundaries selectedFMUs={selectedFMUs} />
 
             <DrawingTools mapRef={mapRef} />
             <ZoomControlPositioner position="bottomleft" />
