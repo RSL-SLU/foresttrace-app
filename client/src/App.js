@@ -170,7 +170,7 @@ function RegionBoundaries({ selectedFMUs }) {
 
   useEffect(() => {
     // Load regions.json
-    fetch('/data/regions.json')
+    fetch('/data/regions-simplified.json')
       .then(res => res.json())
       .then(data => setRegionsData(data))
       .catch(err => console.error('Failed to load regions:', err));
