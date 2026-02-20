@@ -339,44 +339,90 @@ function RasterTileLayer({ mapRef, onStatsUpdate, opacity = 0.50, tileUrl = '/ti
           const imageData = ctx.getImageData(0, 0, 256, 256);
           const pixels = imageData.data;
           
-          // Continuous gradient with HIGH sensitivity to lower values
-          // Using power curve to emphasize low value differences
+          // Debug: Sample pixel values across entire tile
+          const samplePixels = [];
+          const zeroPixels = [];
+          // Sample every 10th pixel to get ~2600 samples from 65536 pixels
+          for (let i = 0; i < pixels.length; i += 40) { // 40 = 4 channels * 10 pixels
+            if (pixels[i + 3] > 0) { // Only check opaque pixels
+              const val = pixels[i + 1]; // Green channel
+              if (val > 0) {
+                samplePixels.push(val);
+              } else {
+                zeroPixels.push(1);
+              }
+            }
+          }
+          if (samplePixels.length > 0) {
+            const avg = samplePixels.reduce((a, b) => a + b) / samplePixels.length;
+            const max = Math.max(...samplePixels);
+            const min = Math.min(...samplePixels);
+            console.log(`Tile pixel values (${samplePixels.length} non-zero + ${zeroPixels.length} zeros) - Min: ${min}, Max: ${max}, Avg: ${avg.toFixed(1)}, AGB: ${((min/255)*1000).toFixed(1)}-${((max/255)*1000).toFixed(1)} Mg/ha`);
+          }
+          
+          // Color mapping based on actual AGB values (Mg/ha)
+          // PNG tiles encoded with max=1000: decoder set to 1000
+          // Green threshold: 50 Mg/ha (matches pixel max of ~51)
           const getColorForIntensity = (rawIntensity) => {
-            // Apply power of 0.4 to make lower values VERY sensitive
-            const intensity = Math.pow(rawIntensity, 0.4);
+            // Convert grayscale (0-255) to AGB (0-1000 Mg/ha)
+            const agb = (rawIntensity / 255) * 1000;
             
-            // Expanded gradient focused on low-value distinction
-            if (intensity < 0.3) {
-              // Light Yellow/Cream to Yellow (0-30%)
-              const t = intensity / 0.3;
+            // Color thresholds optimized for 0-150 Mg/ha (typical data range)
+            if (agb < 10) {
+              // Tan (0-10 Mg/ha)
+              const t = agb / 10;
               return {
-                r: Math.round(255),
-                g: Math.round(200 + (55 * t)), // 200 → 255 (getting brighter)
-                b: Math.round(150 * (1 - t)) // 150 → 0 (losing cream/tan color)
+                r: Math.round(220 - (100 * t)), // 220 → 120
+                g: Math.round(180 - (95 * t)),  // 180 → 85
+                b: Math.round(140 - (100 * t))  // 140 → 40
               };
-            } else if (intensity < 0.5) {
-              // Yellow to Yellow-Green (30-50%)
-              const t = (intensity - 0.3) / 0.2;
+            } else if (agb < 25) {
+              // Tan to Light Orange (10-25 Mg/ha)
+              const t = (agb - 10) / 15;
               return {
-                r: Math.round(255 * (1 - t * 0.3)), // 255 → 178
-                g: Math.round(255),
-                b: Math.round(0)
+                r: Math.round(120 + (135 * t)), // 120 → 255
+                g: Math.round(85 + (155 * t)),  // 85 → 240
+                b: Math.round(40)               // 40 (constant)
               };
-            } else if (intensity < 0.7) {
-              // Yellow-Green to Bright Green (50-70%)
-              const t = (intensity - 0.5) / 0.2;
+            } else if (agb < 40) {
+              // Light Orange to Bright Orange (25-40 Mg/ha)
+              const t = (agb - 25) / 15;
               return {
-                r: Math.round(178 * (1 - t)), // 178 → 0
-                g: Math.round(255),
-                b: Math.round(0)
+                r: Math.round(255),             // 255 (constant)
+                g: Math.round(240 - (50 * t)),  // 240 → 190
+                b: Math.round(40)               // 40 (constant)
+              };
+            } else if (agb < 50) {
+              // Bright Orange to Yellow (40-50 Mg/ha)
+              const t = (agb - 40) / 10;
+              return {
+                r: Math.round(255),             // 255 (constant)
+                g: Math.round(190 + (65 * t)),  // 190 → 255
+                b: Math.round(40)               // 40 (constant)
+              };
+            } else if (agb < 85) {
+              // Green (50-85 Mg/ha) - light to bright green
+              const t = (agb - 50) / 35;
+              return {
+                r: Math.round(50 * (1 - t)),   // 50 → 0
+                g: Math.round(220 + (35 * t)), // 220 → 255
+                b: Math.round(0)                // 0 (constant)
+              };
+            } else if (agb < 120) {
+              // Bright Green (85-120 Mg/ha)
+              const t = (agb - 85) / 35;
+              return {
+                r: 0,                          // 0 (stays 0)
+                g: Math.round(255),             // 255 (constant)
+                b: Math.round(20 * t)           // 0 → 20
               };
             } else {
-              // Bright Green to Dark Forest Green (70-100%)
-              const t = (intensity - 0.7) / 0.3;
+              // Bright Green to Dark Green (120+ Mg/ha)
+              const t = Math.min(1, (agb - 120) / 30);
               return {
                 r: 0,
-                g: Math.round(255 - (155 * t)), // 255 → 100
-                b: Math.round(80 * t) // 0 → 80
+                g: Math.round(255 - (90 * t)),  // 255 → 165
+                b: Math.round(50 * t)           // 0 → 50
               };
             }
           };
@@ -391,10 +437,8 @@ function RasterTileLayer({ mapRef, onStatsUpdate, opacity = 0.50, tileUrl = '/ti
             if (a === 0) continue;
             
             // Get grayscale value (all channels are the same in grayscale)
-            const intensity = g / 255;
-            
-            // Apply color gradient
-            const color = getColorForIntensity(intensity);
+            // Pass raw intensity (0-255) to color function
+            const color = getColorForIntensity(g);
             pixels[i] = color.r;
             pixels[i + 1] = color.g;
             pixels[i + 2] = color.b;
