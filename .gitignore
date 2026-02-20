@@ -145,3 +145,6 @@ package-lock.json
 package-lock.json
 client/package-lock.json
 package-lock.json
+client/package-lock.json
+
+*.zip

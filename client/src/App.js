@@ -27,6 +27,24 @@ const TILE_ZOOM_RANGE = {
   max: Math.max(...TILE_ZOOM_LEVELS),
 };
 
+const BIOMASS_BINS = [
+  { label: '0-10', min: 0, max: 10 },
+  { label: '10-25', min: 10, max: 25 },
+  { label: '25-40', min: 25, max: 40 },
+  { label: '40-50', min: 40, max: 50 },
+  { label: '50-70', min: 50, max: 70 },
+  { label: '70-100', min: 70, max: 100 },
+  { label: '100+', min: 100, max: Infinity },
+];
+
+const createEmptyBiomassHistogram = () => BIOMASS_BINS.map((bin) => ({
+  label: bin.label,
+  min: bin.min,
+  max: bin.max,
+  area: 0,
+  pixels: 0,
+}));
+
 // Available modules - add new modules here
 const MODULES = [
   {
@@ -229,12 +247,13 @@ function ZoomControlPositioner({ position = "bottomleft" }) {
   return null;
 }
 
-function RasterTileLayer({ mapRef, onStatsUpdate, opacity = 0.50, tileUrl = '/tiles/{z}/{x}/red_{y}.png', tms = true, layerId = '' }) {
+function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opacity = 0.50, tileUrl = '/tiles/{z}/{x}/red_{y}.png', tms = true, layerId = '' }) {
   const map = useMap();
   const lowResLayerRef = useRef(null);
   const highResLayerRef = useRef(null);
   const canvasLayerRef = useRef(null);
   const tileCountsRef = useRef(new Map());
+  const biomassTileHistogramRef = useRef(new Map());
   const styleTagRef = useRef(null);
 
   // Create/update dynamic CSS rule for tile opacity
@@ -308,6 +327,26 @@ function RasterTileLayer({ mapRef, onStatsUpdate, opacity = 0.50, tileUrl = '/ti
     }
   }, [onStatsUpdate]);
 
+  const getTilePixelAreaHa = (coords) => {
+    const tilesPerAxis = Math.pow(2, coords.z);
+    const centerY = coords.y + 0.5;
+    const latRad = Math.atan(Math.sinh(Math.PI * (1 - (2 * centerY) / tilesPerAxis)));
+    const metersPerPixel = (156543.03392 * Math.cos(latRad)) / tilesPerAxis;
+    return (metersPerPixel * metersPerPixel) / 10000;
+  };
+
+  const emitBiomassHistogram = useCallback(() => {
+    if (!onBiomassHistogramUpdate) return;
+    const combined = createEmptyBiomassHistogram();
+    biomassTileHistogramRef.current.forEach((tileBins) => {
+      tileBins.forEach((tileBin, idx) => {
+        combined[idx].area += tileBin.area;
+        combined[idx].pixels += tileBin.pixels;
+      });
+    });
+    onBiomassHistogramUpdate(combined);
+  }, [onBiomassHistogramUpdate]);
+
   useEffect(() => {
     if (!map) return;
     const handleMove = () => updateVisiblePercentage();
@@ -322,6 +361,11 @@ function RasterTileLayer({ mapRef, onStatsUpdate, opacity = 0.50, tileUrl = '/ti
   // Create a custom canvas tile layer for colorizing biomass tiles
   useEffect(() => {
     if (!map || layerId !== 'biomass-density') return;
+
+    biomassTileHistogramRef.current.clear();
+    if (onBiomassHistogramUpdate) {
+      onBiomassHistogramUpdate(createEmptyBiomassHistogram());
+    }
 
     const CanvasTileLayer = L.GridLayer.extend({
       createTile: function(coords, done) {
@@ -427,14 +471,25 @@ function RasterTileLayer({ mapRef, onStatsUpdate, opacity = 0.50, tileUrl = '/ti
             }
           };
           
+          const tileHistogram = createEmptyBiomassHistogram();
+          const pixelAreaHa = getTilePixelAreaHa(coords);
+
           for (let i = 0; i < pixels.length; i += 4) {
-            const r = pixels[i];
             const g = pixels[i + 1];
-            const b = pixels[i + 2];
             const a = pixels[i + 3];
             
             // Skip transparent pixels
             if (a === 0) continue;
+
+            const agb = (g / 255) * 1000;
+            for (let binIdx = 0; binIdx < BIOMASS_BINS.length; binIdx++) {
+              const bin = BIOMASS_BINS[binIdx];
+              if (agb >= bin.min && agb < bin.max) {
+                tileHistogram[binIdx].pixels += 1;
+                tileHistogram[binIdx].area += pixelAreaHa;
+                break;
+              }
+            }
             
             // Get grayscale value (all channels are the same in grayscale)
             // Pass raw intensity (0-255) to color function
@@ -443,6 +498,10 @@ function RasterTileLayer({ mapRef, onStatsUpdate, opacity = 0.50, tileUrl = '/ti
             pixels[i + 1] = color.g;
             pixels[i + 2] = color.b;
           }
+
+          const tileKey = `${coords.z}/${coords.x}/${coords.y}`;
+          biomassTileHistogramRef.current.set(tileKey, tileHistogram);
+          emitBiomassHistogram();
           
           ctx.putImageData(imageData, 0, 0);
           done(null, canvas);
@@ -467,11 +526,25 @@ function RasterTileLayer({ mapRef, onStatsUpdate, opacity = 0.50, tileUrl = '/ti
     canvasLayerRef.current = canvasLayer;
     canvasLayer.addTo(map);
 
+    const handleTileUnload = (event) => {
+      if (!event.coords) return;
+      const tileKey = `${event.coords.z}/${event.coords.x}/${event.coords.y}`;
+      biomassTileHistogramRef.current.delete(tileKey);
+      emitBiomassHistogram();
+    };
+
+    canvasLayer.on('tileunload', handleTileUnload);
+
     return () => {
+      canvasLayer.off('tileunload', handleTileUnload);
       map.removeLayer(canvasLayer);
       canvasLayerRef.current = null;
+      biomassTileHistogramRef.current.clear();
+      if (onBiomassHistogramUpdate) {
+        onBiomassHistogramUpdate(createEmptyBiomassHistogram());
+      }
     };
-  }, [map, layerId, tileUrl, tms]);
+  }, [map, layerId, tileUrl, tms, onBiomassHistogramUpdate, emitBiomassHistogram]);
 
   // Create a custom canvas tile layer for colorizing clearcut tiles to red
   useEffect(() => {
@@ -610,6 +683,7 @@ function App() {
   const autocompleteRef = useRef(null);
   const [mapReady, setMapReady] = useState(false);
   const [clearcutPercent, setClearcutPercent] = useState(null);
+  const [biomassHistogram, setBiomassHistogram] = useState(createEmptyBiomassHistogram());
   const [rasterOpacity, setRasterOpacity] = useState(0.50);
   const [selectedModule, setSelectedModule] = useState(MODULES[0]); // Default to first module
   const [selectedYear, setSelectedYear] = useState(MODULES[0]?.temporalOptions?.yearRange?.[1] || 2025);
@@ -693,6 +767,7 @@ function App() {
   const moduleData = {
     percentage: clearcutPercent,
     opacity: rasterOpacity,
+    biomassHistogram,
   };
 
   // Handle module selection with year adjustment
@@ -806,6 +881,7 @@ function App() {
                       key={`${layer.id}-${region}-${moduleYear}`}
                       mapRef={mapRef}
                       onStatsUpdate={(p) => setClearcutPercent(p)}
+                      onBiomassHistogramUpdate={setBiomassHistogram}
                       opacity={rasterOpacity}
                       tileUrl={tileUrl}
                       layerId={layer.id}

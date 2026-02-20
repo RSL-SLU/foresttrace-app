@@ -1,10 +1,25 @@
 import React from 'react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+
+const EMPTY_HISTOGRAM = [
+  { label: '0-10', area: 0, pixels: 0 },
+  { label: '10-25', area: 0, pixels: 0 },
+  { label: '25-40', area: 0, pixels: 0 },
+  { label: '40-50', area: 0, pixels: 0 },
+  { label: '50-70', area: 0, pixels: 0 },
+  { label: '70-100', area: 0, pixels: 0 },
+  { label: '100+', area: 0, pixels: 0 },
+];
 
 /**
  * Biomass Module Component
  * Displays biomass density visualization controls and legend
  */
 function BiomassModule({ data }) {
+  const histogram = Array.isArray(data?.biomassHistogram) ? data.biomassHistogram : EMPTY_HISTOGRAM;
+  const hasHistogramData = histogram.some((bin) => (bin.pixels || 0) > 0 || (bin.area || 0) > 0);
+  const totalArea = histogram.reduce((sum, bin) => sum + (bin.area || 0), 0);
+
   return (
     <div className="biomass-module">
       <div className="module-section">
@@ -64,6 +79,38 @@ function BiomassModule({ data }) {
         <div className="legend-note">
           <small>AGB = Above Ground Biomass<br/>
           Green starts at ~50 Mg/ha. Max display: 135 Mg/ha</small>
+        </div>
+      </div>
+
+      <div className="module-section">
+        <h3>Biomass Area Distribution</h3>
+        <div className="biomass-chart">
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={histogram} layout="vertical" margin={{ left: 5, right: 12, top: 6, bottom: 8 }}>
+              <XAxis
+                type="number"
+                tick={{ fontSize: 12 }}
+                tickCount={4}
+                minTickGap={24}
+                interval="preserveStartEnd"
+                tickFormatter={(v) => v.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                label={{ value: 'Area (ha)', position: 'insideBottomRight', offset: -4, style: { fontSize: 12 } }}
+              />
+              <YAxis type="category" dataKey="label" width={44} tick={{ fontSize: 12 }} />
+              <Tooltip
+                formatter={(v) => `${Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 })} ha`}
+                labelStyle={{ fontSize: 12 }}
+                itemStyle={{ fontSize: 12 }}
+              />
+              <Bar dataKey="area" fill="#4caf50" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        {!hasHistogramData && (
+          <div className="biomass-chart-status">Loading biomass stats or no biomass tiles in current view.</div>
+        )}
+        <div style={{ fontSize: 11, color: '#666', marginTop: 6 }}>
+          <span>Area per biomass interval (hectares). Total shown: {totalArea.toLocaleString(undefined, { maximumFractionDigits: 2 })} ha.</span>
         </div>
       </div>
     </div>
