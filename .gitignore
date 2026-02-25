@@ -148,3 +148,4 @@ package-lock.json
 client/package-lock.json
 
 *.zip
+.DS_Store
