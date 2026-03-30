@@ -14,6 +14,7 @@ import FMUSelector from './components/FMUSelector';
 import ClearcutDetection from './modules/ClearcutDetection';
 import BiomassModule from './modules/BiomassModule';
 import { handleLocateUser, handlePlaceChanged } from "./utils/mapUtils";
+import { CLEARCUT_PLANET_YEARS, CLEARCUT_SENSOR_SUBFOLDER_YEARS } from "./utils/clearcutAreaStats";
 
 import "./styles/map.css";
 import "./styles/topmenu.css";
@@ -54,7 +55,7 @@ const MODULES = [
     description: 'Detect and analyze clearcut areas',
     component: ClearcutDetection,
     temporalOptions: {
-      yearRange: [2015, 2025],
+      yearRange: [2010, 2025],
     },
     layers: [
       { 
@@ -107,7 +108,7 @@ const MODULES = [
     description: 'Forest type and age classification',
     component: ClearcutDetection,
     temporalOptions: {
-      yearRange: [2015, 2025],
+      yearRange: [2010, 2025],
     },
     layers: [
       { 
@@ -688,6 +689,7 @@ function App() {
   const [selectedModule, setSelectedModule] = useState(MODULES[0]); // Default to first module
   const [selectedYear, setSelectedYear] = useState(MODULES[0]?.temporalOptions?.yearRange?.[1] || 2025);
   const [selectedFMUs, setSelectedFMUs] = useState(['wabigoon']); // Default to Wabigoon
+  const [selectedSensor, setSelectedSensor] = useState('hls');
   
   // Store year per module
   const [moduleYears, setModuleYears] = useState(() => {
@@ -721,6 +723,18 @@ function App() {
       }
     });
   };
+
+  // Auto-reset sensor to HLS when the active year has no data for the selected sensor
+  useEffect(() => {
+    const moduleYear = moduleYears[selectedModule?.id] ?? selectedYear;
+    if (selectedSensor === 'planet' && !CLEARCUT_PLANET_YEARS.includes(moduleYear)) {
+      setSelectedSensor('hls');
+    }
+  }, [selectedYear, moduleYears, selectedModule, selectedSensor]);
+
+  const handleSensorChange = useCallback((sensor) => {
+    setSelectedSensor(sensor);
+  }, []);
 
   // Handle opacity changes from module panel
   useEffect(() => {
@@ -768,6 +782,10 @@ function App() {
     percentage: clearcutPercent,
     opacity: rasterOpacity,
     biomassHistogram,
+    selectedFMUs,
+    selectedSensor,
+    onSensorChange: handleSensorChange,
+    selectedYear,
   };
 
   // Handle module selection with year adjustment
@@ -875,10 +893,20 @@ function App() {
                 return selectedFMUs.map((region) => {
                   let tileUrl = layer.tileUrl.replace('{year}', moduleYear);
                   tileUrl = tileUrl.replace('{region}', region);
-                  
+
+                  // Insert sensor subfolder for years that use hls/ or planet/ subdirectories
+                  if (layer.id === 'clearcut-annual' && CLEARCUT_SENSOR_SUBFOLDER_YEARS.includes(moduleYear)) {
+                    const folder = selectedSensor === 'planet' && CLEARCUT_PLANET_YEARS.includes(moduleYear)
+                      ? 'planet' : 'hls';
+                    tileUrl = tileUrl.replace(
+                      `/tiles/clearcut/${region}_${moduleYear}/`,
+                      `/tiles/clearcut/${region}_${moduleYear}/${folder}/`
+                    );
+                  }
+
                   return (
                     <RasterTileLayer
-                      key={`${layer.id}-${region}-${moduleYear}`}
+                      key={`${layer.id}-${region}-${moduleYear}-${selectedSensor}`}
                       mapRef={mapRef}
                       onStatsUpdate={(p) => setClearcutPercent(p)}
                       onBiomassHistogramUpdate={setBiomassHistogram}
@@ -906,7 +934,7 @@ function App() {
             data={moduleData}
             selectedYear={selectedYear}
             onYearChange={handleYearChange}
-            yearRange={selectedModule?.temporalOptions?.yearRange || [2015, 2024]}
+            yearRange={selectedModule?.temporalOptions?.yearRange || [2010, 2024]}
           />
           <div className="right-column-logo">
             <img className="logo-image logo-light" src="/rsl-logo.png" alt="Remote Sensing Lab and Saint Louis University" />
