@@ -11,6 +11,8 @@
  *   y (XYZ): 1381–1403
  */
 
+import { TILES_BASE_URL } from '../config';
+
 const STATS_ZOOM = 12;
 
 // X columns present in all clearcut years for wabigoon
@@ -33,9 +35,9 @@ function buildTileUrl(region, year, x, yXyz, sensor) {
   const z = STATS_ZOOM;
   if (CLEARCUT_SENSOR_SUBFOLDER_YEARS.includes(year)) {
     const folder = sensor === 'planet' && CLEARCUT_PLANET_YEARS.includes(year) ? 'planet' : 'hls';
-    return `/tiles/clearcut/${region}_${year}/${folder}/${z}/${x}/${yXyz}.png`;
+    return `${TILES_BASE_URL}/tiles/clearcut/${region}_${year}/${folder}/${z}/${x}/${yXyz}.png`;
   }
-  return `/tiles/clearcut/${region}_${year}/${z}/${x}/${yXyz}.png`;
+  return `${TILES_BASE_URL}/tiles/clearcut/${region}_${year}/${z}/${x}/${yXyz}.png`;
 }
 
 function getTilePixelAreaHa(yXyz) {

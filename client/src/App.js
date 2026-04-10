@@ -15,6 +15,7 @@ import ClearcutDetection from './modules/ClearcutDetection';
 import BiomassModule from './modules/BiomassModule';
 import { handleLocateUser, handlePlaceChanged } from "./utils/mapUtils";
 import { CLEARCUT_PLANET_YEARS, CLEARCUT_SENSOR_SUBFOLDER_YEARS } from "./utils/clearcutAreaStats";
+import { TILES_BASE_URL, DATA_BASE_URL } from "./config";
 
 import "./styles/map.css";
 import "./styles/topmenu.css";
@@ -61,7 +62,7 @@ const MODULES = [
       { 
         id: 'clearcut-annual', 
         name: 'Annual Clearcuts', 
-        tileUrl: '/tiles/clearcut/{region}_{year}/{z}/{x}/{y}.png',
+        tileUrl: `${TILES_BASE_URL}/tiles/clearcut/{region}_{year}/{z}/{x}/{y}.png`,
         color: '#FF0000',
         mode: 'annual',
         tms: false
@@ -69,14 +70,14 @@ const MODULES = [
       { 
         id: 'clearcut-accumulated', 
         name: 'Accumulated Clearcuts', 
-        tileUrl: '/tiles/{z}/{x}/accumulated_{y}.png',
+        tileUrl: `${TILES_BASE_URL}/tiles/{z}/{x}/accumulated_{y}.png`,
         color: '#FF6600',
         mode: 'accumulated'
       },
       { 
         id: 'clearcut-frequency', 
         name: 'Frequency', 
-        tileUrl: '/tiles/{z}/{x}/frequency_{y}.png',
+        tileUrl: `${TILES_BASE_URL}/tiles/{z}/{x}/frequency_{y}.png`,
         color: '#FF9900',
         mode: 'frequency'
       },
@@ -95,7 +96,7 @@ const MODULES = [
       { 
         id: 'biomass-density', 
         name: 'Biomass Density', 
-        tileUrl: '/tiles/biomass/{region}_{year}_agb/{z}/{x}/{y}.png',
+        tileUrl: `${TILES_BASE_URL}/tiles/biomass/{region}_{year}_agb/{z}/{x}/{y}.png`,
         mode: 'annual',
         tms: false
       },
@@ -114,14 +115,14 @@ const MODULES = [
       { 
         id: 'forest-mature', 
         name: 'Mature Forest', 
-        tileUrl: '/tiles/{year}/{z}/{x}/forest_mature_{y}.png',
+        tileUrl: `${TILES_BASE_URL}/tiles/{year}/{z}/{x}/forest_mature_{y}.png`,
         color: '#1B4D1B',
         mode: 'annual'
       },
       { 
         id: 'forest-young', 
         name: 'Young Forest', 
-        tileUrl: '/tiles/{year}/{z}/{x}/forest_young_{y}.png',
+        tileUrl: `${TILES_BASE_URL}/tiles/{year}/{z}/{x}/forest_young_{y}.png`,
         color: '#66BB6A',
         mode: 'annual'
       },
@@ -140,14 +141,14 @@ const MODULES = [
       { 
         id: 'wildlife-birds', 
         name: 'Bird Species', 
-        tileUrl: '/tiles/{year}/{z}/{x}/wildlife_birds_{y}.png',
+        tileUrl: `${TILES_BASE_URL}/tiles/{year}/{z}/{x}/wildlife_birds_{y}.png`,
         color: '#FFD700',
         mode: 'annual'
       },
       { 
         id: 'wildlife-mammals', 
         name: 'Mammals', 
-        tileUrl: '/tiles/{year}/{z}/{x}/wildlife_mammals_{y}.png',
+        tileUrl: `${TILES_BASE_URL}/tiles/{year}/{z}/{x}/wildlife_mammals_{y}.png`,
         color: '#8B4513',
         mode: 'annual'
       },
@@ -189,7 +190,7 @@ function RegionBoundaries({ selectedFMUs }) {
 
   useEffect(() => {
     // Load regions.json
-    fetch('/data/regions-simplified.json')
+    fetch(`${DATA_BASE_URL}/data/regions-simplified.json`)
       .then(res => res.json())
       .then(data => setRegionsData(data))
       .catch(err => console.error('Failed to load regions:', err));
@@ -248,7 +249,7 @@ function ZoomControlPositioner({ position = "bottomleft" }) {
   return null;
 }
 
-function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opacity = 0.50, tileUrl = '/tiles/{z}/{x}/red_{y}.png', tms = true, layerId = '' }) {
+function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opacity = 0.50, tileUrl = `${TILES_BASE_URL}/tiles/{z}/{x}/red_{y}.png`, tms = true, layerId = '' }) {
   const map = useMap();
   const lowResLayerRef = useRef(null);
   const highResLayerRef = useRef(null);
@@ -899,8 +900,8 @@ function App() {
                     const folder = selectedSensor === 'planet' && CLEARCUT_PLANET_YEARS.includes(moduleYear)
                       ? 'planet' : 'hls';
                     tileUrl = tileUrl.replace(
-                      `/tiles/clearcut/${region}_${moduleYear}/`,
-                      `/tiles/clearcut/${region}_${moduleYear}/${folder}/`
+                      `${TILES_BASE_URL}/tiles/clearcut/${region}_${moduleYear}/`,
+                      `${TILES_BASE_URL}/tiles/clearcut/${region}_${moduleYear}/${folder}/`
                     );
                   }
 
