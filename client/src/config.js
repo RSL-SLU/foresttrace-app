@@ -11,5 +11,3 @@ export const TILES_BASE_URL = process.env.REACT_APP_TILES_BASE_URL || '';
 
 // Base URL for static data files (GeoJSON, etc.). No trailing slash.
 export const DATA_BASE_URL = process.env.REACT_APP_DATA_BASE_URL || '';
-
-// https://pub-8f0dff38416c4731a8b07c734030ec5f.r2.dev
