@@ -11,6 +11,13 @@ import TopMenu from './components/TopMenu';
 import ModuleSelector from './components/ModuleSelector';
 import ModulePanel from './components/ModulePanel';
 import FMUSelector from './components/FMUSelector';
+import MobileWarning from './components/MobileWarning';
+import LandingPage from './components/LandingPage';
+import AboutPage from './pages/AboutPage';
+import HelpPage from './pages/HelpPage';
+import NewsPage from './pages/NewsPage';
+import PublicationPage from './pages/PublicationPage';
+import DocumentationPage from './pages/DocumentationPage';
 import ClearcutDetection from './modules/ClearcutDetection';
 import BiomassModule from './modules/BiomassModule';
 import { handleLocateUser, handlePlaceChanged } from "./utils/mapUtils";
@@ -678,6 +685,8 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
 
 
 function App() {
+  const [showApp, setShowApp] = useState(false);
+  const [activePage, setActivePage] = useState(null);
   const mapRef = useRef(null);
   const searchRef = useRef(null);
   const autocompleteRef = useRef(null);
@@ -811,9 +820,41 @@ function App() {
     }
   }, [selectedModule]);
 
+  const PAGE_MAP = {
+    about: AboutPage,
+    help: HelpPage,
+    news: NewsPage,
+    publication: PublicationPage,
+    documentation: DocumentationPage,
+  };
+
+  if (!showApp) {
+    return <LandingPage onEnter={() => setShowApp(true)} />;
+  }
+
+  if (activePage) {
+    const PageComponent = PAGE_MAP[activePage];
+    return (
+      <div className="app-wrapper">
+        <MobileWarning />
+        <TopMenu
+          onNavigate={setActivePage}
+          onHome={() => setActivePage(null)}
+          activePage={activePage}
+        />
+        {PageComponent && <PageComponent onBack={() => setActivePage(null)} />}
+      </div>
+    );
+  }
+
   return (
     <div className="app-wrapper">
-      <TopMenu />
+      <MobileWarning />
+      <TopMenu
+        onNavigate={setActivePage}
+        onHome={() => { setShowApp(false); setActivePage(null); }}
+        activePage={activePage}
+      />
       <div className="layout-container">
         {/* Left Sidebar - Module Selector */}
         <ModuleSelector

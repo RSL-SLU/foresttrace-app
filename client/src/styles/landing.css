@@ -1,0 +1,230 @@
+/* ── Landing Page ──────────────────────────────────────────── */
+
+.landing {
+  min-height: 100vh;
+  background: #0a1a0f;
+  color: #e8f5e9;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  overflow-x: hidden;
+}
+
+/* Hero */
+.landing-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 80px 24px 64px;
+  background: linear-gradient(180deg, #0d2b14 0%, #0a1a0f 100%);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  position: relative;
+  overflow: hidden;
+}
+
+.landing-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 50% 0%, rgba(34,139,34,0.15) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.landing-logo {
+  height: 70px;
+  margin-bottom: 28px;
+  filter: brightness(0) invert(1);
+  opacity: 0.9;
+}
+
+.landing-title {
+  font-size: clamp(36px, 6vw, 64px);
+  font-weight: 800;
+  letter-spacing: -1px;
+  margin: 0 0 8px;
+  background: linear-gradient(135deg, #6fcf6f 0%, #a8e6a8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.landing-subtitle {
+  font-size: clamp(15px, 2vw, 18px);
+  color: #9ecf9e;
+  margin: 0 0 16px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.landing-description {
+  max-width: 680px;
+  font-size: clamp(15px, 2vw, 17px);
+  line-height: 1.75;
+  color: #c8e6c9;
+  margin: 0 auto 40px;
+}
+
+.landing-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 36px;
+  background: linear-gradient(135deg, #2e7d32, #43a047);
+  color: #fff;
+  font-size: 17px;
+  font-weight: 700;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 4px 24px rgba(46,125,50,0.45);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  letter-spacing: 0.3px;
+}
+
+.landing-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(46,125,50,0.6);
+}
+
+.landing-cta-arrow {
+  font-size: 20px;
+  transition: transform 0.2s ease;
+}
+
+.landing-cta:hover .landing-cta-arrow {
+  transform: translateX(4px);
+}
+
+/* Sections */
+.landing-section {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 72px 32px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.landing-section:last-of-type {
+  border-bottom: none;
+}
+
+.landing-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #66bb6a;
+  margin: 0 0 12px;
+}
+
+.landing-section-heading {
+  font-size: clamp(22px, 3vw, 30px);
+  font-weight: 700;
+  margin: 0 0 32px;
+  color: #e8f5e9;
+}
+
+/* Cards grid */
+.landing-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 20px;
+}
+
+.landing-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 24px;
+  transition: background 0.2s ease;
+}
+
+.landing-card:hover {
+  background: rgba(255,255,255,0.07);
+}
+
+.landing-card-icon {
+  font-size: 28px;
+  margin-bottom: 14px;
+  display: block;
+}
+
+.landing-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  color: #e8f5e9;
+}
+
+.landing-card-text {
+  font-size: 13px;
+  color: #9ecf9e;
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* About / two-column layout */
+.landing-about {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: start;
+}
+
+.landing-about-text {
+  font-size: 15px;
+  color: #b2dfb2;
+  line-height: 1.8;
+  margin: 0 0 16px;
+}
+
+.landing-about-text strong {
+  color: #e8f5e9;
+}
+
+.landing-uni-logo {
+  height: 54px;
+  margin-top: 24px;
+  filter: brightness(0) invert(1);
+  opacity: 0.7;
+}
+
+/* Partners */
+.landing-partners {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.landing-partner-badge {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #c8e6c9;
+}
+
+/* Footer */
+.landing-footer {
+  text-align: center;
+  padding: 32px;
+  font-size: 13px;
+  color: #4a7a4a;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .landing-about {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .landing-section {
+    padding: 48px 20px;
+  }
+}

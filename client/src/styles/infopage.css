@@ -1,0 +1,213 @@
+/* ── Info Pages (About, Help, News, Publication, Documentation) ── */
+
+.infopage {
+  min-height: calc(100vh - 60px);
+  background: #f5f7fa;
+  padding: 48px 32px;
+  overflow-y: auto;
+}
+
+body.dark-mode .infopage {
+  background: #121212;
+  color: #e0e0e0;
+}
+
+.infopage-inner {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.infopage-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: #1976d2;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 32px;
+}
+
+.infopage-back:hover {
+  text-decoration: underline;
+}
+
+body.dark-mode .infopage-back {
+  color: #90caf9;
+}
+
+.infopage-tag {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #1976d2;
+  margin: 0 0 10px;
+}
+
+body.dark-mode .infopage-tag {
+  color: #90caf9;
+}
+
+.infopage-title {
+  font-size: clamp(24px, 3vw, 36px);
+  font-weight: 800;
+  color: #1a1a2e;
+  margin: 0 0 12px;
+}
+
+body.dark-mode .infopage-title {
+  color: #e0e0e0;
+}
+
+.infopage-lead {
+  font-size: 16px;
+  color: #555;
+  line-height: 1.75;
+  margin: 0 0 40px;
+  max-width: 700px;
+}
+
+body.dark-mode .infopage-lead {
+  color: #b0b0b0;
+}
+
+.infopage-divider {
+  border: none;
+  border-top: 1px solid rgba(0,0,0,0.08);
+  margin: 40px 0;
+}
+
+body.dark-mode .infopage-divider {
+  border-top-color: rgba(255,255,255,0.08);
+}
+
+/* Sections */
+.infopage-section {
+  margin-bottom: 40px;
+}
+
+.infopage-section h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 12px;
+}
+
+body.dark-mode .infopage-section h2 {
+  color: #e0e0e0;
+}
+
+.infopage-section p {
+  font-size: 15px;
+  color: #444;
+  line-height: 1.8;
+  margin: 0 0 12px;
+}
+
+body.dark-mode .infopage-section p {
+  color: #b0b0b0;
+}
+
+.infopage-section ul {
+  padding-left: 20px;
+  margin: 0 0 12px;
+}
+
+.infopage-section li {
+  font-size: 15px;
+  color: #444;
+  line-height: 1.8;
+  margin-bottom: 4px;
+}
+
+body.dark-mode .infopage-section li {
+  color: #b0b0b0;
+}
+
+/* Cards */
+.infopage-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.infopage-card {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 10px;
+  padding: 20px;
+}
+
+body.dark-mode .infopage-card {
+  background: #1e1e1e;
+  border-color: #2b2b2b;
+}
+
+.infopage-card h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  color: #1a1a2e;
+}
+
+body.dark-mode .infopage-card h3 {
+  color: #e0e0e0;
+}
+
+.infopage-card p {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.65;
+  margin: 0;
+}
+
+body.dark-mode .infopage-card p {
+  color: #999;
+}
+
+/* Pill badge */
+.infopage-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  background: #e3f2fd;
+  color: #1565c0;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+body.dark-mode .infopage-badge {
+  background: #1a2a3a;
+  color: #90caf9;
+}
+
+/* Contact / callout box */
+.infopage-callout {
+  background: #e8f5e9;
+  border-left: 4px solid #2e7d32;
+  border-radius: 0 8px 8px 0;
+  padding: 16px 20px;
+  margin: 24px 0;
+}
+
+body.dark-mode .infopage-callout {
+  background: #0d2b14;
+  border-left-color: #43a047;
+}
+
+.infopage-callout p {
+  font-size: 14px;
+  color: #2e4a2e;
+  margin: 0;
+  line-height: 1.6;
+}
+
+body.dark-mode .infopage-callout p {
+  color: #a5d6a7;
+}

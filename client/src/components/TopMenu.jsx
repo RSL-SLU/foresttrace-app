@@ -1,6 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
-function TopMenu() {
+const NAV_ITEMS = [
+  { id: 'about', label: 'About' },
+  { id: 'help', label: 'Help' },
+  { id: 'news', label: 'News' },
+  { id: 'publication', label: 'Publication' },
+  { id: 'documentation', label: 'Documentation' },
+];
+
+function TopMenu({ onNavigate, onHome, activePage }) {
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem('darkMode') === 'true';
   });
@@ -30,11 +38,21 @@ function TopMenu() {
           </div>
         </div>
         <nav className="nav-links">
-          <a href="#about">About</a>
-          <a href="#help">Help</a>
-          <a href="#news">News</a>
-          <a href="#publication">Publication</a>
-          <a href="#documentation">Documentation</a>
+          <button
+            className={`nav-link-btn${!activePage ? ' nav-link-btn--active' : ''}`}
+            onClick={onHome}
+          >
+            Home
+          </button>
+          {NAV_ITEMS.map(({ id, label }) => (
+            <button
+              key={id}
+              className={`nav-link-btn${activePage === id ? ' nav-link-btn--active' : ''}`}
+              onClick={() => onNavigate && onNavigate(id)}
+            >
+              {label}
+            </button>
+          ))}
         </nav>
       </div>
       <div className="menu-right">
