@@ -148,3 +148,9 @@ client/package-lock.json
 
 *.zip
 .DS_Store
+
+# Local data/tile processing scripts (keep local only)
+analyze_biomass_tiles.py
+cleanup_synthetic_tiles.py
+generate_tiles*.py
+reorganize_tiles.py
