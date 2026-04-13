@@ -829,7 +829,23 @@ function App() {
   };
 
   if (!showApp) {
-    return <LandingPage onEnter={() => setShowApp(true)} />;
+    return (
+      <LandingPage
+        onEnter={() => setShowApp(true)}
+        onOpenAbout={() => {
+          setShowApp(true);
+          setActivePage('about');
+        }}
+        onOpenNews={() => {
+          setShowApp(true);
+          setActivePage('news');
+        }}
+        onOpenDocumentation={() => {
+          setShowApp(true);
+          setActivePage('documentation');
+        }}
+      />
+    );
   }
 
   if (activePage) {

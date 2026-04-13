@@ -8,6 +8,18 @@ const NEWS_ITEMS = [
     body: 'High-resolution Planet imagery is now available for the 2025 dataset, providing sub-10 m clearcut detection alongside the existing HLS time series.',
   },
   {
+    date: 'December2025',
+    badge: 'Presentation',
+    title: 'ForestTrace at AGU 2025',
+    body: 'Our paper "Boreal Forest Regrowth Stage Classification Using Multi-Sensor Remote Sensing and Machine Learning" was presented at the AGU Fall Meeting 2025, showcasing our latest methods for characterizing post-clearcut regrowth dynamics.',
+  },
+  {
+    date: 'November 2025',
+    badge: 'Platform Launch',
+    title: 'ForestTrace Goes Public',
+    body: 'The ForestTrace web platform was officially launched, making boreal forest monitoring data accessible through an interactive map interface.',
+  },
+  {
     date: 'January 2025',
     badge: 'Dataset',
     title: '2024 Clearcut Season Released',
@@ -16,15 +28,9 @@ const NEWS_ITEMS = [
   {
     date: 'September 2024',
     badge: 'Partnership',
-    title: 'Collaboration with Wabigoon Lake Ojibway Nation',
-    body: 'ForestTrace expanded its partnership with Wabigoon Lake Ojibway Nation to co-develop monitoring protocols aligned with Indigenous land stewardship priorities.',
-  },
-  {
-    date: 'March 2024',
-    badge: 'Platform Launch',
-    title: 'ForestTrace Goes Public',
-    body: 'The ForestTrace web platform was officially launched, making boreal forest monitoring data accessible through an interactive map interface.',
-  },
+    title: 'Collaboration with Private Donor Secured',
+    body: 'ForestTrace has secured funding for the year of 2025 from a private donor to support ongoing platform development and data processing efforts, ensuring sustainability and continued updates.',
+  }
 ];
 
 function NewsPage({ onBack }) {

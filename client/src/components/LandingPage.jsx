@@ -23,14 +23,55 @@ const METHODS = [
   },
 ];
 
-const PARTNERS = [
-  'Wabigoon Lake Ojibway Nation',
-  'Ontario Ministry of Natural Resources',
-  'Planet Labs',
-  'NASA Earthdata',
+const TEAM_MEMBERS = [
+  'Dr. Vasit Sagan (Principal Investigator)',
+  'Dr. Derek Tesser (Senior Research Scientist)',
+  'Dr. Felipe Lopes (AI Research Scientist)',
+  'Nuerbiye Muhetaer (PhD Student)',
+  'Mustafizur Rahaman (PhD Student)',
 ];
 
-function LandingPage({ onEnter }) {
+const PARTNERS = [
+  {
+    name: 'Natural Resources Defense Council (NRDC)',
+    desc: 'Science, policy, law, and advocacy support for climate, public lands, and communities.',
+  },
+  {
+    name: 'Wahkohtowin',
+    desc: 'First Nations social enterprise supporting rights, culture, and stewardship across shared territories.',
+  },
+  {
+    name: 'Planet Labs',
+    desc: 'High-resolution commercial satellite imagery for recent-year forest monitoring.',
+  },
+  {
+    name: 'NASA Earthdata',
+    desc: 'Provider of HLS time-series products used for annual and multi-year analyses.',
+  },
+];
+
+const NEWS_ITEMS = [
+  {
+    date: 'April 2025',
+    badge: 'Platform Update',
+    title: 'Planet Imagery Integration',
+    body: 'High-resolution Planet imagery is now available for the 2025 dataset, providing sub-10 m clearcut detection alongside the existing HLS time series.',
+  },
+  {
+    date: 'December 2025',
+    badge: 'Presentation',
+    title: 'ForestTrace at AGU 2025',
+    body: 'Our paper "Boreal Forest Regrowth Stage Classification Using Multi-Sensor Remote Sensing and Machine Learning" was presented at AGU Fall Meeting 2025, highlighting recent methods for post-clearcut regrowth characterization.',
+  },
+  {
+    date: 'November 2025',
+    badge: 'Platform Launch',
+    title: 'ForestTrace Goes Public',
+    body: 'The ForestTrace web platform was officially launched, making boreal forest monitoring data accessible through an interactive map interface.',
+  },
+];
+
+function LandingPage({ onEnter, onOpenAbout, onOpenNews, onOpenDocumentation }) {
   return (
     <div className="landing">
 
@@ -67,12 +108,15 @@ function LandingPage({ onEnter }) {
             </div>
           ))}
         </div>
+        <button className="landing-section-button" onClick={onOpenDocumentation}>
+          Open Full Documentation
+        </button>
       </section>
 
       {/* ── About ────────────────────────────────────────── */}
       <section className="landing-section">
         <p className="landing-section-title">About</p>
-        <h2 className="landing-section-heading">Team &amp; Institution</h2>
+        <h2 className="landing-section-heading">Team and Institution</h2>
         <div className="landing-about">
           <div>
             <p className="landing-about-text">
@@ -94,23 +138,63 @@ function LandingPage({ onEnter }) {
               evidence-based land management decisions in the boreal region of
               northwestern Ontario, Canada.
             </p>
-            <img
-              src="/rsl-logo-transparent.png"
-              alt="RSL · Saint Louis University"
-              className="landing-uni-logo"
-            />
           </div>
           <div>
             <p className="landing-section-title" style={{ marginBottom: 16 }}>
+              Current Team Members
+            </p>
+            <ul className="landing-team-list">
+              {TEAM_MEMBERS.map((member) => (
+                <li key={member}>{member}</li>
+              ))}
+            </ul>
+
+            <p className="landing-section-title" style={{ marginBottom: 16, marginTop: 24 }}>
               Current Partners
             </p>
             <div className="landing-partners">
-              {PARTNERS.map((name) => (
-                <div className="landing-partner-badge" key={name}>{name}</div>
+              {PARTNERS.map(({ name, desc }) => (
+                <div className="landing-partner-badge" key={name}>
+                  <strong>{name}</strong>
+                  <span>{desc}</span>
+                </div>
               ))}
             </div>
           </div>
         </div>
+        <button className="landing-section-button" onClick={onOpenAbout}>
+          Read Full About Page
+        </button>
+      </section>
+
+      {/* ── News ─────────────────────────────────────────── */}
+      <section className="landing-section">
+        <p className="landing-section-title">News</p>
+        <h2 className="landing-section-heading">Latest Updates</h2>
+        <div className="landing-cards">
+          {NEWS_ITEMS.map(({ date, badge, title, body }) => (
+            <article className="landing-card" key={title}>
+              <p className="landing-news-meta">{badge} · {date}</p>
+              <h3 className="landing-card-title">{title}</h3>
+              <p className="landing-card-text">{body}</p>
+            </article>
+          ))}
+        </div>
+        <button className="landing-section-button" onClick={onOpenNews}>
+          View All News
+        </button>
+      </section>
+
+      {/* ── Contact ──────────────────────────────────────── */}
+      <section className="landing-section landing-contact-section">
+        <p className="landing-section-title">Contact</p>
+        <h2 className="landing-section-heading">Get in Touch</h2>
+        <p className="landing-about-text" style={{ marginBottom: 12 }}>
+          For research inquiries and collaboration opportunities, contact Dr. Vasit Sagan.
+        </p>
+        <a className="landing-contact-link" href="mailto:vasit.sagan@slu.edu">
+          vasit.sagan@slu.edu
+        </a>
       </section>
 
       {/* ── Footer ───────────────────────────────────────── */}

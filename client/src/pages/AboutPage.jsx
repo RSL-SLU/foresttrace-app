@@ -43,11 +43,22 @@ function AboutPage({ onBack }) {
         </div>
 
         <div className="infopage-section">
+          <h2>Current Team Members</h2>
+          <ul>
+            <li>Dr. Vasit Sagan (Principal Investigator)</li>
+            <li>Dr. Derek Tesser (Senior Research Scientist)</li>
+            <li>Dr. Felipe Lopes (AI Research Scientist)</li>
+            <li>Nuerbiye Muhetaer (PhD Student)</li>
+            <li>Mustafizur Rahaman (PhD Student)</li>
+          </ul>
+        </div>
+
+        <div className="infopage-section">
           <h2>Partners</h2>
           <div className="infopage-cards">
             {[
-              { name: 'Wabigoon Lake Ojibway Nation', desc: 'Indigenous partner supporting community-led forest stewardship and land monitoring.' },
-              { name: 'Ontario Ministry of Natural Resources', desc: 'Provincial agency providing forest management data and regulatory context.' },
+              { name: 'Natural Resources Defense Council (NRDC)', desc: 'NRDC brings together science, policy, law, and people power to tackle the climate crisis, defend public lands and wildlife, and protect the health of our communities.' },
+              { name: 'Wahkohtowin', desc: 'Connecting First Nations in culture, practice, and purpose. A social enterprise of First Nations actively upholding our rights for the benefit of our shared traditional territories, communities, and livelihood.' },
               { name: 'Planet Labs', desc: 'Commercial satellite provider supplying high-resolution imagery for recent-year analyses.' },
               { name: 'NASA Earthdata', desc: 'Source of HLS (Harmonized Landsat and Sentinel-2) time-series data.' },
             ].map(({ name, desc }) => (
@@ -63,9 +74,9 @@ function AboutPage({ onBack }) {
           <h2>Contact</h2>
           <div className="infopage-callout">
             <p>
-              For research inquiries or collaboration opportunities, please reach out through
-              Saint Louis University's Remote Sensing Lab. Details available on the SLU
-              departmental website.
+              For research inquiries or collaboration opportunities, please reach out to
+              Dr. Vasit Sagan (<a href='mailto:vasit.sagan@slu.edu'>vasit.sagan@slu.edu</a>).
+              Dr. Sagan is a professor at Saint Louis University and the supervisor of the Remote Sensing Lab.
             </p>
           </div>
         </div>
