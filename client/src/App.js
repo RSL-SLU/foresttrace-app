@@ -186,7 +186,6 @@ function DrawingTools({ mapRef }) {
 
 function RegionBoundaries({ selectedFMUs }) {
   const [regionsData, setRegionsData] = useState(null);
-  const map = useMap();
 
   useEffect(() => {
     // Load regions.json
@@ -273,7 +272,7 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
     styleTagRef.current.textContent = rule;
   }, [opacity, layerId]);
 
-  const updateVisiblePercentage = () => {
+  const updateVisiblePercentage = useCallback(() => {
     let visibleRed = 0;
     let visibleTotal = 0;
 
@@ -294,7 +293,7 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
       : "0.00";
 
     if (onStatsUpdate) onStatsUpdate(percentage);
-  };
+  }, [onStatsUpdate]);
 
   const handleTileLoad = useCallback((e) => {
     const img = e.tile;
@@ -327,7 +326,7 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
       }
       updateVisiblePercentage();
     }
-  }, [onStatsUpdate]);
+  }, [updateVisiblePercentage]);
 
   const getTilePixelAreaHa = (coords) => {
     const tilesPerAxis = Math.pow(2, coords.z);
@@ -358,13 +357,14 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
       map.off("moveend", handleMove);
       map.off("zoomend", handleMove);
     };
-  }, [map]);
+  }, [map, updateVisiblePercentage]);
 
   // Create a custom canvas tile layer for colorizing biomass tiles
   useEffect(() => {
     if (!map || layerId !== 'biomass-density') return;
 
-    biomassTileHistogramRef.current.clear();
+    const biomassHistogram = biomassTileHistogramRef.current;
+    biomassHistogram.clear();
     if (onBiomassHistogramUpdate) {
       onBiomassHistogramUpdate(createEmptyBiomassHistogram());
     }
@@ -541,7 +541,7 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
       canvasLayer.off('tileunload', handleTileUnload);
       map.removeLayer(canvasLayer);
       canvasLayerRef.current = null;
-      biomassTileHistogramRef.current.clear();
+      biomassHistogram.clear();
       if (onBiomassHistogramUpdate) {
         onBiomassHistogramUpdate(createEmptyBiomassHistogram());
       }
@@ -574,10 +574,8 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
           
           for (let i = 0; i < pixels.length; i += 4) {
             const r = pixels[i];
-            const g = pixels[i + 1];
-            const b = pixels[i + 2];
             const a = pixels[i + 3];
-            
+
             totalCount++;
             
             // Count non-transparent white/bright pixels as clearcut areas
@@ -635,7 +633,7 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
       map.removeLayer(canvasLayer);
       canvasLayerRef.current = null;
     };
-  }, [map, layerId, tileUrl, tms]);
+  }, [map, layerId, tileUrl, tms, updateVisiblePercentage]);
 
   // If using canvas colorization for biomass or clearcut, don't render standard TileLayers
   if (layerId === 'biomass-density' || layerId === 'clearcut-annual') {
@@ -797,7 +795,7 @@ function App() {
     if (moduleYears[module.id] !== undefined) {
       setSelectedYear(moduleYears[module.id]);
     } else if (module.temporalOptions?.yearRange) {
-      const [minYear, maxYear] = module.temporalOptions.yearRange;
+      const [, maxYear] = module.temporalOptions.yearRange;
       setSelectedYear(maxYear);
     }
   }, [moduleYears]);
