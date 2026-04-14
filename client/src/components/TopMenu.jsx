@@ -10,7 +10,9 @@ const NAV_ITEMS = [
 
 function TopMenu({ onNavigate, onHome, activePage }) {
   const [darkMode, setDarkMode] = useState(() => {
-    return localStorage.getItem('darkMode') === 'true';
+    const storedPreference = localStorage.getItem('darkMode');
+    if (storedPreference === null) return true;
+    return storedPreference === 'true';
   });
 
   useEffect(() => {

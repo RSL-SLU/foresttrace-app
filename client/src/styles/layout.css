@@ -667,6 +667,8 @@ body.dark-mode .right-column-logo .logo-light {
 
 body.dark-mode .right-column-logo .logo-dark {
   display: block;
+  filter: brightness(0) invert(1);
+  opacity: 0.9;
 }
 
 @media (max-width: 768px) {
