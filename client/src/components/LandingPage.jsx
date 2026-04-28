@@ -77,7 +77,7 @@ function LandingPage({ onEnter, onOpenAbout, onOpenNews, onOpenDocumentation }) 
 
       {/* ── Hero ─────────────────────────────────────────── */}
       <section className="landing-hero">
-        <a href="https://rsl.slu.edu" rel="noopener noreferrer">
+        <a href="https://www.remotesensinglab.org" rel="noopener noreferrer">
           <img
           src="/rsl-logo-transparent.png"
           alt="Remote Sensing Lab"
