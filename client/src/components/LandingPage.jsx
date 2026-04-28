@@ -77,11 +77,13 @@ function LandingPage({ onEnter, onOpenAbout, onOpenNews, onOpenDocumentation }) 
 
       {/* ── Hero ─────────────────────────────────────────── */}
       <section className="landing-hero">
-        <img
+        <a href="https://rsl.slu.edu" rel="noopener noreferrer">
+          <img
           src="/rsl-logo-transparent.png"
           alt="Remote Sensing Lab"
           className="landing-logo"
-        />
+          />
+        </a>
         <p className="landing-subtitle">Remote Sensing Lab · Saint Louis University</p>
         <h1 className="landing-title">ForestTrace</h1>
         <p className="landing-description">
