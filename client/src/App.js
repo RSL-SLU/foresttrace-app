@@ -30,10 +30,15 @@ import "./styles/menu.css";
 import "./styles/layout.css";
 
 const center = [49.80318325874751, -92.8087780822145];
-const TILE_ZOOM_LEVELS = [6, 7, 8, 9, 10, 11, 12, 13, 14];
+const NATIVE_TILE_ZOOM_LEVELS = [6, 7, 8, 9, 10, 11, 12, 13, 14];
+const TILE_ZOOM_LEVELS = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
 const TILE_ZOOM_RANGE = {
   min: Math.min(...TILE_ZOOM_LEVELS),
   max: Math.max(...TILE_ZOOM_LEVELS),
+};
+const NATIVE_TILE_ZOOM_RANGE = {
+  min: Math.min(...NATIVE_TILE_ZOOM_LEVELS),
+  max: Math.max(...NATIVE_TILE_ZOOM_LEVELS),
 };
 
 const BIOMASS_BINS = [
@@ -382,12 +387,25 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
         canvas.width = 256;
         canvas.height = 256;
         const ctx = canvas.getContext('2d');
+
+        const nativeZ = Math.min(coords.z, NATIVE_TILE_ZOOM_RANGE.max);
+        const zoomDiff = coords.z - nativeZ;
+        const scale = 2 ** zoomDiff;
+        const nativeCoords = {
+          ...coords,
+          z: nativeZ,
+          x: Math.floor(coords.x / scale),
+          y: Math.floor(coords.y / scale),
+        };
+        const srcSize = 256 / scale;
+        const srcX = (coords.x % scale) * srcSize;
+        const srcY = (coords.y % scale) * srcSize;
         
         const img = new Image();
         img.crossOrigin = 'anonymous';
         
         img.onload = () => {
-          ctx.drawImage(img, 0, 0);
+          ctx.drawImage(img, srcX, srcY, srcSize, srcSize, 0, 0, 256, 256);
           
           const imageData = ctx.getImageData(0, 0, 256, 256);
           const pixels = imageData.data;
@@ -518,7 +536,7 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
         
         img.onerror = () => done(null, canvas);
         
-        const url = L.Util.template(tileUrl, coords);
+        const url = L.Util.template(tileUrl, nativeCoords);
         img.src = url;
         
         return canvas;
@@ -565,12 +583,25 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
         canvas.width = 256;
         canvas.height = 256;
         const ctx = canvas.getContext('2d');
+
+        const nativeZ = Math.min(coords.z, NATIVE_TILE_ZOOM_RANGE.max);
+        const zoomDiff = coords.z - nativeZ;
+        const scale = 2 ** zoomDiff;
+        const nativeCoords = {
+          ...coords,
+          z: nativeZ,
+          x: Math.floor(coords.x / scale),
+          y: Math.floor(coords.y / scale),
+        };
+        const srcSize = 256 / scale;
+        const srcX = (coords.x % scale) * srcSize;
+        const srcY = (coords.y % scale) * srcSize;
         
         const img = new Image();
         img.crossOrigin = 'anonymous';
         
         img.onload = () => {
-          ctx.drawImage(img, 0, 0);
+          ctx.drawImage(img, srcX, srcY, srcSize, srcSize, 0, 0, 256, 256);
           
           const imageData = ctx.getImageData(0, 0, 256, 256);
           const pixels = imageData.data;
@@ -619,7 +650,7 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
         
         img.onerror = () => done(null, canvas);
         
-        const url = L.Util.template(tileUrl, coords);
+        const url = L.Util.template(tileUrl, nativeCoords);
         img.src = url;
         
         return canvas;
@@ -669,7 +700,7 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
         url={tileUrl}
         minZoom={13}
         maxZoom={TILE_ZOOM_RANGE.max}
-        maxNativeZoom={TILE_ZOOM_RANGE.max}
+        maxNativeZoom={NATIVE_TILE_ZOOM_RANGE.max}
         zIndex={10}
         tms={tms}
         crossOrigin="anonymous"

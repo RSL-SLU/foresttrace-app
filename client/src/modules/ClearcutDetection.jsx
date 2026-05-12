@@ -17,8 +17,7 @@ const SENSORS = [
  */
 function ClearcutDetection({ data }) {
   const [yearlyStats, setYearlyStats] = useState(null);
-  const [loadingYear, setLoadingYear] = useState(null);
-  const abortRef = useRef(false);
+  const [loading, setLoading] = useState(false);
 
   const region = Array.isArray(data?.selectedFMUs) && data.selectedFMUs.length > 0
     ? data.selectedFMUs[0]
@@ -29,25 +28,18 @@ function ClearcutDetection({ data }) {
   const selectedYear = data?.selectedYear;
 
   useEffect(() => {
-    abortRef.current = false;
-    setYearlyStats(null);
-    setLoadingYear(CLEARCUT_YEARS[0]);
-
-    const partial = {};
-
-    computeClearcutAreaPerYear(region, CLEARCUT_YEARS, (year, areaHa) => {
-      if (abortRef.current) return;
-      partial[year] = areaHa;
-      setLoadingYear(year < CLEARCUT_YEARS[CLEARCUT_YEARS.length - 1] ? year + 1 : null);
-      setYearlyStats(
-        CLEARCUT_YEARS.map(y => ({
-          year: y.toString(),
-          area: parseFloat((partial[y] ?? 0).toFixed(1)),
-        }))
-      );
-    }, selectedSensor).catch(() => {});
-
-    return () => { abortRef.current = true; };
+    setLoading(true);
+    computeClearcutAreaPerYear(region, CLEARCUT_YEARS, null, selectedSensor)
+      .then(results => {
+        setYearlyStats(
+          CLEARCUT_YEARS.map(y => ({
+            year: y.toString(),
+            area: parseFloat((results[y] ?? 0).toFixed(1)),
+          }))
+        );
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [region, selectedSensor]);
 
   const chartData = yearlyStats ?? CLEARCUT_YEARS.map(y => ({ year: y.toString(), area: 0 }));
