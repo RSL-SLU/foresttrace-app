@@ -1,7 +1,6 @@
 import React, { useRef, useState, useCallback, useMemo } from "react";
 import { MapContainer, TileLayer, useMap, GeoJSON } from "react-leaflet";
 import L from "leaflet";
-import * as EL from "esri-leaflet";
 import "leaflet/dist/leaflet.css";
 import "@geoman-io/leaflet-geoman-free";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
@@ -23,7 +22,7 @@ import ClearcutDetection from './modules/ClearcutDetection';
 import BiomassModule from './modules/BiomassModule';
 import { handleLocateUser, handlePlaceChanged } from "./utils/mapUtils";
 import { CLEARCUT_PLANET_YEARS, CLEARCUT_SENSOR_SUBFOLDER_YEARS } from "./utils/clearcutAreaStats";
-import { TILES_BASE_URL, DATA_BASE_URL, ESRI_HISTORICAL_SERVICE_URL, ESRI_HISTORICAL_SERVICE_TYPE } from "./config";
+import { TILES_BASE_URL, DATA_BASE_URL } from "./config";
 
 import "./styles/map.css";
 import "./styles/topmenu.css";
@@ -257,43 +256,6 @@ function ZoomControlPositioner({ position = "bottomleft" }) {
       map.removeControl(zoomControl);
     };
   }, [map, position]);
-
-  return null;
-}
-
-function EsriHistoricalBasemap({ year }) {
-  const map = useMap();
-  const layerRef = useRef(null);
-
-  useEffect(() => {
-    if (!map || !ESRI_HISTORICAL_SERVICE_URL) return undefined;
-
-    const serviceType = ESRI_HISTORICAL_SERVICE_TYPE.toLowerCase() === 'image' ? 'image' : 'dynamic';
-    const layerOptions = {
-      url: ESRI_HISTORICAL_SERVICE_URL,
-      opacity: 1,
-      f: 'image',
-    };
-
-    const layer = serviceType === 'image'
-      ? EL.imageMapLayer(layerOptions)
-      : EL.dynamicMapLayer(layerOptions);
-
-    layer.setTimeRange(
-      new Date(Date.UTC(year, 0, 1)),
-      new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999))
-    );
-    layer.addTo(map);
-    layer.bringToBack();
-    layerRef.current = layer;
-
-    return () => {
-      if (layerRef.current) {
-        map.removeLayer(layerRef.current);
-        layerRef.current = null;
-      }
-    };
-  }, [map, year]);
 
   return null;
 }
@@ -827,9 +789,6 @@ function App() {
     return initial;
   });
 
-  const activeVisualizationYear = moduleYears[selectedModule?.id] ?? selectedYear;
-  const useHistoricalEsriBasemap = Boolean(ESRI_HISTORICAL_SERVICE_URL);
-
   // Handle layer visibility toggle
   const handleLayerToggle = (moduleId, layerId) => {
     setActiveLayers(prev => {
@@ -1036,15 +995,11 @@ function App() {
             }}
             style={{ width: "100%", height: "100%", zIndex: 0 }}
           >
-            {useHistoricalEsriBasemap ? (
-              <EsriHistoricalBasemap year={activeVisualizationYear} />
-            ) : (
-              <TileLayer
-                url="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                attribution="&copy; Esri, DigitalGlobe, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, and others"
-                zIndex={5}
-              />
-            )}
+            <TileLayer
+              url="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              attribution="&copy; Esri, DigitalGlobe, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, and others"
+              zIndex={5}
+            />
 
             
             {/* Render tile layers for all active layers from ALL modules */}

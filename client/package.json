@@ -9,7 +9,6 @@
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
-    "esri-leaflet": "^3.0.19",
     "leaflet": "^1.9.4",
     "leaflet.tilelayer.colorfilter": "^1.2.5",
     "leaflet.tilelayer.glcolorscale": "^1.0.1",
