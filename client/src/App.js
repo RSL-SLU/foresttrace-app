@@ -31,7 +31,7 @@ import "./styles/layout.css";
 
 const center = [49.80318325874751, -92.8087780822145];
 const NATIVE_TILE_ZOOM_LEVELS = [6, 7, 8, 9, 10, 11, 12, 13, 14];
-const TILE_ZOOM_LEVELS = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24];
+const TILE_ZOOM_LEVELS = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 const TILE_ZOOM_RANGE = {
   min: Math.min(...TILE_ZOOM_LEVELS),
   max: Math.max(...TILE_ZOOM_LEVELS),
@@ -268,6 +268,7 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
   const tileCountsRef = useRef(new Map());
   const biomassTileHistogramRef = useRef(new Map());
   const styleTagRef = useRef(null);
+  const processedTileCacheRef = useRef(new Map());
 
   // Create/update dynamic CSS rule for tile opacity
   useEffect(() => {
@@ -371,6 +372,11 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
     };
   }, [map, updateVisiblePercentage]);
 
+  // Clear tile cache when tileUrl changes (e.g., year/sensor changes)
+  useEffect(() => {
+    processedTileCacheRef.current.clear();
+  }, [tileUrl]);
+
   // Create a custom canvas tile layer for colorizing biomass tiles
   useEffect(() => {
     if (!map || layerId !== 'biomass-density') return;
@@ -383,6 +389,15 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
 
     const CanvasTileLayer = L.GridLayer.extend({
       createTile: function(coords, done) {
+        const tileKey = `${coords.z}/${coords.x}/${coords.y}`;
+        
+        // Return cached tile if already processed
+        if (processedTileCacheRef.current.has(tileKey)) {
+          const cachedCanvas = processedTileCacheRef.current.get(tileKey);
+          done(null, cachedCanvas.cloneNode(true));
+          return cachedCanvas.cloneNode(true);
+        }
+
         const canvas = document.createElement('canvas');
         canvas.width = 256;
         canvas.height = 256;
@@ -531,6 +546,7 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
           emitBiomassHistogram();
           
           ctx.putImageData(imageData, 0, 0);
+          processedTileCacheRef.current.set(tileKey, canvas);
           done(null, canvas);
         };
         
@@ -579,6 +595,15 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
 
     const CanvasTileLayer = L.GridLayer.extend({
       createTile: function(coords, done) {
+        const tileKey = `${coords.z}/${coords.x}/${coords.y}`;
+        
+        // Return cached tile if already processed
+        if (processedTileCacheRef.current.has(tileKey)) {
+          const cachedCanvas = processedTileCacheRef.current.get(tileKey);
+          done(null, cachedCanvas.cloneNode(true));
+          return cachedCanvas.cloneNode(true);
+        }
+
         const canvas = document.createElement('canvas');
         canvas.width = 256;
         canvas.height = 256;
@@ -642,6 +667,7 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
           tileCountsRef.current.set(key, { red: clearcutCount, total: totalCount });
           
           ctx.putImageData(imageData, 0, 0);
+          processedTileCacheRef.current.set(key, canvas);
           done(null, canvas);
           
           // Update percentage after tile is processed
@@ -667,9 +693,20 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
     canvasLayerRef.current = canvasLayer;
     canvasLayer.addTo(map);
 
+    const handleTileUnload = (event) => {
+      if (!event.coords) return;
+      const tileKey = `${event.coords.z}/${event.coords.x}/${event.coords.y}`;
+      processedTileCacheRef.current.delete(tileKey);
+      tileCountsRef.current.delete(tileKey);
+    };
+
+    canvasLayer.on('tileunload', handleTileUnload);
+
     return () => {
+      canvasLayer.off('tileunload', handleTileUnload);
       map.removeLayer(canvasLayer);
       canvasLayerRef.current = null;
+      processedTileCacheRef.current.clear();
     };
   }, [map, layerId, tileUrl, tms, updateVisiblePercentage]);
 
