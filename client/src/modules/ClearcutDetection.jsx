@@ -110,7 +110,7 @@ function ClearcutDetection({ data }) {
           <div className="biomass-chart-status">No clearcut tile data found for this region.</div>
         )}
         <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
-          Area computed from zoom-12 tiles ({region}) · {selectedSensor.toUpperCase()}.
+          Area precomputed from zoom-12 tiles ({region}) · {selectedSensor.toUpperCase()}.
         </div>
       </div>
 
