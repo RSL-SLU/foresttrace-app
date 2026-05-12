@@ -18,6 +18,7 @@ const SENSORS = [
 function ClearcutDetection({ data }) {
   const [yearlyStats, setYearlyStats] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
 
   const region = Array.isArray(data?.selectedFMUs) && data.selectedFMUs.length > 0
     ? data.selectedFMUs[0]
@@ -29,6 +30,7 @@ function ClearcutDetection({ data }) {
 
   useEffect(() => {
     setLoading(true);
+    setFetchError(false);
     computeClearcutAreaPerYear(region, CLEARCUT_YEARS, null, selectedSensor)
       .then(results => {
         setYearlyStats(
@@ -38,7 +40,7 @@ function ClearcutDetection({ data }) {
           }))
         );
       })
-      .catch(() => {})
+      .catch(() => setFetchError(true))
       .finally(() => setLoading(false));
   }, [region, selectedSensor]);
 
@@ -106,7 +108,10 @@ function ClearcutDetection({ data }) {
             </BarChart>
           </ResponsiveContainer>
         </div>
-        {!hasData && !loading && (
+        {fetchError && (
+          <div className="biomass-chart-status">Could not load clearcut_stats.json — check console.</div>
+        )}
+        {!fetchError && !hasData && !loading && (
           <div className="biomass-chart-status">No clearcut tile data found for this region.</div>
         )}
         <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>

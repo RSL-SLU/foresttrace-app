@@ -20,12 +20,16 @@ let _statsPromise = null;
 
 function loadStats() {
   if (!_statsPromise) {
-    _statsPromise = fetch(`${DATA_BASE_URL}/data/clearcut_stats.json`)
+    // DATA_BASE_URL is empty in local dev → fall back to process.env.PUBLIC_URL
+    // which CRA always sets to the correct root for public/ assets.
+    const base = DATA_BASE_URL || process.env.PUBLIC_URL || '';
+    _statsPromise = fetch(`${base}/data/clearcut_stats.json`)
       .then(r => {
-        if (!r.ok) throw new Error(`Failed to load clearcut_stats.json: ${r.status}`);
+        if (!r.ok) throw new Error(`clearcut_stats.json: HTTP ${r.status}`);
         return r.json();
       })
       .catch(err => {
+        console.error('[ClearcutStats]', err);
         _statsPromise = null;
         throw err;
       });
