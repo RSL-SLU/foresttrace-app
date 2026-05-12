@@ -701,12 +701,13 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
     };
 
     canvasLayer.on('tileunload', handleTileUnload);
+    const cacheRef = processedTileCacheRef.current;
 
     return () => {
       canvasLayer.off('tileunload', handleTileUnload);
       map.removeLayer(canvasLayer);
       canvasLayerRef.current = null;
-      processedTileCacheRef.current.clear();
+      cacheRef.clear();
     };
   }, [map, layerId, tileUrl, tms, updateVisiblePercentage]);
 
