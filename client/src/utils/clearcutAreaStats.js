@@ -8,7 +8,6 @@
  * Cache key: `${region}_${sensor}` — same convention as the old in-browser computation.
  */
 
-import { DATA_BASE_URL } from '../config';
 
 // Years that have Planet sensor data
 export const CLEARCUT_PLANET_YEARS = [2025];
@@ -20,9 +19,9 @@ let _statsPromise = null;
 
 function loadStats() {
   if (!_statsPromise) {
-    // DATA_BASE_URL is empty in local dev → fall back to process.env.PUBLIC_URL
-    // which CRA always sets to the correct root for public/ assets.
-    const base = DATA_BASE_URL || process.env.PUBLIC_URL || '';
+    // Always fetch from the app's own origin (Vercel build output), not the tile CDN.
+    // process.env.PUBLIC_URL is set by CRA to the correct root for public/ assets.
+    const base = process.env.PUBLIC_URL || '';
     _statsPromise = fetch(`${base}/data/clearcut_stats.json`)
       .then(r => {
         if (!r.ok) throw new Error(`clearcut_stats.json: HTTP ${r.status}`);
