@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -67,10 +67,8 @@ function ClearcutDetection({ data }) {
 
       <div className="module-section">
         <h3>Annual Clearcut Area — {region}</h3>
-        {loadingYear && (
-          <div className="biomass-chart-status">
-            Computing {loadingYear}…
-          </div>
+        {loading && (
+          <div className="biomass-chart-status">Loading…</div>
         )}
         <div className="biomass-chart">
           <ResponsiveContainer width="100%" height={220}>
@@ -108,7 +106,7 @@ function ClearcutDetection({ data }) {
             </BarChart>
           </ResponsiveContainer>
         </div>
-        {!hasData && !loadingYear && (
+        {!hasData && !loading && (
           <div className="biomass-chart-status">No clearcut tile data found for this region.</div>
         )}
         <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
