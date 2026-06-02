@@ -381,7 +381,8 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
   useEffect(() => {
     if (!map || layerId !== 'biomass-density') return;
 
-    biomassTileHistogramRef.current.clear();
+    const biomassHistogram = biomassTileHistogramRef.current;
+    biomassHistogram.clear();
     if (onBiomassHistogramUpdateRef.current) {
       onBiomassHistogramUpdateRef.current(createEmptyBiomassHistogram());
     }
@@ -570,7 +571,7 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
       canvasLayer.off('tileunload', handleTileUnload);
       map.removeLayer(canvasLayer);
       canvasLayerRef.current = null;
-      biomassTileHistogramRef.current.clear();
+      biomassHistogram.clear();
       if (onBiomassHistogramUpdateRef.current) {
         onBiomassHistogramUpdateRef.current(createEmptyBiomassHistogram());
       }
