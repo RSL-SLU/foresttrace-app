@@ -182,6 +182,10 @@ function RasterTileLayer({
     }
 
     const tileLoadQueue = makeTileQueue(20);
+    const handleZoomStart = () => {
+      activeTileRequests.clear();
+    };
+    map.on('zoomstart', handleZoomStart);
 
     const getColorForIntensity = (rawIntensity) => {
       const agb = (rawIntensity / 255) * 1000;
@@ -319,6 +323,14 @@ function RasterTileLayer({
             return;
           }
 
+          // If zoom changed since this tile started, skip expensive fallback work.
+          if (map.getZoom() !== normalizedCoords.z) {
+            resolveInFlight(null);
+            activeTileRequests.delete(tileKey);
+            done(null, canvas);
+            return;
+          }
+
           let pending = 4;
           let anyCompositeSuccess = false;
           const half = 128;
@@ -326,6 +338,13 @@ function RasterTileLayer({
             if (childSuccess) anyCompositeSuccess = true;
             pending -= 1;
             if (pending !== 0) return;
+
+            if (map.getZoom() !== normalizedCoords.z) {
+              resolveInFlight(null);
+              activeTileRequests.delete(tileKey);
+              done(null, canvas);
+              return;
+            }
 
             if (!anyCompositeSuccess && !hasOpaquePixels(ctx)) {
               resolveInFlight(null);
@@ -423,6 +442,7 @@ function RasterTileLayer({
 
     return () => {
       tileLoadQueue.cancel();
+      map.off('zoomstart', handleZoomStart);
       activeTileRequests.clear();
       if (onLoadingChangeRef.current) onLoadingChangeRef.current(false);
       canvasLayer.off('tileunload', handleTileUnload);
@@ -443,6 +463,10 @@ function RasterTileLayer({
     const activeTileRequests = activeTileRequestsRef.current;
 
     const tileLoadQueue = makeTileQueue(20);
+    const handleZoomStart = () => {
+      activeTileRequests.clear();
+    };
+    map.on('zoomstart', handleZoomStart);
 
     const CanvasTileLayer = L.GridLayer.extend({
       createTile(coords, done) {
@@ -546,6 +570,14 @@ function RasterTileLayer({
             return;
           }
 
+          // If zoom changed since this tile started, skip expensive fallback work.
+          if (map.getZoom() !== normalizedCoords.z) {
+            resolveInFlight(null);
+            activeTileRequests.delete(tileKey);
+            done(null, canvas);
+            return;
+          }
+
           let pending = 4;
           let anyCompositeSuccess = false;
           const half = 128;
@@ -553,6 +585,13 @@ function RasterTileLayer({
             if (childSuccess) anyCompositeSuccess = true;
             pending -= 1;
             if (pending !== 0) return;
+
+            if (map.getZoom() !== normalizedCoords.z) {
+              resolveInFlight(null);
+              activeTileRequests.delete(tileKey);
+              done(null, canvas);
+              return;
+            }
 
             if (!anyCompositeSuccess && !hasOpaquePixels(ctx)) {
               resolveInFlight(null);
@@ -643,6 +682,7 @@ function RasterTileLayer({
 
     return () => {
       tileLoadQueue.cancel();
+      map.off('zoomstart', handleZoomStart);
       activeTileRequests.clear();
       if (onLoadingChangeRef.current) onLoadingChangeRef.current(false);
       canvasLayer.off('tileunload', handleTileUnload);
