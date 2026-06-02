@@ -543,7 +543,29 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, onLo
           done(null, canvas);
         };
 
-        img.onerror = () => done(null, canvas);
+        img.onerror = () => {
+          // Zoom-out fallback: composite from cached higher-zoom tiles that cover this area
+          const urlCache = processedTileCacheRef.current.get(tileUrl);
+          if (urlCache) {
+            for (let dz = 1; dz <= Math.min(3, NATIVE_TILE_ZOOM_RANGE.max - coords.z); dz++) {
+              const childZ = coords.z + dz;
+              const scale = 2 ** dz;
+              const childTileSize = 256 / scale;
+              let foundAny = false;
+              for (let dx = 0; dx < scale; dx++) {
+                for (let dy = 0; dy < scale; dy++) {
+                  const cached = urlCache.get(`${childZ}/${coords.x * scale + dx}/${coords.y * scale + dy}`);
+                  if (cached) {
+                    ctx.drawImage(cached.canvas, dx * childTileSize, dy * childTileSize, childTileSize, childTileSize);
+                    foundAny = true;
+                  }
+                }
+              }
+              if (foundAny) break;
+            }
+          }
+          done(null, canvas);
+        };
 
         const url = L.Util.template(tileUrl, nativeCoords);
         img.src = url;
@@ -683,8 +705,30 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, onLo
           updateVisiblePercentage();
         };
         
-        img.onerror = () => done(null, canvas);
-        
+        img.onerror = () => {
+          // Zoom-out fallback: composite from cached higher-zoom tiles that cover this area
+          const urlCache = processedTileCacheRef.current.get(tileUrl);
+          if (urlCache) {
+            for (let dz = 1; dz <= Math.min(3, NATIVE_TILE_ZOOM_RANGE.max - coords.z); dz++) {
+              const childZ = coords.z + dz;
+              const scale = 2 ** dz;
+              const childTileSize = 256 / scale;
+              let foundAny = false;
+              for (let dx = 0; dx < scale; dx++) {
+                for (let dy = 0; dy < scale; dy++) {
+                  const cached = urlCache.get(`${childZ}/${coords.x * scale + dx}/${coords.y * scale + dy}`);
+                  if (cached) {
+                    ctx.drawImage(cached.canvas, dx * childTileSize, dy * childTileSize, childTileSize, childTileSize);
+                    foundAny = true;
+                  }
+                }
+              }
+              if (foundAny) break;
+            }
+          }
+          done(null, canvas);
+        };
+
         const url = L.Util.template(tileUrl, nativeCoords);
         img.src = url;
         
