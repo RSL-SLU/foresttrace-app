@@ -260,6 +260,35 @@ function ZoomControlPositioner({ position = "bottomleft" }) {
   return null;
 }
 
+// Fetches a tile and draws it scaled into ctx at (destX, destY, destSize×destSize).
+// On 404, recursively tries the 4 child tiles at z+1.
+// Calls callback() when done regardless of whether anything was drawn.
+function loadTileComposite(ctx, tileUrl, z, x, y, destX, destY, destSize, maxNativeZ, depth, callback) {
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    ctx.drawImage(img, 0, 0, 256, 256, destX, destY, destSize, destSize);
+    callback();
+  };
+  img.onerror = () => {
+    if (depth <= 0 || z >= maxNativeZ) {
+      callback();
+      return;
+    }
+    let pending = 4;
+    const half = destSize / 2;
+    const childDone = () => { if (--pending === 0) callback(); };
+    for (let dx = 0; dx < 2; dx++) {
+      for (let dy = 0; dy < 2; dy++) {
+        loadTileComposite(ctx, tileUrl, z + 1, x * 2 + dx, y * 2 + dy,
+          destX + dx * half, destY + dy * half, half,
+          maxNativeZ, depth - 1, childDone);
+      }
+    }
+  };
+  img.src = L.Util.template(tileUrl, { z, x, y });
+}
+
 function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, onLoadingChange = null, opacity = 0.50, tileUrl = `${TILES_BASE_URL}/tiles/{z}/{x}/red_{y}.png`, tms = true, layerId = '' }) {
   const map = useMap();
   const lowResLayerRef = useRef(null);
@@ -391,6 +420,32 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, onLo
       onBiomassHistogramUpdateRef.current(createEmptyBiomassHistogram());
     }
 
+    const getColorForIntensity = (rawIntensity) => {
+      const agb = (rawIntensity / 255) * 1000;
+      if (agb < 10) {
+        const t = agb / 10;
+        return { r: Math.round(220 - (100 * t)), g: Math.round(180 - (95 * t)), b: Math.round(140 - (100 * t)) };
+      } else if (agb < 25) {
+        const t = (agb - 10) / 15;
+        return { r: Math.round(120 + (135 * t)), g: Math.round(85 + (155 * t)), b: Math.round(40) };
+      } else if (agb < 40) {
+        const t = (agb - 25) / 15;
+        return { r: Math.round(255), g: Math.round(240 - (50 * t)), b: Math.round(40) };
+      } else if (agb < 50) {
+        const t = (agb - 40) / 10;
+        return { r: Math.round(255), g: Math.round(190 + (65 * t)), b: Math.round(40) };
+      } else if (agb < 85) {
+        const t = (agb - 50) / 35;
+        return { r: Math.round(50 * (1 - t)), g: Math.round(220 + (35 * t)), b: Math.round(0) };
+      } else if (agb < 120) {
+        const t = (agb - 85) / 35;
+        return { r: 0, g: Math.round(255), b: Math.round(20 * t) };
+      } else {
+        const t = Math.min(1, (agb - 120) / 30);
+        return { r: 0, g: Math.round(255 - (90 * t)), b: Math.round(50 * t) };
+      }
+    };
+
     const CanvasTileLayer = L.GridLayer.extend({
       createTile: function(coords, done) {
         const tileKey = `${coords.z}/${coords.x}/${coords.y}`;
@@ -435,73 +490,6 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, onLo
 
           const imageData = ctx.getImageData(0, 0, 256, 256);
           const pixels = imageData.data;
-
-          // Color mapping based on actual AGB values (Mg/ha)
-          // PNG tiles encoded with max=1000: decoder set to 1000
-          // Green threshold: 50 Mg/ha (matches pixel max of ~51)
-          const getColorForIntensity = (rawIntensity) => {
-            // Convert grayscale (0-255) to AGB (0-1000 Mg/ha)
-            const agb = (rawIntensity / 255) * 1000;
-            
-            // Color thresholds optimized for 0-150 Mg/ha (typical data range)
-            if (agb < 10) {
-              // Tan (0-10 Mg/ha)
-              const t = agb / 10;
-              return {
-                r: Math.round(220 - (100 * t)), // 220 → 120
-                g: Math.round(180 - (95 * t)),  // 180 → 85
-                b: Math.round(140 - (100 * t))  // 140 → 40
-              };
-            } else if (agb < 25) {
-              // Tan to Light Orange (10-25 Mg/ha)
-              const t = (agb - 10) / 15;
-              return {
-                r: Math.round(120 + (135 * t)), // 120 → 255
-                g: Math.round(85 + (155 * t)),  // 85 → 240
-                b: Math.round(40)               // 40 (constant)
-              };
-            } else if (agb < 40) {
-              // Light Orange to Bright Orange (25-40 Mg/ha)
-              const t = (agb - 25) / 15;
-              return {
-                r: Math.round(255),             // 255 (constant)
-                g: Math.round(240 - (50 * t)),  // 240 → 190
-                b: Math.round(40)               // 40 (constant)
-              };
-            } else if (agb < 50) {
-              // Bright Orange to Yellow (40-50 Mg/ha)
-              const t = (agb - 40) / 10;
-              return {
-                r: Math.round(255),             // 255 (constant)
-                g: Math.round(190 + (65 * t)),  // 190 → 255
-                b: Math.round(40)               // 40 (constant)
-              };
-            } else if (agb < 85) {
-              // Green (50-85 Mg/ha) - light to bright green
-              const t = (agb - 50) / 35;
-              return {
-                r: Math.round(50 * (1 - t)),   // 50 → 0
-                g: Math.round(220 + (35 * t)), // 220 → 255
-                b: Math.round(0)                // 0 (constant)
-              };
-            } else if (agb < 120) {
-              // Bright Green (85-120 Mg/ha)
-              const t = (agb - 85) / 35;
-              return {
-                r: 0,                          // 0 (stays 0)
-                g: Math.round(255),             // 255 (constant)
-                b: Math.round(20 * t)           // 0 → 20
-              };
-            } else {
-              // Bright Green to Dark Green (120+ Mg/ha)
-              const t = Math.min(1, (agb - 120) / 30);
-              return {
-                r: 0,
-                g: Math.round(255 - (90 * t)),  // 255 → 165
-                b: Math.round(50 * t)           // 0 → 50
-              };
-            }
-          };
           
           const tileHistogram = createEmptyBiomassHistogram();
           const pixelAreaHa = getTilePixelAreaHa(coords);
@@ -544,27 +532,54 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, onLo
         };
 
         img.onerror = () => {
-          // Zoom-out fallback: composite from cached higher-zoom tiles that cover this area
-          const urlCache = processedTileCacheRef.current.get(tileUrl);
-          if (urlCache) {
-            for (let dz = 1; dz <= Math.min(3, NATIVE_TILE_ZOOM_RANGE.max - coords.z); dz++) {
-              const childZ = coords.z + dz;
-              const scale = 2 ** dz;
-              const childTileSize = 256 / scale;
-              let foundAny = false;
-              for (let dx = 0; dx < scale; dx++) {
-                for (let dy = 0; dy < scale; dy++) {
-                  const cached = urlCache.get(`${childZ}/${coords.x * scale + dx}/${coords.y * scale + dy}`);
-                  if (cached) {
-                    ctx.drawImage(cached.canvas, dx * childTileSize, dy * childTileSize, childTileSize, childTileSize);
-                    foundAny = true;
-                  }
+          if (nativeCoords.z >= NATIVE_TILE_ZOOM_RANGE.max) {
+            done(null, canvas);
+            return;
+          }
+          let pending = 4;
+          const half = 128;
+          const onAllDone = () => {
+            if (--pending !== 0) return;
+            const imageData = ctx.getImageData(0, 0, 256, 256);
+            const pixels = imageData.data;
+            const tileHistogram = createEmptyBiomassHistogram();
+            const pixelAreaHa = getTilePixelAreaHa(coords);
+            for (let i = 0; i < pixels.length; i += 4) {
+              const g = pixels[i + 1];
+              const a = pixels[i + 3];
+              if (a === 0) continue;
+              const agb = (g / 255) * 1000;
+              for (let binIdx = 0; binIdx < BIOMASS_BINS.length; binIdx++) {
+                const bin = BIOMASS_BINS[binIdx];
+                if (agb >= bin.min && agb < bin.max) {
+                  tileHistogram[binIdx].pixels += 1;
+                  tileHistogram[binIdx].area += pixelAreaHa;
+                  break;
                 }
               }
-              if (foundAny) break;
+              const color = getColorForIntensity(g);
+              pixels[i] = color.r;
+              pixels[i + 1] = color.g;
+              pixels[i + 2] = color.b;
+            }
+            const tileKey = `${coords.z}/${coords.x}/${coords.y}`;
+            biomassTileHistogramRef.current.set(tileKey, tileHistogram);
+            emitBiomassHistogram();
+            ctx.putImageData(imageData, 0, 0);
+            if (!processedTileCacheRef.current.has(tileUrl)) {
+              processedTileCacheRef.current.set(tileUrl, new Map());
+            }
+            processedTileCacheRef.current.get(tileUrl).set(tileKey, { canvas, histogram: tileHistogram });
+            done(null, canvas);
+          };
+          for (let dx = 0; dx < 2; dx++) {
+            for (let dy = 0; dy < 2; dy++) {
+              loadTileComposite(ctx, tileUrl,
+                nativeCoords.z + 1, nativeCoords.x * 2 + dx, nativeCoords.y * 2 + dy,
+                dx * half, dy * half, half,
+                NATIVE_TILE_ZOOM_RANGE.max, 3, onAllDone);
             }
           }
-          done(null, canvas);
         };
 
         const url = L.Util.template(tileUrl, nativeCoords);
@@ -706,32 +721,50 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, onLo
         };
         
         img.onerror = () => {
-          // Zoom-out fallback: composite from cached higher-zoom tiles that cover this area
-          const urlCache = processedTileCacheRef.current.get(tileUrl);
-          if (urlCache) {
-            for (let dz = 1; dz <= Math.min(3, NATIVE_TILE_ZOOM_RANGE.max - coords.z); dz++) {
-              const childZ = coords.z + dz;
-              const scale = 2 ** dz;
-              const childTileSize = 256 / scale;
-              let foundAny = false;
-              for (let dx = 0; dx < scale; dx++) {
-                for (let dy = 0; dy < scale; dy++) {
-                  const cached = urlCache.get(`${childZ}/${coords.x * scale + dx}/${coords.y * scale + dy}`);
-                  if (cached) {
-                    ctx.drawImage(cached.canvas, dx * childTileSize, dy * childTileSize, childTileSize, childTileSize);
-                    foundAny = true;
-                  }
-                }
-              }
-              if (foundAny) break;
+          if (nativeCoords.z >= NATIVE_TILE_ZOOM_RANGE.max) {
+            done(null, canvas);
+            return;
+          }
+          let pending = 4;
+          const half = 128;
+          const onAllDone = () => {
+            if (--pending !== 0) return;
+            const imageData = ctx.getImageData(0, 0, 256, 256);
+            const pixels = imageData.data;
+            let clearcutCount = 0, totalCount = 0;
+            for (let i = 0; i < pixels.length; i += 4) {
+              const r = pixels[i], a = pixels[i + 3];
+              totalCount++;
+              if (a > 0 && r > 200) clearcutCount++;
+              if (a === 0) continue;
+              const intensity = r / 255;
+              pixels[i] = Math.round(255 * intensity);
+              pixels[i + 1] = 0;
+              pixels[i + 2] = 0;
+            }
+            ctx.putImageData(imageData, 0, 0);
+            const key = `${coords.z}/${coords.x}/${coords.y}`;
+            tileCountsRef.current.set(key, { red: clearcutCount, total: totalCount });
+            if (!processedTileCacheRef.current.has(tileUrl)) {
+              processedTileCacheRef.current.set(tileUrl, new Map());
+            }
+            processedTileCacheRef.current.get(tileUrl).set(key, { canvas, counts: { red: clearcutCount, total: totalCount } });
+            done(null, canvas);
+            updateVisiblePercentage();
+          };
+          for (let dx = 0; dx < 2; dx++) {
+            for (let dy = 0; dy < 2; dy++) {
+              loadTileComposite(ctx, tileUrl,
+                nativeCoords.z + 1, nativeCoords.x * 2 + dx, nativeCoords.y * 2 + dy,
+                dx * half, dy * half, half,
+                NATIVE_TILE_ZOOM_RANGE.max, 3, onAllDone);
             }
           }
-          done(null, canvas);
         };
 
         const url = L.Util.template(tileUrl, nativeCoords);
         img.src = url;
-        
+
         return canvas;
       }
     });
