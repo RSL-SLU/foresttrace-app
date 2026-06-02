@@ -35,18 +35,26 @@ function normalizeTileCoords(coords) {
   };
 }
 
-function getTileLatLngBounds(coords) {
-  const n = 2 ** coords.z;
-  const lonMin = (coords.x / n) * 360 - 180;
-  const lonMax = ((coords.x + 1) / n) * 360 - 180;
+function cloneCanvas(sourceCanvas) {
+  const clone = document.createElement('canvas');
+  clone.width = sourceCanvas.width;
+  clone.height = sourceCanvas.height;
+  const cloneCtx = clone.getContext('2d');
+  cloneCtx.drawImage(sourceCanvas, 0, 0);
+  return clone;
+}
 
-  const latMaxRad = Math.atan(Math.sinh(Math.PI * (1 - (2 * coords.y) / n)));
-  const latMinRad = Math.atan(Math.sinh(Math.PI * (1 - (2 * (coords.y + 1)) / n)));
+function readCachedTile(cache, tileUrl, tileKey) {
+  const urlCache = cache.get(tileUrl);
+  if (!urlCache || !urlCache.has(tileKey)) return null;
+  return urlCache.get(tileKey);
+}
 
-  return L.latLngBounds(
-    L.latLng((latMinRad * 180) / Math.PI, lonMin),
-    L.latLng((latMaxRad * 180) / Math.PI, lonMax),
-  );
+function writeCachedTile(cache, tileUrl, tileKey, payload) {
+  if (!cache.has(tileUrl)) {
+    cache.set(tileUrl, new Map());
+  }
+  cache.get(tileUrl).set(tileKey, payload);
 }
 
 function RasterTileLayer({
@@ -222,19 +230,10 @@ function RasterTileLayer({
       createTile(coords, done) {
         const normalizedCoords = normalizeTileCoords(coords);
         const tileKey = `${normalizedCoords.z}/${normalizedCoords.x}/${normalizedCoords.y}`;
-        const tileBounds = getTileLatLngBounds(normalizedCoords);
+        const staleCacheEntry = readCachedTile(processedTileCacheRef.current, tileUrl, tileKey);
 
-        if (!map.getBounds().intersects(tileBounds)) {
-          const canvas = document.createElement('canvas');
-          canvas.width = 256;
-          canvas.height = 256;
-          done(null, canvas);
-          return canvas;
-        }
-
-        const urlCache = processedTileCacheRef.current.get(tileUrl);
-        if (urlCache && urlCache.has(tileKey)) {
-          const { canvas: cachedCanvas, histogram } = urlCache.get(tileKey);
+        if (staleCacheEntry) {
+          const { canvas: cachedCanvas, histogram } = staleCacheEntry;
           const newCanvas = document.createElement('canvas');
           newCanvas.width = 256;
           newCanvas.height = 256;
@@ -316,10 +315,10 @@ function RasterTileLayer({
           emitBiomassHistogram();
 
           ctx.putImageData(imageData, 0, 0);
-          if (!processedTileCacheRef.current.has(tileUrl)) {
-            processedTileCacheRef.current.set(tileUrl, new Map());
-          }
-          processedTileCacheRef.current.get(tileUrl).set(tileKey, { canvas, histogram: tileHistogram });
+          writeCachedTile(processedTileCacheRef.current, tileUrl, tileKey, {
+            canvas: cloneCanvas(canvas),
+            histogram: tileHistogram,
+          });
           resolveInFlight(canvas);
           activeTileRequests.delete(tileKey);
           done(null, canvas);
@@ -327,6 +326,11 @@ function RasterTileLayer({
 
         img.onerror = () => {
           if (nativeCoords.z >= NATIVE_TILE_ZOOM_RANGE.max) {
+            if (staleCacheEntry) {
+              ctx.drawImage(staleCacheEntry.canvas, 0, 0);
+              biomassTileHistogramRef.current.set(tileKey, staleCacheEntry.histogram);
+              emitBiomassHistogram();
+            }
             resolveInFlight(null);
             activeTileRequests.delete(tileKey);
             done(null, canvas);
@@ -368,10 +372,10 @@ function RasterTileLayer({
             biomassTileHistogramRef.current.set(tileKey, tileHistogram);
             emitBiomassHistogram();
             ctx.putImageData(imageData, 0, 0);
-            if (!processedTileCacheRef.current.has(tileUrl)) {
-              processedTileCacheRef.current.set(tileUrl, new Map());
-            }
-            processedTileCacheRef.current.get(tileUrl).set(tileKey, { canvas, histogram: tileHistogram });
+            writeCachedTile(processedTileCacheRef.current, tileUrl, tileKey, {
+              canvas: cloneCanvas(canvas),
+              histogram: tileHistogram,
+            });
             resolveInFlight(canvas);
             activeTileRequests.delete(tileKey);
             done(null, canvas);
@@ -453,19 +457,10 @@ function RasterTileLayer({
       createTile(coords, done) {
         const normalizedCoords = normalizeTileCoords(coords);
         const tileKey = `${normalizedCoords.z}/${normalizedCoords.x}/${normalizedCoords.y}`;
-        const tileBounds = getTileLatLngBounds(normalizedCoords);
+        const staleCacheEntry = readCachedTile(processedTileCacheRef.current, tileUrl, tileKey);
 
-        if (!map.getBounds().intersects(tileBounds)) {
-          const canvas = document.createElement('canvas');
-          canvas.width = 256;
-          canvas.height = 256;
-          done(null, canvas);
-          return canvas;
-        }
-
-        const urlCache = processedTileCacheRef.current.get(tileUrl);
-        if (urlCache && urlCache.has(tileKey)) {
-          const { canvas: cachedCanvas, counts } = urlCache.get(tileKey);
+        if (staleCacheEntry) {
+          const { canvas: cachedCanvas, counts } = staleCacheEntry;
           const newCanvas = document.createElement('canvas');
           newCanvas.width = 256;
           newCanvas.height = 256;
@@ -539,11 +534,8 @@ function RasterTileLayer({
           tileCountsRef.current.set(tileKey, { red: clearcutCount, total: totalCount });
 
           ctx.putImageData(imageData, 0, 0);
-          if (!processedTileCacheRef.current.has(tileUrl)) {
-            processedTileCacheRef.current.set(tileUrl, new Map());
-          }
-          processedTileCacheRef.current.get(tileUrl).set(tileKey, {
-            canvas,
+          writeCachedTile(processedTileCacheRef.current, tileUrl, tileKey, {
+            canvas: cloneCanvas(canvas),
             counts: { red: clearcutCount, total: totalCount },
           });
           resolveInFlight(canvas);
@@ -554,6 +546,11 @@ function RasterTileLayer({
 
         img.onerror = () => {
           if (nativeCoords.z >= NATIVE_TILE_ZOOM_RANGE.max) {
+            if (staleCacheEntry) {
+              ctx.drawImage(staleCacheEntry.canvas, 0, 0);
+              tileCountsRef.current.set(tileKey, staleCacheEntry.counts);
+              updateVisiblePercentage();
+            }
             resolveInFlight(null);
             activeTileRequests.delete(tileKey);
             done(null, canvas);
@@ -585,11 +582,8 @@ function RasterTileLayer({
 
             ctx.putImageData(imageData, 0, 0);
             tileCountsRef.current.set(tileKey, { red: clearcutCount, total: totalCount });
-            if (!processedTileCacheRef.current.has(tileUrl)) {
-              processedTileCacheRef.current.set(tileUrl, new Map());
-            }
-            processedTileCacheRef.current.get(tileUrl).set(tileKey, {
-              canvas,
+            writeCachedTile(processedTileCacheRef.current, tileUrl, tileKey, {
+              canvas: cloneCanvas(canvas),
               counts: { red: clearcutCount, total: totalCount },
             });
             resolveInFlight(canvas);
