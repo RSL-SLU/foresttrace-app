@@ -44,6 +44,16 @@ function hasOpaquePixels(ctx) {
   return false;
 }
 
+function isStaleTileZoom(map, tileZ) {
+  const tileZoom = map && typeof map._tileZoom === 'number' ? map._tileZoom : null;
+  return tileZoom !== null && tileZoom !== tileZ;
+}
+
+function tileDebug(event, payload) {
+  if (typeof window === 'undefined' || !window.__FORESTTRACE_TILE_DEBUG__) return;
+  console.debug('[TileDebug]', event, payload);
+}
+
 function RasterTileLayer({
   onStatsUpdate,
   onBiomassHistogramUpdate,
@@ -221,6 +231,7 @@ function RasterTileLayer({
       createTile(coords, done) {
         const normalizedCoords = normalizeTileCoords(coords);
         const tileKey = `${normalizedCoords.z}/${normalizedCoords.x}/${normalizedCoords.y}`;
+        tileDebug('biomass:create', { tileKey, tileZoom: map?._tileZoom, mapZoom: map?.getZoom?.() });
         const urlCache = processedTileCacheRef.current.get(tileUrl);
 
         if (urlCache && urlCache.has(tileKey)) {
@@ -356,12 +367,17 @@ function RasterTileLayer({
           };
 
           const failTile = () => {
+            tileDebug('biomass:fail', {
+              tileKey,
+              tileZoom: map?._tileZoom,
+              mapZoom: map?.getZoom?.(),
+            });
             resolveInFlight(null);
             activeTileRequests.delete(tileKey);
             done(null, canvas);
           };
 
-          if (map.getZoom() !== normalizedCoords.z) {
+          if (isStaleTileZoom(map, normalizedCoords.z)) {
             failTile();
             return;
           }
@@ -375,12 +391,13 @@ function RasterTileLayer({
             nativeCoords.y,
             3,
             (parentSuccess) => {
-              if (map.getZoom() !== normalizedCoords.z) {
+              if (isStaleTileZoom(map, normalizedCoords.z)) {
                 failTile();
                 return;
               }
 
               if (parentSuccess && hasOpaquePixels(ctx)) {
+                tileDebug('biomass:parent-rescue', { tileKey });
                 finalizeBiomassTile();
                 return;
               }
@@ -398,7 +415,7 @@ function RasterTileLayer({
                 pending -= 1;
                 if (pending !== 0) return;
 
-                if (map.getZoom() !== normalizedCoords.z) {
+                if (isStaleTileZoom(map, normalizedCoords.z)) {
                   failTile();
                   return;
                 }
@@ -407,6 +424,8 @@ function RasterTileLayer({
                   failTile();
                   return;
                 }
+
+                tileDebug('biomass:child-rescue', { tileKey, anyCompositeSuccess });
 
                 finalizeBiomassTile();
               };
@@ -494,6 +513,7 @@ function RasterTileLayer({
       createTile(coords, done) {
         const normalizedCoords = normalizeTileCoords(coords);
         const tileKey = `${normalizedCoords.z}/${normalizedCoords.x}/${normalizedCoords.y}`;
+        tileDebug('clearcut:create', { tileKey, tileZoom: map?._tileZoom, mapZoom: map?.getZoom?.() });
         const urlCache = processedTileCacheRef.current.get(tileUrl);
 
         if (urlCache && urlCache.has(tileKey)) {
@@ -619,12 +639,17 @@ function RasterTileLayer({
           };
 
           const failTile = () => {
+            tileDebug('clearcut:fail', {
+              tileKey,
+              tileZoom: map?._tileZoom,
+              mapZoom: map?.getZoom?.(),
+            });
             resolveInFlight(null);
             activeTileRequests.delete(tileKey);
             done(null, canvas);
           };
 
-          if (map.getZoom() !== normalizedCoords.z) {
+          if (isStaleTileZoom(map, normalizedCoords.z)) {
             failTile();
             return;
           }
@@ -638,12 +663,13 @@ function RasterTileLayer({
             nativeCoords.y,
             3,
             (parentSuccess) => {
-              if (map.getZoom() !== normalizedCoords.z) {
+              if (isStaleTileZoom(map, normalizedCoords.z)) {
                 failTile();
                 return;
               }
 
               if (parentSuccess && hasOpaquePixels(ctx)) {
+                tileDebug('clearcut:parent-rescue', { tileKey });
                 finalizeClearcutTile();
                 return;
               }
@@ -661,7 +687,7 @@ function RasterTileLayer({
                 pending -= 1;
                 if (pending !== 0) return;
 
-                if (map.getZoom() !== normalizedCoords.z) {
+                if (isStaleTileZoom(map, normalizedCoords.z)) {
                   failTile();
                   return;
                 }
@@ -670,6 +696,8 @@ function RasterTileLayer({
                   failTile();
                   return;
                 }
+
+                tileDebug('clearcut:child-rescue', { tileKey, anyCompositeSuccess });
 
                 finalizeClearcutTile();
               };
