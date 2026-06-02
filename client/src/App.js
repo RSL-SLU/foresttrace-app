@@ -577,7 +577,7 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
         onBiomassHistogramUpdateRef.current(createEmptyBiomassHistogram());
       }
     };
-  }, [map, layerId, tileUrl, tms]);
+  }, [map, layerId, tileUrl, tms, emitBiomassHistogram]);
 
   // Create a custom canvas tile layer for colorizing clearcut tiles to red
   useEffect(() => {
@@ -704,7 +704,7 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
       canvasLayerRef.current = null;
       cacheRef.clear();
     };
-  }, [map, layerId, tileUrl, tms]);
+  }, [map, layerId, tileUrl, tms, updateVisiblePercentage]);
 
   // If using canvas colorization for biomass or clearcut, don't render standard TileLayers
   if (layerId === 'biomass-density' || layerId === 'clearcut-annual') {
