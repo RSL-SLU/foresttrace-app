@@ -260,7 +260,7 @@ function ZoomControlPositioner({ position = "bottomleft" }) {
   return null;
 }
 
-function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opacity = 0.50, tileUrl = `${TILES_BASE_URL}/tiles/{z}/{x}/red_{y}.png`, tms = true, layerId = '' }) {
+function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, onLoadingChange = null, opacity = 0.50, tileUrl = `${TILES_BASE_URL}/tiles/{z}/{x}/red_{y}.png`, tms = true, layerId = '' }) {
   const map = useMap();
   const lowResLayerRef = useRef(null);
   const highResLayerRef = useRef(null);
@@ -271,9 +271,11 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
   const processedTileCacheRef = useRef(new Map());
   const onStatsUpdateRef = useRef(onStatsUpdate);
   const onBiomassHistogramUpdateRef = useRef(onBiomassHistogramUpdate);
+  const onLoadingChangeRef = useRef(onLoadingChange);
   // Keep refs current on every render without triggering effects
   onStatsUpdateRef.current = onStatsUpdate;
   onBiomassHistogramUpdateRef.current = onBiomassHistogramUpdate;
+  onLoadingChangeRef.current = onLoadingChange;
 
   // Create/update dynamic CSS rule for tile opacity
   useEffect(() => {
@@ -380,6 +382,8 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
   // Create a custom canvas tile layer for colorizing biomass tiles
   useEffect(() => {
     if (!map || layerId !== 'biomass-density') return;
+
+    if (onLoadingChangeRef.current) onLoadingChangeRef.current(true);
 
     const biomassHistogram = biomassTileHistogramRef.current;
     biomassHistogram.clear();
@@ -566,6 +570,9 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
     };
 
     canvasLayer.on('tileunload', handleTileUnload);
+    canvasLayer.on('load', () => {
+      if (onLoadingChangeRef.current) onLoadingChangeRef.current(false);
+    });
 
     return () => {
       canvasLayer.off('tileunload', handleTileUnload);
@@ -583,6 +590,7 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
     if (!map || layerId !== 'clearcut-annual') return;
 
     tileCountsRef.current.clear();
+    if (onLoadingChangeRef.current) onLoadingChangeRef.current(true);
 
     const CanvasTileLayer = L.GridLayer.extend({
       createTile: function(coords, done) {
@@ -701,6 +709,9 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
     };
 
     canvasLayer.on('tileunload', handleTileUnload);
+    canvasLayer.on('load', () => {
+      if (onLoadingChangeRef.current) onLoadingChangeRef.current(false);
+    });
 
     return () => {
       canvasLayer.off('tileunload', handleTileUnload);
@@ -759,6 +770,7 @@ function App() {
   const autocompleteRef = useRef(null);
   const [mapReady, setMapReady] = useState(false);
   const [clearcutPercent, setClearcutPercent] = useState(null);
+  const [tilesLoading, setTilesLoading] = useState(false);
   const [biomassHistogram, setBiomassHistogram] = useState(createEmptyBiomassHistogram());
   const [rasterOpacity, setRasterOpacity] = useState(0.50);
   const [selectedModule, setSelectedModule] = useState(MODULES[0]); // Default to first module
@@ -978,6 +990,10 @@ function App() {
             Loading map...
           </div>
 
+          <div className="loading-indicator" style={{ display: tilesLoading ? "block" : "none" }}>
+            Loading...
+          </div>
+
           <MapContainer
             center={center}
             zoom={TILE_ZOOM_LEVELS[0]}
@@ -1033,6 +1049,7 @@ function App() {
                       mapRef={mapRef}
                       onStatsUpdate={setClearcutPercent}
                       onBiomassHistogramUpdate={setBiomassHistogram}
+                      onLoadingChange={setTilesLoading}
                       opacity={rasterOpacity}
                       tileUrl={tileUrl}
                       layerId={layer.id}
