@@ -393,9 +393,15 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
         
         // Return cached tile if already processed
         if (processedTileCacheRef.current.has(tileKey)) {
-          const cachedCanvas = processedTileCacheRef.current.get(tileKey);
-          done(null, cachedCanvas.cloneNode(true));
-          return cachedCanvas.cloneNode(true);
+          const { canvas: cachedCanvas, histogram } = processedTileCacheRef.current.get(tileKey);
+          const newCanvas = document.createElement('canvas');
+          newCanvas.width = 256;
+          newCanvas.height = 256;
+          newCanvas.getContext('2d').drawImage(cachedCanvas, 0, 0);
+          biomassTileHistogramRef.current.set(tileKey, histogram);
+          emitBiomassHistogram();
+          done(null, newCanvas);
+          return newCanvas;
         }
 
         const canvas = document.createElement('canvas');
@@ -415,37 +421,16 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
         const srcSize = 256 / scale;
         const srcX = (coords.x % scale) * srcSize;
         const srcY = (coords.y % scale) * srcSize;
-        
+
         const img = new Image();
         img.crossOrigin = 'anonymous';
-        
+
         img.onload = () => {
           ctx.drawImage(img, srcX, srcY, srcSize, srcSize, 0, 0, 256, 256);
-          
+
           const imageData = ctx.getImageData(0, 0, 256, 256);
           const pixels = imageData.data;
-          
-          // Debug: Sample pixel values across entire tile
-          const samplePixels = [];
-          const zeroPixels = [];
-          // Sample every 10th pixel to get ~2600 samples from 65536 pixels
-          for (let i = 0; i < pixels.length; i += 40) { // 40 = 4 channels * 10 pixels
-            if (pixels[i + 3] > 0) { // Only check opaque pixels
-              const val = pixels[i + 1]; // Green channel
-              if (val > 0) {
-                samplePixels.push(val);
-              } else {
-                zeroPixels.push(1);
-              }
-            }
-          }
-          if (samplePixels.length > 0) {
-            const avg = samplePixels.reduce((a, b) => a + b) / samplePixels.length;
-            const max = Math.max(...samplePixels);
-            const min = Math.min(...samplePixels);
-            console.log(`Tile pixel values (${samplePixels.length} non-zero + ${zeroPixels.length} zeros) - Min: ${min}, Max: ${max}, Avg: ${avg.toFixed(1)}, AGB: ${((min/255)*1000).toFixed(1)}-${((max/255)*1000).toFixed(1)} Mg/ha`);
-          }
-          
+
           // Color mapping based on actual AGB values (Mg/ha)
           // PNG tiles encoded with max=1000: decoder set to 1000
           // Green threshold: 50 Mg/ha (matches pixel max of ~51)
@@ -546,15 +531,15 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
           emitBiomassHistogram();
           
           ctx.putImageData(imageData, 0, 0);
-          processedTileCacheRef.current.set(tileKey, canvas);
+          processedTileCacheRef.current.set(tileKey, { canvas, histogram: tileHistogram });
           done(null, canvas);
         };
-        
+
         img.onerror = () => done(null, canvas);
-        
+
         const url = L.Util.template(tileUrl, nativeCoords);
         img.src = url;
-        
+
         return canvas;
       }
     });
@@ -599,9 +584,15 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
         
         // Return cached tile if already processed
         if (processedTileCacheRef.current.has(tileKey)) {
-          const cachedCanvas = processedTileCacheRef.current.get(tileKey);
-          done(null, cachedCanvas.cloneNode(true));
-          return cachedCanvas.cloneNode(true);
+          const { canvas: cachedCanvas, counts } = processedTileCacheRef.current.get(tileKey);
+          const newCanvas = document.createElement('canvas');
+          newCanvas.width = 256;
+          newCanvas.height = 256;
+          newCanvas.getContext('2d').drawImage(cachedCanvas, 0, 0);
+          tileCountsRef.current.set(tileKey, counts);
+          updateVisiblePercentage();
+          done(null, newCanvas);
+          return newCanvas;
         }
 
         const canvas = document.createElement('canvas');
@@ -667,7 +658,7 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
           tileCountsRef.current.set(key, { red: clearcutCount, total: totalCount });
           
           ctx.putImageData(imageData, 0, 0);
-          processedTileCacheRef.current.set(key, canvas);
+          processedTileCacheRef.current.set(key, { canvas, counts: { red: clearcutCount, total: totalCount } });
           done(null, canvas);
           
           // Update percentage after tile is processed
@@ -696,7 +687,6 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
     const handleTileUnload = (event) => {
       if (!event.coords) return;
       const tileKey = `${event.coords.z}/${event.coords.x}/${event.coords.y}`;
-      processedTileCacheRef.current.delete(tileKey);
       tileCountsRef.current.delete(tileKey);
     };
 
