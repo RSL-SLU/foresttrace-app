@@ -377,17 +377,11 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
     };
   }, [map, updateVisiblePercentage]);
 
-  // Clear tile cache when tileUrl changes (e.g., year/sensor changes)
-  useEffect(() => {
-    processedTileCacheRef.current.clear();
-  }, [tileUrl]);
-
   // Create a custom canvas tile layer for colorizing biomass tiles
   useEffect(() => {
     if (!map || layerId !== 'biomass-density') return;
 
-    const biomassHistogram = biomassTileHistogramRef.current;
-    biomassHistogram.clear();
+    biomassTileHistogramRef.current.clear();
     if (onBiomassHistogramUpdateRef.current) {
       onBiomassHistogramUpdateRef.current(createEmptyBiomassHistogram());
     }
@@ -395,10 +389,11 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
     const CanvasTileLayer = L.GridLayer.extend({
       createTile: function(coords, done) {
         const tileKey = `${coords.z}/${coords.x}/${coords.y}`;
-        
-        // Return cached tile if already processed
-        if (processedTileCacheRef.current.has(tileKey)) {
-          const { canvas: cachedCanvas, histogram } = processedTileCacheRef.current.get(tileKey);
+
+        // Return cached tile if already processed (keyed by URL so switching years hits cache)
+        const urlCache = processedTileCacheRef.current.get(tileUrl);
+        if (urlCache && urlCache.has(tileKey)) {
+          const { canvas: cachedCanvas, histogram } = urlCache.get(tileKey);
           const newCanvas = document.createElement('canvas');
           newCanvas.width = 256;
           newCanvas.height = 256;
@@ -536,7 +531,10 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
           emitBiomassHistogram();
           
           ctx.putImageData(imageData, 0, 0);
-          processedTileCacheRef.current.set(tileKey, { canvas, histogram: tileHistogram });
+          if (!processedTileCacheRef.current.has(tileUrl)) {
+            processedTileCacheRef.current.set(tileUrl, new Map());
+          }
+          processedTileCacheRef.current.get(tileUrl).set(tileKey, { canvas, histogram: tileHistogram });
           done(null, canvas);
         };
 
@@ -572,7 +570,7 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
       canvasLayer.off('tileunload', handleTileUnload);
       map.removeLayer(canvasLayer);
       canvasLayerRef.current = null;
-      biomassHistogram.clear();
+      biomassTileHistogramRef.current.clear();
       if (onBiomassHistogramUpdateRef.current) {
         onBiomassHistogramUpdateRef.current(createEmptyBiomassHistogram());
       }
@@ -583,13 +581,16 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
   useEffect(() => {
     if (!map || layerId !== 'clearcut-annual') return;
 
+    tileCountsRef.current.clear();
+
     const CanvasTileLayer = L.GridLayer.extend({
       createTile: function(coords, done) {
         const tileKey = `${coords.z}/${coords.x}/${coords.y}`;
-        
-        // Return cached tile if already processed
-        if (processedTileCacheRef.current.has(tileKey)) {
-          const { canvas: cachedCanvas, counts } = processedTileCacheRef.current.get(tileKey);
+
+        // Return cached tile if already processed (keyed by URL so switching years hits cache)
+        const urlCache = processedTileCacheRef.current.get(tileUrl);
+        if (urlCache && urlCache.has(tileKey)) {
+          const { canvas: cachedCanvas, counts } = urlCache.get(tileKey);
           const newCanvas = document.createElement('canvas');
           newCanvas.width = 256;
           newCanvas.height = 256;
@@ -663,7 +664,10 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
           tileCountsRef.current.set(key, { red: clearcutCount, total: totalCount });
           
           ctx.putImageData(imageData, 0, 0);
-          processedTileCacheRef.current.set(key, { canvas, counts: { red: clearcutCount, total: totalCount } });
+          if (!processedTileCacheRef.current.has(tileUrl)) {
+            processedTileCacheRef.current.set(tileUrl, new Map());
+          }
+          processedTileCacheRef.current.get(tileUrl).set(key, { canvas, counts: { red: clearcutCount, total: totalCount } });
           done(null, canvas);
           
           // Update percentage after tile is processed
@@ -696,13 +700,11 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, opac
     };
 
     canvasLayer.on('tileunload', handleTileUnload);
-    const cacheRef = processedTileCacheRef.current;
 
     return () => {
       canvasLayer.off('tileunload', handleTileUnload);
       map.removeLayer(canvasLayer);
       canvasLayerRef.current = null;
-      cacheRef.clear();
     };
   }, [map, layerId, tileUrl, tms, updateVisiblePercentage]);
 
