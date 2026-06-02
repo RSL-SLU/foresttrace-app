@@ -260,22 +260,30 @@ function ZoomControlPositioner({ position = "bottomleft" }) {
   return null;
 }
 
-// Limits concurrent fallback tile requests to avoid 429 rate-limit bursts.
-const _tileQueue = (() => {
-  const MAX = 6;
+// Per-layer queue factory. Each canvas layer creates its own queue so stale
+// requests from panned-away tiles are cancelled when the layer is removed.
+function makeTileQueue(max) {
   let active = 0;
   const pending = [];
-  function release() { active--; if (pending.length) { active++; pending.shift()(release); } }
-  return function enqueue(task) {
-    if (active < MAX) { active++; task(release); } else { pending.push(task); }
+  let cancelled = false;
+  function release() {
+    active--;
+    if (!cancelled && pending.length) { active++; pending.shift()(release); }
+  }
+  return {
+    run(task) {
+      if (cancelled) return;
+      if (active < max) { active++; task(release); } else { pending.push(task); }
+    },
+    cancel() { cancelled = true; pending.length = 0; }
   };
-})();
+}
 
 // Fetches a tile and draws it scaled into ctx at (destX, destY, destSize×destSize).
 // On 404, recursively tries the 4 child tiles at z+1.
 // Calls callback() when done regardless of whether anything was drawn.
-function loadTileComposite(ctx, tileUrl, z, x, y, destX, destY, destSize, maxNativeZ, depth, callback) {
-  _tileQueue((release) => {
+function loadTileComposite(queue, ctx, tileUrl, z, x, y, destX, destY, destSize, maxNativeZ, depth, callback) {
+  queue.run((release) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
@@ -291,7 +299,7 @@ function loadTileComposite(ctx, tileUrl, z, x, y, destX, destY, destSize, maxNat
       const childDone = () => { if (--pending === 0) callback(); };
       for (let dx = 0; dx < 2; dx++) {
         for (let dy = 0; dy < 2; dy++) {
-          loadTileComposite(ctx, tileUrl, z + 1, x * 2 + dx, y * 2 + dy,
+          loadTileComposite(queue, ctx, tileUrl, z + 1, x * 2 + dx, y * 2 + dy,
             destX + dx * half, destY + dy * half, half,
             maxNativeZ, depth - 1, childDone);
         }
@@ -431,6 +439,8 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, onLo
     if (onBiomassHistogramUpdateRef.current) {
       onBiomassHistogramUpdateRef.current(createEmptyBiomassHistogram());
     }
+
+    const tileLoadQueue = makeTileQueue(20);
 
     const getColorForIntensity = (rawIntensity) => {
       const agb = (rawIntensity / 255) * 1000;
@@ -586,7 +596,7 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, onLo
           };
           for (let dx = 0; dx < 2; dx++) {
             for (let dy = 0; dy < 2; dy++) {
-              loadTileComposite(ctx, tileUrl,
+              loadTileComposite(tileLoadQueue, ctx, tileUrl,
                 nativeCoords.z + 1, nativeCoords.x * 2 + dx, nativeCoords.y * 2 + dy,
                 dx * half, dy * half, half,
                 NATIVE_TILE_ZOOM_RANGE.max, 3, onAllDone);
@@ -624,6 +634,7 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, onLo
     });
 
     return () => {
+      tileLoadQueue.cancel();
       canvasLayer.off('tileunload', handleTileUnload);
       map.removeLayer(canvasLayer);
       canvasLayerRef.current = null;
@@ -640,6 +651,8 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, onLo
 
     tileCountsRef.current.clear();
     if (onLoadingChangeRef.current) onLoadingChangeRef.current(true);
+
+    const tileLoadQueue = makeTileQueue(20);
 
     const CanvasTileLayer = L.GridLayer.extend({
       createTile: function(coords, done) {
@@ -766,7 +779,7 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, onLo
           };
           for (let dx = 0; dx < 2; dx++) {
             for (let dy = 0; dy < 2; dy++) {
-              loadTileComposite(ctx, tileUrl,
+              loadTileComposite(tileLoadQueue, ctx, tileUrl,
                 nativeCoords.z + 1, nativeCoords.x * 2 + dx, nativeCoords.y * 2 + dy,
                 dx * half, dy * half, half,
                 NATIVE_TILE_ZOOM_RANGE.max, 3, onAllDone);
@@ -803,6 +816,7 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, onLo
     });
 
     return () => {
+      tileLoadQueue.cancel();
       canvasLayer.off('tileunload', handleTileUnload);
       map.removeLayer(canvasLayer);
       canvasLayerRef.current = null;
