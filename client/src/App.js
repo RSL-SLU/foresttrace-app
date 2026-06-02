@@ -243,7 +243,7 @@ function App() {
   const [selectedModule, setSelectedModule] = useState(MODULES[0]);
   const [selectedYear, setSelectedYear] = useState(MODULES[0]?.temporalOptions?.yearRange?.[1] || 2025);
   const [selectedFMUs, setSelectedFMUs] = useState(['wabigoon']);
-  const [selectedSensor, setSelectedSensor] = useState('hls');
+  const [selectedSensor, setSelectedSensor] = useState('planet');
 
   const [moduleYears, setModuleYears] = useState(() => {
     const initial = {};

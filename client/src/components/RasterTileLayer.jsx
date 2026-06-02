@@ -14,6 +14,7 @@ const NATIVE_TILE_ZOOM_RANGE = {
   min: Math.min(...NATIVE_TILE_ZOOM_LEVELS),
   max: Math.max(...NATIVE_TILE_ZOOM_LEVELS),
 };
+const RASTER_TILE_CLASS = 'foresttrace-raster-tile';
 
 function wrapTileX(x, z) {
   const tilesPerAxis = 2 ** z;
@@ -88,7 +89,7 @@ function RasterTileLayer({
       styleTagRef.current = style;
     }
 
-    const rule = `img[src*="/tiles/"], canvas.leaflet-tile { opacity: ${opacity} !important; }`;
+    const rule = `.${RASTER_TILE_CLASS} { opacity: ${opacity} !important; }`;
     styleTagRef.current.textContent = rule;
   }, [opacity, layerId]);
 
@@ -118,6 +119,10 @@ function RasterTileLayer({
   const handleTileLoad = useCallback((e) => {
     const img = e.tile;
 
+    if (layerId === 'clearcut-annual' && img?.dataset?.clearcutProcessed === 'true') {
+      return;
+    }
+
     if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
       const tmpCanvas = document.createElement('canvas');
       tmpCanvas.width = img.naturalWidth;
@@ -135,9 +140,28 @@ function RasterTileLayer({
         const b = pixels[i + 2];
         const a = pixels[i + 3];
         totalCount += 1;
+
+        if (layerId === 'clearcut-annual') {
+          if (a > 0 && r > 200) {
+            redCount += 1;
+          }
+          if (a === 0) continue;
+          const intensity = r / 255;
+          pixels[i] = Math.round((r * 0.35) + (255 * intensity * 0.65));
+          pixels[i + 1] = Math.round(g * 0.18);
+          pixels[i + 2] = Math.round(b * 0.18);
+          continue;
+        }
+
         if (a > 0 && r === 255 && g === 0 && b === 0) {
           redCount += 1;
         }
+      }
+
+      if (layerId === 'clearcut-annual') {
+        ctx.putImageData(new ImageData(pixels, tmpCanvas.width, tmpCanvas.height), 0, 0);
+        img.dataset.clearcutProcessed = 'true';
+        img.src = tmpCanvas.toDataURL('image/png');
       }
 
       if (e.coords) {
@@ -146,6 +170,20 @@ function RasterTileLayer({
       }
       updateVisiblePercentage();
     }
+  }, [layerId, updateVisiblePercentage]);
+
+  const handleClearcutTileError = useCallback((e) => {
+    if (!e.coords) return;
+    const key = `${e.coords.z}/${e.coords.x}/${e.coords.y}`;
+    tileCountsRef.current.delete(key);
+    updateVisiblePercentage();
+  }, [updateVisiblePercentage]);
+
+  const handleClearcutTileUnload = useCallback((e) => {
+    if (!e.coords) return;
+    const key = `${e.coords.z}/${e.coords.x}/${e.coords.y}`;
+    tileCountsRef.current.delete(key);
+    updateVisiblePercentage();
   }, [updateVisiblePercentage]);
 
   const getTilePixelAreaHa = (coords) => {
@@ -327,7 +365,7 @@ function RasterTileLayer({
         };
 
         img.onerror = () => {
-          const finalizeBiomassTile = () => {
+          const finalizeBiomassTile = (shouldCache = true) => {
             const imageData = ctx.getImageData(0, 0, 256, 256);
             const pixels = imageData.data;
             const tileHistogram = createEmptyBiomassHistogram();
@@ -357,10 +395,12 @@ function RasterTileLayer({
             biomassTileHistogramRef.current.set(tileKey, tileHistogram);
             emitBiomassHistogram();
             ctx.putImageData(imageData, 0, 0);
-            if (!processedTileCacheRef.current.has(tileUrl)) {
-              processedTileCacheRef.current.set(tileUrl, new Map());
+            if (shouldCache) {
+              if (!processedTileCacheRef.current.has(tileUrl)) {
+                processedTileCacheRef.current.set(tileUrl, new Map());
+              }
+              processedTileCacheRef.current.get(tileUrl).set(tileKey, { canvas, histogram: tileHistogram });
             }
-            processedTileCacheRef.current.get(tileUrl).set(tileKey, { canvas, histogram: tileHistogram });
             resolveInFlight(canvas);
             activeTileRequests.delete(tileKey);
             done(null, canvas);
@@ -398,7 +438,7 @@ function RasterTileLayer({
 
               if (parentSuccess && hasOpaquePixels(ctx)) {
                 tileDebug('biomass:parent-rescue', { tileKey });
-                finalizeBiomassTile();
+                finalizeBiomassTile(true);
                 return;
               }
 
@@ -427,7 +467,7 @@ function RasterTileLayer({
 
                 tileDebug('biomass:child-rescue', { tileKey, anyCompositeSuccess });
 
-                finalizeBiomassTile();
+                finalizeBiomassTile(false);
               };
 
               for (let dx = 0; dx < 2; dx += 1) {
@@ -464,6 +504,7 @@ function RasterTileLayer({
       maxZoom: TILE_ZOOM_RANGE.max,
       tms,
       zIndex: 10,
+      className: RASTER_TILE_CLASS,
     });
 
     canvasLayerRef.current = canvasLayer;
@@ -505,284 +546,42 @@ function RasterTileLayer({
     };
   }, [map, layerId, tileUrl, tms, emitBiomassHistogram]);
 
-  useEffect(() => {
-    if (!map || layerId !== 'clearcut-annual') return;
-
-    tileCountsRef.current.clear();
-    if (onLoadingChangeRef.current) onLoadingChangeRef.current(true);
-    const activeTileRequests = activeTileRequestsRef.current;
-
-    const tileLoadQueue = makeTileQueue(8);
-    const handleZoomStart = () => {
-      activeTileRequests.clear();
-    };
-    map.on('zoomstart', handleZoomStart);
-
-    const CanvasTileLayer = L.GridLayer.extend({
-      createTile(coords, done) {
-        const normalizedCoords = normalizeTileCoords(coords);
-        const tileKey = `${normalizedCoords.z}/${normalizedCoords.x}/${normalizedCoords.y}`;
-        tileDebug('clearcut:create', { tileKey, tileZoom: map?._tileZoom, mapZoom: map?.getZoom?.() });
-        const urlCache = processedTileCacheRef.current.get(tileUrl);
-
-        if (urlCache && urlCache.has(tileKey)) {
-          const { canvas: cachedCanvas, counts } = urlCache.get(tileKey);
-          const newCanvas = document.createElement('canvas');
-          newCanvas.width = 256;
-          newCanvas.height = 256;
-          newCanvas.getContext('2d').drawImage(cachedCanvas, 0, 0);
-          tileCountsRef.current.set(tileKey, counts);
-          updateVisiblePercentage();
-          done(null, newCanvas);
-          return newCanvas;
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = 256;
-        canvas.height = 256;
-        const ctx = canvas.getContext('2d');
-
-        if (activeTileRequests.has(tileKey)) {
-          activeTileRequests.get(tileKey).then((sharedCanvas) => {
-            if (sharedCanvas) {
-              ctx.drawImage(sharedCanvas, 0, 0);
-            }
-            done(null, canvas);
-          });
-          return canvas;
-        }
-
-        let resolveInFlight;
-        const inFlightPromise = new Promise((resolve) => {
-          resolveInFlight = resolve;
-        });
-        activeTileRequests.set(tileKey, inFlightPromise);
-
-        const nativeZ = Math.min(normalizedCoords.z, NATIVE_TILE_ZOOM_RANGE.max);
-        const zoomDiff = normalizedCoords.z - nativeZ;
-        const scale = 2 ** zoomDiff;
-        const nativeCoords = normalizeTileCoords({
-          ...normalizedCoords,
-          z: nativeZ,
-          x: Math.floor(normalizedCoords.x / scale),
-          y: Math.floor(normalizedCoords.y / scale),
-        });
-        const srcSize = 256 / scale;
-        const srcX = (normalizedCoords.x % scale) * srcSize;
-        const srcY = (normalizedCoords.y % scale) * srcSize;
-
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-
-        img.onload = () => {
-          ctx.drawImage(img, srcX, srcY, srcSize, srcSize, 0, 0, 256, 256);
-
-          const imageData = ctx.getImageData(0, 0, 256, 256);
-          const pixels = imageData.data;
-
-          let clearcutCount = 0;
-          let totalCount = 0;
-
-          for (let i = 0; i < pixels.length; i += 4) {
-            const r = pixels[i];
-            const a = pixels[i + 3];
-            totalCount += 1;
-            if (a > 0 && r > 200) {
-              clearcutCount += 1;
-            }
-            if (a === 0) continue;
-            const intensity = r / 255;
-            pixels[i] = Math.round(255 * intensity);
-            pixels[i + 1] = 0;
-            pixels[i + 2] = 0;
-          }
-
-          tileCountsRef.current.set(tileKey, { red: clearcutCount, total: totalCount });
-
-          ctx.putImageData(imageData, 0, 0);
-          if (!processedTileCacheRef.current.has(tileUrl)) {
-            processedTileCacheRef.current.set(tileUrl, new Map());
-          }
-          processedTileCacheRef.current.get(tileUrl).set(tileKey, {
-            canvas,
-            counts: { red: clearcutCount, total: totalCount },
-          });
-          resolveInFlight(canvas);
-          activeTileRequests.delete(tileKey);
-          done(null, canvas);
-          updateVisiblePercentage();
-        };
-
-        img.onerror = () => {
-          const finalizeClearcutTile = () => {
-            const imageData = ctx.getImageData(0, 0, 256, 256);
-            const pixels = imageData.data;
-            let clearcutCount = 0;
-            let totalCount = 0;
-
-            for (let i = 0; i < pixels.length; i += 4) {
-              const r = pixels[i];
-              const a = pixels[i + 3];
-              totalCount += 1;
-              if (a > 0 && r > 200) clearcutCount += 1;
-              if (a === 0) continue;
-              const intensity = r / 255;
-              pixels[i] = Math.round(255 * intensity);
-              pixels[i + 1] = 0;
-              pixels[i + 2] = 0;
-            }
-
-            ctx.putImageData(imageData, 0, 0);
-            tileCountsRef.current.set(tileKey, { red: clearcutCount, total: totalCount });
-            if (!processedTileCacheRef.current.has(tileUrl)) {
-              processedTileCacheRef.current.set(tileUrl, new Map());
-            }
-            processedTileCacheRef.current.get(tileUrl).set(tileKey, {
-              canvas,
-              counts: { red: clearcutCount, total: totalCount },
-            });
-            resolveInFlight(canvas);
-            activeTileRequests.delete(tileKey);
-            done(null, canvas);
-            updateVisiblePercentage();
-          };
-
-          const failTile = () => {
-            tileDebug('clearcut:fail', {
-              tileKey,
-              tileZoom: map?._tileZoom,
-              mapZoom: map?.getZoom?.(),
-            });
-            resolveInFlight(null);
-            activeTileRequests.delete(tileKey);
-            done(null, canvas);
-          };
-
-          if (isStaleTileZoom(map, normalizedCoords.z)) {
-            failTile();
-            return;
-          }
-
-          loadTileFromParentChain(
-            tileLoadQueue,
-            ctx,
-            tileUrl,
-            nativeCoords.z,
-            nativeCoords.x,
-            nativeCoords.y,
-            3,
-            (parentSuccess) => {
-              if (isStaleTileZoom(map, normalizedCoords.z)) {
-                failTile();
-                return;
-              }
-
-              if (parentSuccess && hasOpaquePixels(ctx)) {
-                tileDebug('clearcut:parent-rescue', { tileKey });
-                finalizeClearcutTile();
-                return;
-              }
-
-              if (nativeCoords.z >= NATIVE_TILE_ZOOM_RANGE.max) {
-                failTile();
-                return;
-              }
-
-              let pending = 4;
-              let anyCompositeSuccess = false;
-              const half = 128;
-              const onAllDone = (childSuccess) => {
-                if (childSuccess) anyCompositeSuccess = true;
-                pending -= 1;
-                if (pending !== 0) return;
-
-                if (isStaleTileZoom(map, normalizedCoords.z)) {
-                  failTile();
-                  return;
-                }
-
-                if (!anyCompositeSuccess && !hasOpaquePixels(ctx)) {
-                  failTile();
-                  return;
-                }
-
-                tileDebug('clearcut:child-rescue', { tileKey, anyCompositeSuccess });
-
-                finalizeClearcutTile();
-              };
-
-              for (let dx = 0; dx < 2; dx += 1) {
-                for (let dy = 0; dy < 2; dy += 1) {
-                  loadTileComposite(
-                    tileLoadQueue,
-                    ctx,
-                    tileUrl,
-                    nativeCoords.z + 1,
-                    nativeCoords.x * 2 + dx,
-                    nativeCoords.y * 2 + dy,
-                    dx * half,
-                    dy * half,
-                    half,
-                    NATIVE_TILE_ZOOM_RANGE.max,
-                    1,
-                    onAllDone,
-                  );
-                }
-              }
-            },
-          );
-        };
-
-        const url = L.Util.template(tileUrl, nativeCoords);
-        img.src = url;
-
-        return canvas;
-      },
-    });
-
-    const canvasLayer = new CanvasTileLayer({
-      minZoom: TILE_ZOOM_RANGE.min,
-      maxZoom: TILE_ZOOM_RANGE.max,
-      tms,
-      zIndex: 10,
-    });
-
-    canvasLayerRef.current = canvasLayer;
-    canvasLayer.addTo(map);
-
-    const handleZoomEndRefresh = () => {
-      // Re-request currently visible tiles after zoom settles to recover
-      // from transient misses during animation.
-      activeTileRequests.clear();
-      canvasLayer.redraw();
-    };
-    map.on('zoomend', handleZoomEndRefresh);
-
-    const handleTileUnload = (event) => {
-      if (!event.coords) return;
-      const tileKey = `${event.coords.z}/${event.coords.x}/${event.coords.y}`;
-      tileCountsRef.current.delete(tileKey);
-    };
-
-    canvasLayer.on('tileunload', handleTileUnload);
-    canvasLayer.once('tileload', () => {
-      if (onLoadingChangeRef.current) onLoadingChangeRef.current(false);
-    });
-
-    return () => {
-      tileLoadQueue.cancel();
-      map.off('zoomstart', handleZoomStart);
-      map.off('zoomend', handleZoomEndRefresh);
-      activeTileRequests.clear();
-      if (onLoadingChangeRef.current) onLoadingChangeRef.current(false);
-      canvasLayer.off('tileunload', handleTileUnload);
-      map.removeLayer(canvasLayer);
-      canvasLayerRef.current = null;
-    };
-  }, [map, layerId, tileUrl, tms, updateVisiblePercentage]);
-
-  if (layerId === 'biomass-density' || layerId === 'clearcut-annual') {
+  if (layerId === 'biomass-density') {
     return null;
+  }
+
+  if (layerId === 'clearcut-annual') {
+    return (
+      <TileLayer
+        ref={highResLayerRef}
+        url={tileUrl}
+        minZoom={TILE_ZOOM_RANGE.min}
+        maxZoom={TILE_ZOOM_RANGE.max}
+        maxNativeZoom={NATIVE_TILE_ZOOM_RANGE.max}
+        zIndex={10}
+        className={RASTER_TILE_CLASS}
+        tms={tms}
+        crossOrigin="anonymous"
+        eventHandlers={{
+          loading: () => {
+            if (onLoadingChangeRef.current) onLoadingChangeRef.current(true);
+          },
+          load: () => {
+            if (onLoadingChangeRef.current) onLoadingChangeRef.current(false);
+            updateVisiblePercentage();
+          },
+          tileload: (e) => {
+            handleTileLoad(e);
+          },
+          tileerror: (e) => {
+            handleClearcutTileError(e);
+          },
+          tileunload: (e) => {
+            handleClearcutTileUnload(e);
+          },
+        }}
+      />
+    );
   }
 
   return (
@@ -794,6 +593,7 @@ function RasterTileLayer({
         maxZoom={12}
         maxNativeZoom={12}
         zIndex={10}
+        className={RASTER_TILE_CLASS}
         tms={tms}
         crossOrigin="anonymous"
         eventHandlers={{
@@ -809,6 +609,7 @@ function RasterTileLayer({
         maxZoom={TILE_ZOOM_RANGE.max}
         maxNativeZoom={NATIVE_TILE_ZOOM_RANGE.max}
         zIndex={10}
+        className={RASTER_TILE_CLASS}
         tms={tms}
         crossOrigin="anonymous"
         eventHandlers={{

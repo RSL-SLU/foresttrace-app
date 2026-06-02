@@ -1,6 +1,7 @@
 import L from 'leaflet';
 
 const inFlightImageRequests = new Map();
+const IMAGE_REQUEST_TIMEOUT_MS = 8000;
 
 function wrapX(x, z) {
   const tilesPerAxis = 2 ** z;
@@ -21,9 +22,29 @@ function loadImageDeduped(url) {
 
   const promise = new Promise((resolve) => {
     const img = new Image();
+    let settled = false;
+    let timeoutId = null;
+
+    const finalize = (result) => {
+      if (settled) return;
+      settled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+      img.onload = null;
+      img.onerror = null;
+      resolve(result);
+    };
+
     img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
+    img.onload = () => finalize(img);
+    img.onerror = () => finalize(null);
+
+    // Prevent indefinite "Pending" requests from blocking queue slots.
+    timeoutId = setTimeout(() => {
+      // Best-effort cancellation for stalled image loads.
+      img.src = '';
+      finalize(null);
+    }, IMAGE_REQUEST_TIMEOUT_MS);
+
     img.src = url;
   }).finally(() => {
     inFlightImageRequests.delete(url);
