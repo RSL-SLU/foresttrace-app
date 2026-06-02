@@ -35,6 +35,20 @@ function normalizeTileCoords(coords) {
   };
 }
 
+function getTileLatLngBounds(coords) {
+  const n = 2 ** coords.z;
+  const lonMin = (coords.x / n) * 360 - 180;
+  const lonMax = ((coords.x + 1) / n) * 360 - 180;
+
+  const latMaxRad = Math.atan(Math.sinh(Math.PI * (1 - (2 * coords.y) / n)));
+  const latMinRad = Math.atan(Math.sinh(Math.PI * (1 - (2 * (coords.y + 1)) / n)));
+
+  return L.latLngBounds(
+    L.latLng((latMinRad * 180) / Math.PI, lonMin),
+    L.latLng((latMaxRad * 180) / Math.PI, lonMax),
+  );
+}
+
 function RasterTileLayer({
   onStatsUpdate,
   onBiomassHistogramUpdate,
@@ -208,6 +222,15 @@ function RasterTileLayer({
       createTile(coords, done) {
         const normalizedCoords = normalizeTileCoords(coords);
         const tileKey = `${normalizedCoords.z}/${normalizedCoords.x}/${normalizedCoords.y}`;
+        const tileBounds = getTileLatLngBounds(normalizedCoords);
+
+        if (!map.getBounds().intersects(tileBounds)) {
+          const canvas = document.createElement('canvas');
+          canvas.width = 256;
+          canvas.height = 256;
+          done(null, canvas);
+          return canvas;
+        }
 
         const urlCache = processedTileCacheRef.current.get(tileUrl);
         if (urlCache && urlCache.has(tileKey)) {
@@ -430,6 +453,15 @@ function RasterTileLayer({
       createTile(coords, done) {
         const normalizedCoords = normalizeTileCoords(coords);
         const tileKey = `${normalizedCoords.z}/${normalizedCoords.x}/${normalizedCoords.y}`;
+        const tileBounds = getTileLatLngBounds(normalizedCoords);
+
+        if (!map.getBounds().intersects(tileBounds)) {
+          const canvas = document.createElement('canvas');
+          canvas.width = 256;
+          canvas.height = 256;
+          done(null, canvas);
+          return canvas;
+        }
 
         const urlCache = processedTileCacheRef.current.get(tileUrl);
         if (urlCache && urlCache.has(tileKey)) {

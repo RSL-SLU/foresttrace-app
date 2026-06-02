@@ -1,6 +1,8 @@
 import L from 'leaflet';
 
 const inFlightImageRequests = new Map();
+const failedImageRequests = new Map();
+const FAILED_REQUEST_TTL_MS = 5000;
 
 function wrapX(x, z) {
   const tilesPerAxis = 2 ** z;
@@ -15,6 +17,12 @@ function clampY(y, z) {
 }
 
 function loadImageDeduped(url) {
+  const now = Date.now();
+  const failedAt = failedImageRequests.get(url);
+  if (failedAt && now - failedAt < FAILED_REQUEST_TTL_MS) {
+    return Promise.resolve(null);
+  }
+
   if (inFlightImageRequests.has(url)) {
     return inFlightImageRequests.get(url);
   }
@@ -22,8 +30,14 @@ function loadImageDeduped(url) {
   const promise = new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
+    img.onload = () => {
+      failedImageRequests.delete(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      failedImageRequests.set(url, Date.now());
+      resolve(null);
+    };
     img.src = url;
   }).finally(() => {
     inFlightImageRequests.delete(url);
