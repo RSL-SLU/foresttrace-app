@@ -52,7 +52,7 @@ function RasterTileLayer({
   const biomassTileHistogramRef = useRef(new Map());
   const styleTagRef = useRef(null);
   const processedTileCacheRef = useRef(new Map());
-  const activeTileRequestsRef = useRef(new Set());
+  const activeTileRequestsRef = useRef(new Map());
   const onStatsUpdateRef = useRef(onStatsUpdate);
   const onBiomassHistogramUpdateRef = useRef(onBiomassHistogramUpdate);
   const onLoadingChangeRef = useRef(onLoadingChange);
@@ -228,10 +228,20 @@ function RasterTileLayer({
         const ctx = canvas.getContext('2d');
 
         if (activeTileRequests.has(tileKey)) {
-          done(null, canvas);
+          activeTileRequests.get(tileKey).then((sharedCanvas) => {
+            if (sharedCanvas) {
+              ctx.drawImage(sharedCanvas, 0, 0);
+            }
+            done(null, canvas);
+          });
           return canvas;
         }
-        activeTileRequests.add(tileKey);
+
+        let resolveInFlight;
+        const inFlightPromise = new Promise((resolve) => {
+          resolveInFlight = resolve;
+        });
+        activeTileRequests.set(tileKey, inFlightPromise);
 
         const nativeZ = Math.min(normalizedCoords.z, NATIVE_TILE_ZOOM_RANGE.max);
         const zoomDiff = normalizedCoords.z - nativeZ;
@@ -287,12 +297,14 @@ function RasterTileLayer({
             processedTileCacheRef.current.set(tileUrl, new Map());
           }
           processedTileCacheRef.current.get(tileUrl).set(tileKey, { canvas, histogram: tileHistogram });
+          resolveInFlight(canvas);
           activeTileRequests.delete(tileKey);
           done(null, canvas);
         };
 
         img.onerror = () => {
           if (nativeCoords.z >= NATIVE_TILE_ZOOM_RANGE.max) {
+            resolveInFlight(null);
             activeTileRequests.delete(tileKey);
             done(null, canvas);
             return;
@@ -337,6 +349,7 @@ function RasterTileLayer({
               processedTileCacheRef.current.set(tileUrl, new Map());
             }
             processedTileCacheRef.current.get(tileUrl).set(tileKey, { canvas, histogram: tileHistogram });
+            resolveInFlight(canvas);
             activeTileRequests.delete(tileKey);
             done(null, canvas);
           };
@@ -437,10 +450,20 @@ function RasterTileLayer({
         const ctx = canvas.getContext('2d');
 
         if (activeTileRequests.has(tileKey)) {
-          done(null, canvas);
+          activeTileRequests.get(tileKey).then((sharedCanvas) => {
+            if (sharedCanvas) {
+              ctx.drawImage(sharedCanvas, 0, 0);
+            }
+            done(null, canvas);
+          });
           return canvas;
         }
-        activeTileRequests.add(tileKey);
+
+        let resolveInFlight;
+        const inFlightPromise = new Promise((resolve) => {
+          resolveInFlight = resolve;
+        });
+        activeTileRequests.set(tileKey, inFlightPromise);
 
         const nativeZ = Math.min(normalizedCoords.z, NATIVE_TILE_ZOOM_RANGE.max);
         const zoomDiff = normalizedCoords.z - nativeZ;
@@ -491,6 +514,7 @@ function RasterTileLayer({
             canvas,
             counts: { red: clearcutCount, total: totalCount },
           });
+          resolveInFlight(canvas);
           activeTileRequests.delete(tileKey);
           done(null, canvas);
           updateVisiblePercentage();
@@ -498,6 +522,7 @@ function RasterTileLayer({
 
         img.onerror = () => {
           if (nativeCoords.z >= NATIVE_TILE_ZOOM_RANGE.max) {
+            resolveInFlight(null);
             activeTileRequests.delete(tileKey);
             done(null, canvas);
             return;
@@ -535,6 +560,7 @@ function RasterTileLayer({
               canvas,
               counts: { red: clearcutCount, total: totalCount },
             });
+            resolveInFlight(canvas);
             activeTileRequests.delete(tileKey);
             done(null, canvas);
             updateVisiblePercentage();
