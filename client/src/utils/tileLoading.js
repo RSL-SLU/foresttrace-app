@@ -117,3 +117,53 @@ export function loadTileComposite(queue, ctx, tileUrl, z, x, y, destX, destY, de
     });
   });
 }
+
+// Attempts to fill a missing tile from lower zoom parents by cropping and scaling.
+// Callback receives true when a parent tile was found and drawn.
+export function loadTileFromParentChain(queue, ctx, tileUrl, z, x, y, maxLevelsUp, callback) {
+  const tryLevel = (levelUp) => {
+    if (levelUp > maxLevelsUp || z - levelUp < 0) {
+      callback(false);
+      return;
+    }
+
+    queue.run((release) => {
+      const parentZ = z - levelUp;
+      const scale = 2 ** levelUp;
+      const parentX = Math.floor(x / scale);
+      const parentY = Math.floor(y / scale);
+      const safeX = wrapX(parentX, parentZ);
+      const safeY = clampY(parentY, parentZ);
+      const url = L.Util.template(tileUrl, { z: parentZ, x: safeX, y: safeY });
+
+      loadImageDeduped(url).then((img) => {
+        release();
+
+        if (!img) {
+          tryLevel(levelUp + 1);
+          return;
+        }
+
+        const srcSize = 256 / scale;
+        const srcX = ((x % scale) + scale) % scale;
+        const srcY = ((y % scale) + scale) % scale;
+
+        ctx.drawImage(
+          img,
+          srcX * srcSize,
+          srcY * srcSize,
+          srcSize,
+          srcSize,
+          0,
+          0,
+          256,
+          256,
+        );
+
+        callback(true);
+      });
+    });
+  };
+
+  tryLevel(1);
+}

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import { TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { BIOMASS_BINS, createEmptyBiomassHistogram } from '../utils/biomassHistogram';
-import { makeTileQueue, loadTileComposite } from '../utils/tileLoading';
+import { makeTileQueue, loadTileComposite, loadTileFromParentChain } from '../utils/tileLoading';
 
 const NATIVE_TILE_ZOOM_LEVELS = [6, 7, 8, 9, 10, 11, 12, 13, 14];
 const TILE_ZOOM_LEVELS = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
@@ -316,43 +316,7 @@ function RasterTileLayer({
         };
 
         img.onerror = () => {
-          if (nativeCoords.z >= NATIVE_TILE_ZOOM_RANGE.max) {
-            resolveInFlight(null);
-            activeTileRequests.delete(tileKey);
-            done(null, canvas);
-            return;
-          }
-
-          // If zoom changed since this tile started, skip expensive fallback work.
-          if (map.getZoom() !== normalizedCoords.z) {
-            resolveInFlight(null);
-            activeTileRequests.delete(tileKey);
-            done(null, canvas);
-            return;
-          }
-
-          let pending = 4;
-          let anyCompositeSuccess = false;
-          const half = 128;
-          const onAllDone = (childSuccess) => {
-            if (childSuccess) anyCompositeSuccess = true;
-            pending -= 1;
-            if (pending !== 0) return;
-
-            if (map.getZoom() !== normalizedCoords.z) {
-              resolveInFlight(null);
-              activeTileRequests.delete(tileKey);
-              done(null, canvas);
-              return;
-            }
-
-            if (!anyCompositeSuccess && !hasOpaquePixels(ctx)) {
-              resolveInFlight(null);
-              activeTileRequests.delete(tileKey);
-              done(null, canvas);
-              return;
-            }
-
+          const finalizeBiomassTile = () => {
             const imageData = ctx.getImageData(0, 0, 256, 256);
             const pixels = imageData.data;
             const tileHistogram = createEmptyBiomassHistogram();
@@ -391,24 +355,82 @@ function RasterTileLayer({
             done(null, canvas);
           };
 
-          for (let dx = 0; dx < 2; dx += 1) {
-            for (let dy = 0; dy < 2; dy += 1) {
-              loadTileComposite(
-                tileLoadQueue,
-                ctx,
-                tileUrl,
-                nativeCoords.z + 1,
-                nativeCoords.x * 2 + dx,
-                nativeCoords.y * 2 + dy,
-                dx * half,
-                dy * half,
-                half,
-                NATIVE_TILE_ZOOM_RANGE.max,
-                3,
-                onAllDone,
-              );
-            }
+          const failTile = () => {
+            resolveInFlight(null);
+            activeTileRequests.delete(tileKey);
+            done(null, canvas);
+          };
+
+          if (map.getZoom() !== normalizedCoords.z) {
+            failTile();
+            return;
           }
+
+          loadTileFromParentChain(
+            tileLoadQueue,
+            ctx,
+            tileUrl,
+            nativeCoords.z,
+            nativeCoords.x,
+            nativeCoords.y,
+            3,
+            (parentSuccess) => {
+              if (map.getZoom() !== normalizedCoords.z) {
+                failTile();
+                return;
+              }
+
+              if (parentSuccess && hasOpaquePixels(ctx)) {
+                finalizeBiomassTile();
+                return;
+              }
+
+              if (nativeCoords.z >= NATIVE_TILE_ZOOM_RANGE.max) {
+                failTile();
+                return;
+              }
+
+              let pending = 4;
+              let anyCompositeSuccess = false;
+              const half = 128;
+              const onAllDone = (childSuccess) => {
+                if (childSuccess) anyCompositeSuccess = true;
+                pending -= 1;
+                if (pending !== 0) return;
+
+                if (map.getZoom() !== normalizedCoords.z) {
+                  failTile();
+                  return;
+                }
+
+                if (!anyCompositeSuccess && !hasOpaquePixels(ctx)) {
+                  failTile();
+                  return;
+                }
+
+                finalizeBiomassTile();
+              };
+
+              for (let dx = 0; dx < 2; dx += 1) {
+                for (let dy = 0; dy < 2; dy += 1) {
+                  loadTileComposite(
+                    tileLoadQueue,
+                    ctx,
+                    tileUrl,
+                    nativeCoords.z + 1,
+                    nativeCoords.x * 2 + dx,
+                    nativeCoords.y * 2 + dy,
+                    dx * half,
+                    dy * half,
+                    half,
+                    NATIVE_TILE_ZOOM_RANGE.max,
+                    3,
+                    onAllDone,
+                  );
+                }
+              }
+            },
+          );
         };
 
         const url = L.Util.template(tileUrl, nativeCoords);
@@ -563,43 +585,7 @@ function RasterTileLayer({
         };
 
         img.onerror = () => {
-          if (nativeCoords.z >= NATIVE_TILE_ZOOM_RANGE.max) {
-            resolveInFlight(null);
-            activeTileRequests.delete(tileKey);
-            done(null, canvas);
-            return;
-          }
-
-          // If zoom changed since this tile started, skip expensive fallback work.
-          if (map.getZoom() !== normalizedCoords.z) {
-            resolveInFlight(null);
-            activeTileRequests.delete(tileKey);
-            done(null, canvas);
-            return;
-          }
-
-          let pending = 4;
-          let anyCompositeSuccess = false;
-          const half = 128;
-          const onAllDone = (childSuccess) => {
-            if (childSuccess) anyCompositeSuccess = true;
-            pending -= 1;
-            if (pending !== 0) return;
-
-            if (map.getZoom() !== normalizedCoords.z) {
-              resolveInFlight(null);
-              activeTileRequests.delete(tileKey);
-              done(null, canvas);
-              return;
-            }
-
-            if (!anyCompositeSuccess && !hasOpaquePixels(ctx)) {
-              resolveInFlight(null);
-              activeTileRequests.delete(tileKey);
-              done(null, canvas);
-              return;
-            }
-
+          const finalizeClearcutTile = () => {
             const imageData = ctx.getImageData(0, 0, 256, 256);
             const pixels = imageData.data;
             let clearcutCount = 0;
@@ -632,24 +618,82 @@ function RasterTileLayer({
             updateVisiblePercentage();
           };
 
-          for (let dx = 0; dx < 2; dx += 1) {
-            for (let dy = 0; dy < 2; dy += 1) {
-              loadTileComposite(
-                tileLoadQueue,
-                ctx,
-                tileUrl,
-                nativeCoords.z + 1,
-                nativeCoords.x * 2 + dx,
-                nativeCoords.y * 2 + dy,
-                dx * half,
-                dy * half,
-                half,
-                NATIVE_TILE_ZOOM_RANGE.max,
-                3,
-                onAllDone,
-              );
-            }
+          const failTile = () => {
+            resolveInFlight(null);
+            activeTileRequests.delete(tileKey);
+            done(null, canvas);
+          };
+
+          if (map.getZoom() !== normalizedCoords.z) {
+            failTile();
+            return;
           }
+
+          loadTileFromParentChain(
+            tileLoadQueue,
+            ctx,
+            tileUrl,
+            nativeCoords.z,
+            nativeCoords.x,
+            nativeCoords.y,
+            3,
+            (parentSuccess) => {
+              if (map.getZoom() !== normalizedCoords.z) {
+                failTile();
+                return;
+              }
+
+              if (parentSuccess && hasOpaquePixels(ctx)) {
+                finalizeClearcutTile();
+                return;
+              }
+
+              if (nativeCoords.z >= NATIVE_TILE_ZOOM_RANGE.max) {
+                failTile();
+                return;
+              }
+
+              let pending = 4;
+              let anyCompositeSuccess = false;
+              const half = 128;
+              const onAllDone = (childSuccess) => {
+                if (childSuccess) anyCompositeSuccess = true;
+                pending -= 1;
+                if (pending !== 0) return;
+
+                if (map.getZoom() !== normalizedCoords.z) {
+                  failTile();
+                  return;
+                }
+
+                if (!anyCompositeSuccess && !hasOpaquePixels(ctx)) {
+                  failTile();
+                  return;
+                }
+
+                finalizeClearcutTile();
+              };
+
+              for (let dx = 0; dx < 2; dx += 1) {
+                for (let dy = 0; dy < 2; dy += 1) {
+                  loadTileComposite(
+                    tileLoadQueue,
+                    ctx,
+                    tileUrl,
+                    nativeCoords.z + 1,
+                    nativeCoords.x * 2 + dx,
+                    nativeCoords.y * 2 + dy,
+                    dx * half,
+                    dy * half,
+                    half,
+                    NATIVE_TILE_ZOOM_RANGE.max,
+                    3,
+                    onAllDone,
+                  );
+                }
+              }
+            },
+          );
         };
 
         const url = L.Util.template(tileUrl, nativeCoords);
