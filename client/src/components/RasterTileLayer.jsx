@@ -469,6 +469,14 @@ function RasterTileLayer({
     canvasLayerRef.current = canvasLayer;
     canvasLayer.addTo(map);
 
+    const handleZoomEndRefresh = () => {
+      // Re-request currently visible tiles after zoom settles to recover
+      // from transient misses during animation.
+      activeTileRequests.clear();
+      canvasLayer.redraw();
+    };
+    map.on('zoomend', handleZoomEndRefresh);
+
     const handleTileUnload = (event) => {
       if (!event.coords) return;
       const key = `${event.coords.z}/${event.coords.x}/${event.coords.y}`;
@@ -484,6 +492,7 @@ function RasterTileLayer({
     return () => {
       tileLoadQueue.cancel();
       map.off('zoomstart', handleZoomStart);
+      map.off('zoomend', handleZoomEndRefresh);
       activeTileRequests.clear();
       if (onLoadingChangeRef.current) onLoadingChangeRef.current(false);
       canvasLayer.off('tileunload', handleTileUnload);
@@ -741,6 +750,14 @@ function RasterTileLayer({
     canvasLayerRef.current = canvasLayer;
     canvasLayer.addTo(map);
 
+    const handleZoomEndRefresh = () => {
+      // Re-request currently visible tiles after zoom settles to recover
+      // from transient misses during animation.
+      activeTileRequests.clear();
+      canvasLayer.redraw();
+    };
+    map.on('zoomend', handleZoomEndRefresh);
+
     const handleTileUnload = (event) => {
       if (!event.coords) return;
       const tileKey = `${event.coords.z}/${event.coords.x}/${event.coords.y}`;
@@ -755,6 +772,7 @@ function RasterTileLayer({
     return () => {
       tileLoadQueue.cancel();
       map.off('zoomstart', handleZoomStart);
+      map.off('zoomend', handleZoomEndRefresh);
       activeTileRequests.clear();
       if (onLoadingChangeRef.current) onLoadingChangeRef.current(false);
       canvasLayer.off('tileunload', handleTileUnload);
