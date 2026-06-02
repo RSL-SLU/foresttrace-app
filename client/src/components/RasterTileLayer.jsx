@@ -191,7 +191,7 @@ function RasterTileLayer({
       onBiomassHistogramUpdateRef.current(createEmptyBiomassHistogram());
     }
 
-    const tileLoadQueue = makeTileQueue(20);
+    const tileLoadQueue = makeTileQueue(8);
     const handleZoomStart = () => {
       activeTileRequests.clear();
     };
@@ -443,7 +443,7 @@ function RasterTileLayer({
                     dy * half,
                     half,
                     NATIVE_TILE_ZOOM_RANGE.max,
-                    3,
+                    1,
                     onAllDone,
                   );
                 }
@@ -512,7 +512,7 @@ function RasterTileLayer({
     if (onLoadingChangeRef.current) onLoadingChangeRef.current(true);
     const activeTileRequests = activeTileRequestsRef.current;
 
-    const tileLoadQueue = makeTileQueue(20);
+    const tileLoadQueue = makeTileQueue(8);
     const handleZoomStart = () => {
       activeTileRequests.clear();
     };
@@ -724,7 +724,7 @@ function RasterTileLayer({
                     dy * half,
                     half,
                     NATIVE_TILE_ZOOM_RANGE.max,
-                    3,
+                    1,
                     onAllDone,
                   );
                 }
