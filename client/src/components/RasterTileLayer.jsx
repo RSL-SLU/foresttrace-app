@@ -164,6 +164,7 @@ function RasterTileLayer({
     if (!map || layerId !== 'biomass-density') return;
 
     if (onLoadingChangeRef.current) onLoadingChangeRef.current(true);
+    const activeTileRequests = activeTileRequestsRef.current;
 
     const biomassHistogram = biomassTileHistogramRef.current;
     biomassHistogram.clear();
@@ -226,11 +227,11 @@ function RasterTileLayer({
         canvas.height = 256;
         const ctx = canvas.getContext('2d');
 
-        if (activeTileRequestsRef.current.has(tileKey)) {
+        if (activeTileRequests.has(tileKey)) {
           done(null, canvas);
           return canvas;
         }
-        activeTileRequestsRef.current.add(tileKey);
+        activeTileRequests.add(tileKey);
 
         const nativeZ = Math.min(normalizedCoords.z, NATIVE_TILE_ZOOM_RANGE.max);
         const zoomDiff = normalizedCoords.z - nativeZ;
@@ -286,13 +287,13 @@ function RasterTileLayer({
             processedTileCacheRef.current.set(tileUrl, new Map());
           }
           processedTileCacheRef.current.get(tileUrl).set(tileKey, { canvas, histogram: tileHistogram });
-          activeTileRequestsRef.current.delete(tileKey);
+          activeTileRequests.delete(tileKey);
           done(null, canvas);
         };
 
         img.onerror = () => {
           if (nativeCoords.z >= NATIVE_TILE_ZOOM_RANGE.max) {
-            activeTileRequestsRef.current.delete(tileKey);
+            activeTileRequests.delete(tileKey);
             done(null, canvas);
             return;
           }
@@ -336,7 +337,7 @@ function RasterTileLayer({
               processedTileCacheRef.current.set(tileUrl, new Map());
             }
             processedTileCacheRef.current.get(tileUrl).set(tileKey, { canvas, histogram: tileHistogram });
-            activeTileRequestsRef.current.delete(tileKey);
+            activeTileRequests.delete(tileKey);
             done(null, canvas);
           };
 
@@ -391,7 +392,7 @@ function RasterTileLayer({
 
     return () => {
       tileLoadQueue.cancel();
-      activeTileRequestsRef.current.clear();
+      activeTileRequests.clear();
       if (onLoadingChangeRef.current) onLoadingChangeRef.current(false);
       canvasLayer.off('tileunload', handleTileUnload);
       map.removeLayer(canvasLayer);
@@ -408,6 +409,7 @@ function RasterTileLayer({
 
     tileCountsRef.current.clear();
     if (onLoadingChangeRef.current) onLoadingChangeRef.current(true);
+    const activeTileRequests = activeTileRequestsRef.current;
 
     const tileLoadQueue = makeTileQueue(20);
 
@@ -434,11 +436,11 @@ function RasterTileLayer({
         canvas.height = 256;
         const ctx = canvas.getContext('2d');
 
-        if (activeTileRequestsRef.current.has(tileKey)) {
+        if (activeTileRequests.has(tileKey)) {
           done(null, canvas);
           return canvas;
         }
-        activeTileRequestsRef.current.add(tileKey);
+        activeTileRequests.add(tileKey);
 
         const nativeZ = Math.min(normalizedCoords.z, NATIVE_TILE_ZOOM_RANGE.max);
         const zoomDiff = normalizedCoords.z - nativeZ;
@@ -489,14 +491,14 @@ function RasterTileLayer({
             canvas,
             counts: { red: clearcutCount, total: totalCount },
           });
-          activeTileRequestsRef.current.delete(tileKey);
+          activeTileRequests.delete(tileKey);
           done(null, canvas);
           updateVisiblePercentage();
         };
 
         img.onerror = () => {
           if (nativeCoords.z >= NATIVE_TILE_ZOOM_RANGE.max) {
-            activeTileRequestsRef.current.delete(tileKey);
+            activeTileRequests.delete(tileKey);
             done(null, canvas);
             return;
           }
@@ -533,7 +535,7 @@ function RasterTileLayer({
               canvas,
               counts: { red: clearcutCount, total: totalCount },
             });
-            activeTileRequestsRef.current.delete(tileKey);
+            activeTileRequests.delete(tileKey);
             done(null, canvas);
             updateVisiblePercentage();
           };
@@ -588,7 +590,7 @@ function RasterTileLayer({
 
     return () => {
       tileLoadQueue.cancel();
-      activeTileRequestsRef.current.clear();
+      activeTileRequests.clear();
       if (onLoadingChangeRef.current) onLoadingChangeRef.current(false);
       canvasLayer.off('tileunload', handleTileUnload);
       map.removeLayer(canvasLayer);
