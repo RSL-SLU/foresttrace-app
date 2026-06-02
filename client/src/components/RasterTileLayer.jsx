@@ -51,7 +51,7 @@ function isStaleTileZoom(map, tileZ) {
 
 function tileDebug(event, payload) {
   if (typeof window === 'undefined' || !window.__FORESTTRACE_TILE_DEBUG__) return;
-  console.debug('[TileDebug]', event, payload);
+  console.log('[TileDebug]', event, payload);
 }
 
 function RasterTileLayer({
