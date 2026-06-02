@@ -35,6 +35,15 @@ function normalizeTileCoords(coords) {
   };
 }
 
+function hasOpaquePixels(ctx) {
+  const imageData = ctx.getImageData(0, 0, 256, 256);
+  const pixels = imageData.data;
+  for (let i = 0; i < pixels.length; i += 4) {
+    if (pixels[i + 3] > 0) return true;
+  }
+  return false;
+}
+
 function RasterTileLayer({
   onStatsUpdate,
   onBiomassHistogramUpdate,
@@ -311,10 +320,19 @@ function RasterTileLayer({
           }
 
           let pending = 4;
+          let anyCompositeSuccess = false;
           const half = 128;
-          const onAllDone = () => {
+          const onAllDone = (childSuccess) => {
+            if (childSuccess) anyCompositeSuccess = true;
             pending -= 1;
             if (pending !== 0) return;
+
+            if (!anyCompositeSuccess && !hasOpaquePixels(ctx)) {
+              resolveInFlight(null);
+              activeTileRequests.delete(tileKey);
+              done(null, canvas);
+              return;
+            }
 
             const imageData = ctx.getImageData(0, 0, 256, 256);
             const pixels = imageData.data;
@@ -529,10 +547,19 @@ function RasterTileLayer({
           }
 
           let pending = 4;
+          let anyCompositeSuccess = false;
           const half = 128;
-          const onAllDone = () => {
+          const onAllDone = (childSuccess) => {
+            if (childSuccess) anyCompositeSuccess = true;
             pending -= 1;
             if (pending !== 0) return;
+
+            if (!anyCompositeSuccess && !hasOpaquePixels(ctx)) {
+              resolveInFlight(null);
+              activeTileRequests.delete(tileKey);
+              done(null, canvas);
+              return;
+            }
 
             const imageData = ctx.getImageData(0, 0, 256, 256);
             const pixels = imageData.data;

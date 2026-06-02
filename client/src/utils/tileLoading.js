@@ -67,6 +67,7 @@ export function makeTileQueue(max) {
 
 // Fetches a tile and draws it scaled into ctx at (destX, destY, destSize x destSize).
 // On 404, recursively tries the 4 child tiles at z+1.
+// Callback receives whether any source tile was successfully drawn.
 export function loadTileComposite(queue, ctx, tileUrl, z, x, y, destX, destY, destSize, maxNativeZ, depth, callback) {
   queue.run((release) => {
     const safeX = wrapX(x, z);
@@ -77,20 +78,22 @@ export function loadTileComposite(queue, ctx, tileUrl, z, x, y, destX, destY, de
       release();
       if (img) {
         ctx.drawImage(img, 0, 0, 256, 256, destX, destY, destSize, destSize);
-        callback();
+        callback(true);
         return;
       }
 
       if (depth <= 0 || z >= maxNativeZ) {
-        callback();
+        callback(false);
         return;
       }
 
       let pending = 4;
+      let anySuccess = false;
       const half = destSize / 2;
-      const childDone = () => {
+      const childDone = (childSuccess) => {
+        if (childSuccess) anySuccess = true;
         pending -= 1;
-        if (pending === 0) callback();
+        if (pending === 0) callback(anySuccess);
       };
 
       for (let dx = 0; dx < 2; dx += 1) {
