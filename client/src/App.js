@@ -260,33 +260,45 @@ function ZoomControlPositioner({ position = "bottomleft" }) {
   return null;
 }
 
+// Limits concurrent fallback tile requests to avoid 429 rate-limit bursts.
+const _tileQueue = (() => {
+  const MAX = 6;
+  let active = 0;
+  const pending = [];
+  function release() { active--; if (pending.length) { active++; pending.shift()(release); } }
+  return function enqueue(task) {
+    if (active < MAX) { active++; task(release); } else { pending.push(task); }
+  };
+})();
+
 // Fetches a tile and draws it scaled into ctx at (destX, destY, destSize×destSize).
 // On 404, recursively tries the 4 child tiles at z+1.
 // Calls callback() when done regardless of whether anything was drawn.
 function loadTileComposite(ctx, tileUrl, z, x, y, destX, destY, destSize, maxNativeZ, depth, callback) {
-  const img = new Image();
-  img.crossOrigin = 'anonymous';
-  img.onload = () => {
-    ctx.drawImage(img, 0, 0, 256, 256, destX, destY, destSize, destSize);
-    callback();
-  };
-  img.onerror = () => {
-    if (depth <= 0 || z >= maxNativeZ) {
+  _tileQueue((release) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      release();
+      ctx.drawImage(img, 0, 0, 256, 256, destX, destY, destSize, destSize);
       callback();
-      return;
-    }
-    let pending = 4;
-    const half = destSize / 2;
-    const childDone = () => { if (--pending === 0) callback(); };
-    for (let dx = 0; dx < 2; dx++) {
-      for (let dy = 0; dy < 2; dy++) {
-        loadTileComposite(ctx, tileUrl, z + 1, x * 2 + dx, y * 2 + dy,
-          destX + dx * half, destY + dy * half, half,
-          maxNativeZ, depth - 1, childDone);
+    };
+    img.onerror = () => {
+      release();
+      if (depth <= 0 || z >= maxNativeZ) { callback(); return; }
+      let pending = 4;
+      const half = destSize / 2;
+      const childDone = () => { if (--pending === 0) callback(); };
+      for (let dx = 0; dx < 2; dx++) {
+        for (let dy = 0; dy < 2; dy++) {
+          loadTileComposite(ctx, tileUrl, z + 1, x * 2 + dx, y * 2 + dy,
+            destX + dx * half, destY + dy * half, half,
+            maxNativeZ, depth - 1, childDone);
+        }
       }
-    }
-  };
-  img.src = L.Util.template(tileUrl, { z, x, y });
+    };
+    img.src = L.Util.template(tileUrl, { z, x, y });
+  });
 }
 
 function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, onLoadingChange = null, opacity = 0.50, tileUrl = `${TILES_BASE_URL}/tiles/{z}/{x}/red_{y}.png`, tms = true, layerId = '' }) {
