@@ -629,12 +629,13 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, onLo
     };
 
     canvasLayer.on('tileunload', handleTileUnload);
-    canvasLayer.on('load', () => {
+    canvasLayer.once('tileload', () => {
       if (onLoadingChangeRef.current) onLoadingChangeRef.current(false);
     });
 
     return () => {
       tileLoadQueue.cancel();
+      if (onLoadingChangeRef.current) onLoadingChangeRef.current(false);
       canvasLayer.off('tileunload', handleTileUnload);
       map.removeLayer(canvasLayer);
       canvasLayerRef.current = null;
@@ -811,12 +812,13 @@ function RasterTileLayer({ mapRef, onStatsUpdate, onBiomassHistogramUpdate, onLo
     };
 
     canvasLayer.on('tileunload', handleTileUnload);
-    canvasLayer.on('load', () => {
+    canvasLayer.once('tileload', () => {
       if (onLoadingChangeRef.current) onLoadingChangeRef.current(false);
     });
 
     return () => {
       tileLoadQueue.cancel();
+      if (onLoadingChangeRef.current) onLoadingChangeRef.current(false);
       canvasLayer.off('tileunload', handleTileUnload);
       map.removeLayer(canvasLayer);
       canvasLayerRef.current = null;
