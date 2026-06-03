@@ -35,6 +35,8 @@ const TILE_ZOOM_RANGE = {
   min: Math.min(...TILE_ZOOM_LEVELS),
   max: Math.max(...TILE_ZOOM_LEVELS),
 };
+const RASTER_MULTI_FMU_SOFT_LIMIT = 8;
+const PREFERRED_RASTER_REGIONS = ['wabigoon', 'troutlake'];
 
 const MODULES = [
   {
@@ -172,31 +174,112 @@ function DrawingTools({ mapRef }) {
   return null;
 }
 
-function RegionBoundaries({ selectedFMUs }) {
+function RegionBoundaries({ selectedFMUs, useOntarioOverview }) {
   const [regionsData, setRegionsData] = useState(null);
+  const legacyRegionsRef = useRef(null);
+  const perAreaCacheRef = useRef(new Map());
+  const overviewCacheRef = useRef(null);
 
   useEffect(() => {
-    fetch(`${DATA_BASE_URL}/data/regions-simplified.json`)
-      .then((res) => res.json())
-      .then((data) => setRegionsData(data))
-      .catch((err) => console.error('Failed to load regions:', err));
-  }, []);
+    let cancelled = false;
 
-  const filteredGeoJSON = useMemo(() => {
-    if (!regionsData || selectedFMUs.length === 0) return null;
-
-    const filteredFeatures = regionsData.features?.filter((feature) => {
-      const regionId = feature.properties?.id?.toLowerCase();
-      return selectedFMUs.some((fmu) => fmu.toLowerCase() === regionId);
-    }) || [];
-
-    if (filteredFeatures.length === 0) return null;
-
-    return {
-      type: 'FeatureCollection',
-      features: filteredFeatures,
+    const loadLegacyIfNeeded = async () => {
+      if (legacyRegionsRef.current) return legacyRegionsRef.current;
+      const res = await fetch(`${DATA_BASE_URL}/data/regions-simplified.json`);
+      if (!res.ok) throw new Error(`regions-simplified.json: HTTP ${res.status}`);
+      const data = await res.json();
+      legacyRegionsRef.current = data;
+      return data;
     };
-  }, [regionsData, selectedFMUs]);
+
+    const normalizeFeatureCollection = (data) => {
+      if (!data || data.type !== 'FeatureCollection' || !Array.isArray(data.features)) return null;
+      return data;
+    };
+
+    const loadSelectedBoundaries = async () => {
+      if (selectedFMUs.length === 0) {
+        if (!cancelled) setRegionsData(null);
+        return;
+      }
+
+      if (useOntarioOverview) {
+        try {
+          if (!overviewCacheRef.current) {
+            const overviewRes = await fetch(`${DATA_BASE_URL}/data/regions/ontario-overview.json`);
+            if (!overviewRes.ok) {
+              throw new Error(`ontario-overview.json: HTTP ${overviewRes.status}`);
+            }
+            overviewCacheRef.current = normalizeFeatureCollection(await overviewRes.json());
+          }
+
+          if (!cancelled) {
+            setRegionsData(overviewCacheRef.current);
+          }
+          return;
+        } catch (err) {
+          console.warn('Failed to load Ontario overview boundaries; falling back to per-area boundaries.', err);
+        }
+      }
+
+      const mergedFeatures = [];
+
+      for (const fmu of selectedFMUs) {
+        const id = String(fmu || '').toLowerCase();
+        if (!id) continue;
+
+        if (perAreaCacheRef.current.has(id)) {
+          const cached = perAreaCacheRef.current.get(id);
+          if (cached?.features) mergedFeatures.push(...cached.features);
+          continue;
+        }
+
+        let loaded = null;
+
+        // Preferred source: one JSON per FMU at /data/regions/<id>.json
+        try {
+          const areaRes = await fetch(`${DATA_BASE_URL}/data/regions/${id}.json`);
+          if (areaRes.ok) {
+            loaded = normalizeFeatureCollection(await areaRes.json());
+          }
+        } catch {
+          loaded = null;
+        }
+
+        // Backward-compatible fallback: filter from legacy simplified file.
+        if (!loaded) {
+          try {
+            const legacy = await loadLegacyIfNeeded();
+            const features = (legacy.features || []).filter((feature) => {
+              const regionId = feature?.properties?.id?.toLowerCase();
+              return regionId === id;
+            });
+            loaded = { type: 'FeatureCollection', features };
+          } catch (err) {
+            console.error('Failed to load region boundaries:', err);
+            loaded = { type: 'FeatureCollection', features: [] };
+          }
+        }
+
+        perAreaCacheRef.current.set(id, loaded);
+        if (loaded?.features) mergedFeatures.push(...loaded.features);
+      }
+
+      if (!cancelled) {
+        setRegionsData(
+          mergedFeatures.length
+            ? { type: 'FeatureCollection', features: mergedFeatures }
+            : null,
+        );
+      }
+    };
+
+    loadSelectedBoundaries();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedFMUs, useOntarioOverview]);
 
   const onEachFeature = useCallback((feature, layer) => {
     layer.setStyle({
@@ -207,11 +290,11 @@ function RegionBoundaries({ selectedFMUs }) {
     });
   }, []);
 
-  if (!filteredGeoJSON) return null;
+  if (!regionsData) return null;
 
-  const featureIds = filteredGeoJSON.features.map((f) => f.properties?.id).sort().join('-');
+  const featureIds = regionsData.features.map((f) => f.properties?.id).sort().join('-');
 
-  return <GeoJSON key={featureIds} data={filteredGeoJSON} onEachFeature={onEachFeature} />;
+  return <GeoJSON key={featureIds} data={regionsData} onEachFeature={onEachFeature} />;
 }
 
 function ZoomControlPositioner({ position = 'bottomleft' }) {
@@ -244,6 +327,39 @@ function App() {
   const [selectedYear, setSelectedYear] = useState(MODULES[0]?.temporalOptions?.yearRange?.[1] || 2025);
   const [selectedFMUs, setSelectedFMUs] = useState(['wabigoon']);
   const [selectedSensor, setSelectedSensor] = useState('planet');
+  const [allowHeavyRaster, setAllowHeavyRaster] = useState(false);
+
+  // Disable overview mode for now because the current simplified overview geometry
+  // introduces visible boundary artifacts at Ontario-wide scale.
+  const useOntarioOverview = false;
+
+  const shouldLimitRasterRegions = useMemo(() => {
+    if (!Array.isArray(selectedFMUs) || selectedFMUs.length <= RASTER_MULTI_FMU_SOFT_LIMIT) {
+      return false;
+    }
+    return !allowHeavyRaster;
+  }, [selectedFMUs, allowHeavyRaster]);
+
+  const prioritizedRasterRegions = useMemo(() => {
+    if (!Array.isArray(selectedFMUs)) return [];
+
+    const selectedSet = new Set(selectedFMUs);
+    const preferred = PREFERRED_RASTER_REGIONS.filter((id) => selectedSet.has(id));
+    const rest = selectedFMUs.filter((id) => !PREFERRED_RASTER_REGIONS.includes(id));
+
+    return [...preferred, ...rest];
+  }, [selectedFMUs]);
+
+  const rasterRegions = useMemo(() => {
+    if (!shouldLimitRasterRegions) {
+      return prioritizedRasterRegions;
+    }
+    return prioritizedRasterRegions.slice(0, RASTER_MULTI_FMU_SOFT_LIMIT);
+  }, [prioritizedRasterRegions, shouldLimitRasterRegions]);
+
+  const clearcutStatsRegion = useMemo(() => (
+    rasterRegions.length > 0 ? rasterRegions[0] : null
+  ), [rasterRegions]);
 
   const [moduleYears, setModuleYears] = useState(() => {
     const initial = {};
@@ -433,6 +549,22 @@ function App() {
 
           <FMUSelector values={selectedFMUs} onChange={setSelectedFMUs} />
 
+          {shouldLimitRasterRegions && (
+            <div className="performance-notice" role="status" aria-live="polite">
+              <span>
+                Showing raster tiles for {RASTER_MULTI_FMU_SOFT_LIMIT} of {selectedFMUs.length} selected areas
+                to keep the map responsive.
+              </span>
+              <button
+                type="button"
+                className="performance-notice-button"
+                onClick={() => setAllowHeavyRaster(true)}
+              >
+                Load all anyway
+              </button>
+            </div>
+          )}
+
           <button
             className="locate-btn"
             onClick={() => handleLocateUser(mapRef)}
@@ -473,11 +605,11 @@ function App() {
               return moduleActiveLayers.flatMap((layerId) => {
                 const layer = module.layers?.find((l) => l.id === layerId);
                 if (!layer) return null;
-                if (selectedFMUs.length === 0) return null;
+                if (rasterRegions.length === 0) return null;
 
                 const moduleYear = moduleYears[module.id] || selectedYear;
 
-                return selectedFMUs.map((region) => {
+                return rasterRegions.map((region) => {
                   let tileUrl = layer.tileUrl.replace('{year}', moduleYear);
                   tileUrl = tileUrl.replace('{region}', region);
 
@@ -493,7 +625,11 @@ function App() {
                   return (
                     <RasterTileLayer
                       key={`${layer.id}-${region}-${moduleYear}-${selectedSensor}`}
-                      onStatsUpdate={setClearcutPercent}
+                      onStatsUpdate={
+                        layer.id === 'clearcut-annual' && region === clearcutStatsRegion
+                          ? setClearcutPercent
+                          : null
+                      }
                       onBiomassHistogramUpdate={setBiomassHistogram}
                       onLoadingChange={setTilesLoading}
                       opacity={rasterOpacity}
@@ -506,7 +642,7 @@ function App() {
               });
             })}
 
-            <RegionBoundaries selectedFMUs={selectedFMUs} />
+            <RegionBoundaries selectedFMUs={selectedFMUs} useOntarioOverview={useOntarioOverview} />
             <DrawingTools mapRef={mapRef} />
             <ZoomControlPositioner position="bottomleft" />
           </MapContainer>

@@ -106,6 +106,25 @@ function BiomassModule({ data }) {
             </BarChart>
           </ResponsiveContainer>
         </div>
+        <div className="biomass-interval-legend" role="note" aria-label="Biomass interval legend">
+          <div className="biomass-interval-legend-title">Interval Legend (Mg/ha)</div>
+          <div className="biomass-interval-legend-grid">
+            <span>0-10</span>
+            <span>Very low biomass</span>
+            <span>10-25</span>
+            <span>Low biomass</span>
+            <span>25-40</span>
+            <span>Moderate-low biomass</span>
+            <span>40-50</span>
+            <span>Moderate biomass</span>
+            <span>50-70</span>
+            <span>Moderate-high biomass</span>
+            <span>70-100</span>
+            <span>High biomass</span>
+            <span>100+</span>
+            <span>Very high biomass</span>
+          </div>
+        </div>
         {!hasHistogramData && (
           <div className="biomass-chart-status">Loading biomass stats or no biomass tiles in current view.</div>
         )}

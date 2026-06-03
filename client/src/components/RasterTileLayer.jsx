@@ -15,6 +15,7 @@ const NATIVE_TILE_ZOOM_RANGE = {
   max: Math.max(...NATIVE_TILE_ZOOM_LEVELS),
 };
 const RASTER_TILE_CLASS = 'foresttrace-raster-tile';
+const USE_BIOMASS_CANVAS_PIPELINE = false;
 
 function wrapTileX(x, z) {
   const tilesPerAxis = 2 ** z;
@@ -55,6 +56,36 @@ function tileDebug(event, payload) {
   console.log('[TileDebug]', event, payload);
 }
 
+function getColorForBiomassIntensity(rawIntensity) {
+  const agb = (rawIntensity / 255) * 1000;
+  if (agb < 10) {
+    const t = agb / 10;
+    return { r: Math.round(220 - (100 * t)), g: Math.round(180 - (95 * t)), b: Math.round(140 - (100 * t)) };
+  }
+  if (agb < 25) {
+    const t = (agb - 10) / 15;
+    return { r: Math.round(120 + (135 * t)), g: Math.round(85 + (155 * t)), b: Math.round(40) };
+  }
+  if (agb < 40) {
+    const t = (agb - 25) / 15;
+    return { r: Math.round(255), g: Math.round(240 - (50 * t)), b: Math.round(40) };
+  }
+  if (agb < 50) {
+    const t = (agb - 40) / 10;
+    return { r: Math.round(255), g: Math.round(190 + (65 * t)), b: Math.round(40) };
+  }
+  if (agb < 85) {
+    const t = (agb - 50) / 35;
+    return { r: Math.round(50 * (1 - t)), g: Math.round(220 + (35 * t)), b: Math.round(0) };
+  }
+  if (agb < 120) {
+    const t = (agb - 85) / 35;
+    return { r: 0, g: Math.round(255), b: Math.round(20 * t) };
+  }
+  const t = Math.min(1, (agb - 120) / 30);
+  return { r: 0, g: Math.round(255 - (90 * t)), b: Math.round(50 * t) };
+}
+
 function RasterTileLayer({
   onStatsUpdate,
   onBiomassHistogramUpdate,
@@ -93,6 +124,18 @@ function RasterTileLayer({
     styleTagRef.current.textContent = rule;
   }, [opacity, layerId]);
 
+  const emitBiomassHistogram = useCallback(() => {
+    if (!onBiomassHistogramUpdateRef.current) return;
+    const combined = createEmptyBiomassHistogram();
+    biomassTileHistogramRef.current.forEach((tileBins) => {
+      tileBins.forEach((tileBin, idx) => {
+        combined[idx].area += tileBin.area;
+        combined[idx].pixels += tileBin.pixels;
+      });
+    });
+    onBiomassHistogramUpdateRef.current(combined);
+  }, []);
+
   const updateVisiblePercentage = useCallback(() => {
     let visibleRed = 0;
     let visibleTotal = 0;
@@ -123,6 +166,10 @@ function RasterTileLayer({
       return;
     }
 
+    if (layerId === 'biomass-density' && img?.dataset?.biomassProcessed === 'true') {
+      return;
+    }
+
     if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
       const tmpCanvas = document.createElement('canvas');
       tmpCanvas.width = img.naturalWidth;
@@ -133,6 +180,10 @@ function RasterTileLayer({
 
       let redCount = 0;
       let totalCount = 0;
+      const tileHistogram = layerId === 'biomass-density' ? createEmptyBiomassHistogram() : null;
+      const pixelAreaHa = layerId === 'biomass-density' && e.coords
+        ? getTilePixelAreaHa(e.coords)
+        : 0;
 
       for (let i = 0; i < pixels.length; i += 4) {
         const r = pixels[i];
@@ -153,6 +204,28 @@ function RasterTileLayer({
           continue;
         }
 
+        if (layerId === 'biomass-density') {
+          if (a === 0) continue;
+
+          const agb = (g / 255) * 1000;
+          if (tileHistogram) {
+            for (let binIdx = 0; binIdx < BIOMASS_BINS.length; binIdx += 1) {
+              const bin = BIOMASS_BINS[binIdx];
+              if (agb >= bin.min && agb < bin.max) {
+                tileHistogram[binIdx].pixels += 1;
+                tileHistogram[binIdx].area += pixelAreaHa;
+                break;
+              }
+            }
+          }
+
+          const color = getColorForBiomassIntensity(g);
+          pixels[i] = color.r;
+          pixels[i + 1] = color.g;
+          pixels[i + 2] = color.b;
+          continue;
+        }
+
         if (a > 0 && r === 255 && g === 0 && b === 0) {
           redCount += 1;
         }
@@ -164,13 +237,28 @@ function RasterTileLayer({
         img.src = tmpCanvas.toDataURL('image/png');
       }
 
-      if (e.coords) {
+      if (layerId === 'biomass-density') {
+        ctx.putImageData(new ImageData(pixels, tmpCanvas.width, tmpCanvas.height), 0, 0);
+        img.dataset.biomassProcessed = 'true';
+        img.src = tmpCanvas.toDataURL('image/png');
+
+        if (e.coords && tileHistogram) {
+          const key = `${e.coords.z}/${e.coords.x}/${e.coords.y}`;
+          biomassTileHistogramRef.current.set(key, tileHistogram);
+          emitBiomassHistogram();
+        }
+      }
+
+      if (e.coords && layerId !== 'biomass-density') {
         const key = `${e.coords.z}/${e.coords.x}/${e.coords.y}`;
         tileCountsRef.current.set(key, { red: redCount, total: totalCount });
       }
-      updateVisiblePercentage();
+
+      if (layerId !== 'biomass-density') {
+        updateVisiblePercentage();
+      }
     }
-  }, [layerId, updateVisiblePercentage]);
+  }, [emitBiomassHistogram, layerId, updateVisiblePercentage]);
 
   const handleClearcutTileError = useCallback((e) => {
     if (!e.coords) return;
@@ -186,6 +274,20 @@ function RasterTileLayer({
     updateVisiblePercentage();
   }, [updateVisiblePercentage]);
 
+  const handleBiomassTileError = useCallback((e) => {
+    if (!e.coords) return;
+    const key = `${e.coords.z}/${e.coords.x}/${e.coords.y}`;
+    biomassTileHistogramRef.current.delete(key);
+    emitBiomassHistogram();
+  }, [emitBiomassHistogram]);
+
+  const handleBiomassTileUnload = useCallback((e) => {
+    if (!e.coords) return;
+    const key = `${e.coords.z}/${e.coords.x}/${e.coords.y}`;
+    biomassTileHistogramRef.current.delete(key);
+    emitBiomassHistogram();
+  }, [emitBiomassHistogram]);
+
   const getTilePixelAreaHa = (coords) => {
     const tilesPerAxis = Math.pow(2, coords.z);
     const centerY = coords.y + 0.5;
@@ -193,18 +295,6 @@ function RasterTileLayer({
     const metersPerPixel = (156543.03392 * Math.cos(latRad)) / tilesPerAxis;
     return (metersPerPixel * metersPerPixel) / 10000;
   };
-
-  const emitBiomassHistogram = useCallback(() => {
-    if (!onBiomassHistogramUpdateRef.current) return;
-    const combined = createEmptyBiomassHistogram();
-    biomassTileHistogramRef.current.forEach((tileBins) => {
-      tileBins.forEach((tileBin, idx) => {
-        combined[idx].area += tileBin.area;
-        combined[idx].pixels += tileBin.pixels;
-      });
-    });
-    onBiomassHistogramUpdateRef.current(combined);
-  }, []);
 
   useEffect(() => {
     if (!map) return;
@@ -218,7 +308,7 @@ function RasterTileLayer({
   }, [map, updateVisiblePercentage]);
 
   useEffect(() => {
-    if (!map || layerId !== 'biomass-density') return;
+    if (!map || layerId !== 'biomass-density' || !USE_BIOMASS_CANVAS_PIPELINE) return;
 
     if (onLoadingChangeRef.current) onLoadingChangeRef.current(true);
     const activeTileRequests = activeTileRequestsRef.current;
@@ -234,36 +324,6 @@ function RasterTileLayer({
       activeTileRequests.clear();
     };
     map.on('zoomstart', handleZoomStart);
-
-    const getColorForIntensity = (rawIntensity) => {
-      const agb = (rawIntensity / 255) * 1000;
-      if (agb < 10) {
-        const t = agb / 10;
-        return { r: Math.round(220 - (100 * t)), g: Math.round(180 - (95 * t)), b: Math.round(140 - (100 * t)) };
-      }
-      if (agb < 25) {
-        const t = (agb - 10) / 15;
-        return { r: Math.round(120 + (135 * t)), g: Math.round(85 + (155 * t)), b: Math.round(40) };
-      }
-      if (agb < 40) {
-        const t = (agb - 25) / 15;
-        return { r: Math.round(255), g: Math.round(240 - (50 * t)), b: Math.round(40) };
-      }
-      if (agb < 50) {
-        const t = (agb - 40) / 10;
-        return { r: Math.round(255), g: Math.round(190 + (65 * t)), b: Math.round(40) };
-      }
-      if (agb < 85) {
-        const t = (agb - 50) / 35;
-        return { r: Math.round(50 * (1 - t)), g: Math.round(220 + (35 * t)), b: Math.round(0) };
-      }
-      if (agb < 120) {
-        const t = (agb - 85) / 35;
-        return { r: 0, g: Math.round(255), b: Math.round(20 * t) };
-      }
-      const t = Math.min(1, (agb - 120) / 30);
-      return { r: 0, g: Math.round(255 - (90 * t)), b: Math.round(50 * t) };
-    };
 
     const CanvasTileLayer = L.GridLayer.extend({
       createTile(coords, done) {
@@ -345,7 +405,7 @@ function RasterTileLayer({
               }
             }
 
-            const color = getColorForIntensity(g);
+            const color = getColorForBiomassIntensity(g);
             pixels[i] = color.r;
             pixels[i + 1] = color.g;
             pixels[i + 2] = color.b;
@@ -386,7 +446,7 @@ function RasterTileLayer({
                 }
               }
 
-              const color = getColorForIntensity(g);
+              const color = getColorForBiomassIntensity(g);
               pixels[i] = color.r;
               pixels[i + 1] = color.g;
               pixels[i + 2] = color.b;
@@ -406,7 +466,50 @@ function RasterTileLayer({
             done(null, canvas);
           };
 
+          const drawFromCachedParent = () => {
+            const urlCache = processedTileCacheRef.current.get(tileUrl);
+            if (!urlCache) return false;
+
+            for (let levelUp = 1; levelUp <= 4; levelUp += 1) {
+              const parentZ = normalizedCoords.z - levelUp;
+              if (parentZ < TILE_ZOOM_RANGE.min) break;
+
+              const scale = 2 ** levelUp;
+              const parentX = Math.floor(normalizedCoords.x / scale);
+              const parentY = Math.floor(normalizedCoords.y / scale);
+              const parentKey = `${parentZ}/${parentX}/${parentY}`;
+              const cachedParent = urlCache.get(parentKey);
+              if (!cachedParent?.canvas) continue;
+
+              const srcSize = 256 / scale;
+              const srcX = (((normalizedCoords.x % scale) + scale) % scale) * srcSize;
+              const srcY = (((normalizedCoords.y % scale) + scale) % scale) * srcSize;
+
+              ctx.drawImage(
+                cachedParent.canvas,
+                srcX,
+                srcY,
+                srcSize,
+                srcSize,
+                0,
+                0,
+                256,
+                256,
+              );
+
+              return true;
+            }
+
+            return false;
+          };
+
           const failTile = () => {
+            if (drawFromCachedParent()) {
+              tileDebug('biomass:cache-parent-rescue', { tileKey });
+              finalizeBiomassTile(false);
+              return;
+            }
+
             tileDebug('biomass:fail', {
               tileKey,
               tileZoom: map?._tileZoom,
@@ -546,8 +649,71 @@ function RasterTileLayer({
     };
   }, [map, layerId, tileUrl, tms, emitBiomassHistogram]);
 
-  if (layerId === 'biomass-density') {
+  if (layerId === 'biomass-density' && USE_BIOMASS_CANVAS_PIPELINE) {
     return null;
+  }
+
+  if (layerId === 'biomass-density') {
+    return (
+      <>
+        <TileLayer
+          ref={lowResLayerRef}
+          url={tileUrl}
+          minZoom={TILE_ZOOM_RANGE.min}
+          maxZoom={12}
+          maxNativeZoom={12}
+          zIndex={10}
+          className={RASTER_TILE_CLASS}
+          tms={tms}
+          crossOrigin="anonymous"
+          eventHandlers={{
+            loading: () => {
+              if (onLoadingChangeRef.current) onLoadingChangeRef.current(true);
+            },
+            load: () => {
+              if (onLoadingChangeRef.current) onLoadingChangeRef.current(false);
+            },
+            tileload: (e) => {
+              handleTileLoad(e);
+            },
+            tileerror: (e) => {
+              handleBiomassTileError(e);
+            },
+            tileunload: (e) => {
+              handleBiomassTileUnload(e);
+            },
+          }}
+        />
+        <TileLayer
+          ref={highResLayerRef}
+          url={tileUrl}
+          minZoom={13}
+          maxZoom={TILE_ZOOM_RANGE.max}
+          maxNativeZoom={NATIVE_TILE_ZOOM_RANGE.max}
+          zIndex={10}
+          className={RASTER_TILE_CLASS}
+          tms={tms}
+          crossOrigin="anonymous"
+          eventHandlers={{
+            loading: () => {
+              if (onLoadingChangeRef.current) onLoadingChangeRef.current(true);
+            },
+            load: () => {
+              if (onLoadingChangeRef.current) onLoadingChangeRef.current(false);
+            },
+            tileload: (e) => {
+              handleTileLoad(e);
+            },
+            tileerror: (e) => {
+              handleBiomassTileError(e);
+            },
+            tileunload: (e) => {
+              handleBiomassTileUnload(e);
+            },
+          }}
+        />
+      </>
+    );
   }
 
   if (layerId === 'clearcut-annual') {
