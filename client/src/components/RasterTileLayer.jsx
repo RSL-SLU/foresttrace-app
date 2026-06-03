@@ -666,6 +666,7 @@ function RasterTileLayer({
           className={RASTER_TILE_CLASS}
           tms={tms}
           crossOrigin="anonymous"
+          pmIgnore={true}
           eventHandlers={{
             loading: () => {
               if (onLoadingChangeRef.current) onLoadingChangeRef.current(true);
@@ -694,6 +695,7 @@ function RasterTileLayer({
           className={RASTER_TILE_CLASS}
           tms={tms}
           crossOrigin="anonymous"
+          pmIgnore={true}
           eventHandlers={{
             loading: () => {
               if (onLoadingChangeRef.current) onLoadingChangeRef.current(true);

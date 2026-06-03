@@ -157,17 +157,19 @@ function DrawingTools({ mapRef }) {
       drawCircle: true,
       drawRectangle: true,
       editMode: true,
-      dragMode: true,
+      dragMode: false,
       cutPolygon: false,
       removalMode: true,
     });
 
-    map.on('pm:create', (e) => {
+    const onCreate = (e) => {
       console.log('Shape created:', e.layer.toGeoJSON());
-    });
+    };
+    map.on('pm:create', onCreate);
 
     return () => {
-      map.off('pm:create');
+      map.off('pm:create', onCreate);
+      map.pm.removeControls();
     };
   }, [map]);
 
@@ -282,6 +284,7 @@ function RegionBoundaries({ selectedFMUs, useOntarioOverview }) {
   }, [selectedFMUs, useOntarioOverview]);
 
   const onEachFeature = useCallback((feature, layer) => {
+    layer.options.pmIgnore = true;
     layer.setStyle({
       color: '#ffffff',
       weight: 2,
@@ -598,6 +601,7 @@ function App() {
               url="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
               attribution="&copy; Esri, DigitalGlobe, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, and others"
               zIndex={5}
+              pmIgnore={true}
             />
 
             {MODULES.flatMap((module) => {
