@@ -535,6 +535,10 @@ function App() {
           onModuleSelect={handleModuleSelect}
           activeLayers={activeLayers}
           onLayerToggle={handleLayerToggle}
+          moduleData={moduleData}
+          selectedYear={selectedYear}
+          selectedFMUs={selectedFMUs}
+          selectedSensor={selectedSensor}
         />
 
         <div className="map-center">

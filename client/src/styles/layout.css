@@ -11,6 +11,8 @@
 /* Left Sidebar - Module Selector */
 .module-selector {
   width: 240px;
+  min-width: 180px;
+  max-width: 520px;
   background: white;
   border-right: 1px solid #e0e0e0;
   display: flex;
@@ -18,6 +20,53 @@
   overflow-y: auto;
   box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
   z-index: 50;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 5px;
+  height: 100%;
+  cursor: ew-resize;
+  z-index: 100;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 1px;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 32px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.resize-handle:hover::after,
+.resize-handle--active::after {
+  background: #2f8f5b;
+}
+
+.resize-handle:hover,
+.resize-handle--active {
+  background: rgba(47, 143, 91, 0.08);
+}
+
+body.dark-mode .resize-handle:hover,
+body.dark-mode .resize-handle--active {
+  background: rgba(76, 175, 114, 0.12);
+}
+
+body.dark-mode .resize-handle:hover::after,
+body.dark-mode .resize-handle--active::after {
+  background: #4caf72;
 }
 
 .selector-header {
@@ -776,6 +825,328 @@ body.dark-mode .right-column-logo .logo-dark {
     border-left: none;
     border-top: 1px solid #e0e0e0;
   }
+}
+
+/* ── Forestry AI Agent Panel ─────────────────────────────── */
+
+.ai-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ai-context-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f9f9f9;
+}
+
+.ai-ctx-chip {
+  background: #e8f5e9;
+  color: #2f8f5b;
+  border: 1px solid #c8e6c9;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.ai-ctx-chip--clearcut {
+  background: #fff3e0;
+  color: #e65100;
+  border-color: #ffe0b2;
+}
+
+.ai-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  background: #f4f7f4;
+  scrollbar-width: thin;
+  scrollbar-color: #a5c8a5 transparent;
+}
+
+.ai-messages::-webkit-scrollbar {
+  width: 4px;
+}
+
+.ai-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ai-messages::-webkit-scrollbar-thumb {
+  background: #a5c8a5;
+  border-radius: 4px;
+}
+
+.ai-messages::-webkit-scrollbar-thumb:hover {
+  background: #2f8f5b;
+}
+
+.ai-empty {
+  color: #999;
+  font-size: 13px;
+  text-align: center;
+  padding: 8px 0;
+}
+
+.ai-empty p {
+  margin: 0 0 10px;
+}
+
+.ai-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.ai-suggestion-btn {
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  color: #555;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.ai-suggestion-btn:hover {
+  background: #e8f5e9;
+  border-color: #2f8f5b;
+  color: #2f8f5b;
+}
+
+.ai-message {
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-message--user {
+  align-items: flex-end;
+}
+
+.ai-message--assistant {
+  align-items: flex-start;
+}
+
+.ai-message-bubble {
+  max-width: 92%;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ai-message--user .ai-message-bubble {
+  background: #2f8f5b;
+  color: white;
+  border-radius: 10px 10px 2px 10px;
+}
+
+.ai-message--assistant .ai-message-bubble {
+  background: #ffffff;
+  color: #333;
+  border-radius: 10px 10px 10px 2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+/* Typing indicator */
+.ai-typing {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 10px 14px;
+  background: #ffffff;
+  border-radius: 10px 10px 10px 2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.ai-typing span {
+  width: 6px;
+  height: 6px;
+  background: #2f8f5b;
+  border-radius: 50%;
+  animation: ai-bounce 1.2s infinite ease-in-out;
+}
+
+.ai-typing span:nth-child(2) { animation-delay: 0.2s; }
+.ai-typing span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes ai-bounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+  40%           { transform: scale(1);   opacity: 1;   }
+}
+
+.ai-error {
+  color: #c62828;
+  font-size: 13px;
+  background: #ffebee;
+  border: 1px solid #ef9a9a;
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.ai-input-area {
+  border-top: 1px solid #e0e0e0;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #fafafa;
+}
+
+.ai-textarea {
+  width: 100%;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: none;
+  outline: none;
+  background: white;
+  color: #333;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.ai-textarea:focus {
+  border-color: #2f8f5b;
+}
+
+.ai-textarea:disabled {
+  background: #f5f5f5;
+  color: #999;
+}
+
+.ai-send-btn {
+  align-self: flex-end;
+  padding: 6px 16px;
+  background: #2f8f5b;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.ai-send-btn:hover:not(:disabled) {
+  background: #257a4e;
+}
+
+.ai-send-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+/* ── Forestry AI Agent — dark mode ───────────────────────── */
+
+body.dark-mode .ai-context-bar {
+  background: #1a1a1a;
+  border-color: #2b2b2b;
+}
+
+body.dark-mode .ai-ctx-chip {
+  background: #1b3328;
+  color: #6fcf97;
+  border-color: #2d4a3a;
+}
+
+body.dark-mode .ai-ctx-chip--clearcut {
+  background: #2d1f0f;
+  color: #f6a84b;
+  border-color: #4a3010;
+}
+
+body.dark-mode .ai-messages {
+  background: #161616;
+  scrollbar-color: #3a5a3a transparent;
+}
+
+body.dark-mode .ai-messages::-webkit-scrollbar-thumb {
+  background: #3a5a3a;
+}
+
+body.dark-mode .ai-messages::-webkit-scrollbar-thumb:hover {
+  background: #4caf72;
+}
+
+body.dark-mode .ai-empty {
+  color: #666;
+}
+
+body.dark-mode .ai-suggestion-btn {
+  background: #252525;
+  border-color: #333;
+  color: #aaa;
+}
+
+body.dark-mode .ai-suggestion-btn:hover {
+  background: #1b3328;
+  border-color: #4caf72;
+  color: #6fcf97;
+}
+
+body.dark-mode .ai-message--assistant .ai-message-bubble {
+  background: #252525;
+  color: #e0e0e0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .ai-typing {
+  background: #252525;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .ai-error {
+  background: #2d1515;
+  border-color: #6b2020;
+  color: #f48080;
+}
+
+body.dark-mode .ai-input-area {
+  background: #1a1a1a;
+  border-color: #2b2b2b;
+}
+
+body.dark-mode .ai-textarea {
+  background: #252525;
+  border-color: #333;
+  color: #e0e0e0;
+}
+
+body.dark-mode .ai-textarea::placeholder {
+  color: #555;
+}
+
+body.dark-mode .ai-textarea:focus {
+  border-color: #4caf72;
+}
+
+body.dark-mode .ai-textarea:disabled {
+  background: #1e1e1e;
+  color: #444;
+}
+
+body.dark-mode .ai-send-btn:disabled {
+  background: #333;
+  color: #555;
 }
 
 

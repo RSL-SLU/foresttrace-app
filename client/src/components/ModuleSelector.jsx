@@ -1,33 +1,74 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import ForestryAIAgent from './ForestryAIAgent';
 
-/**
- * ModuleSelector - Left sidebar for selecting modules and layers
- * Displays available analysis modules and allows toggling of layers
- * Layers from different modules can be overlaid simultaneously
- */
-function ModuleSelector({ modules, selectedModule, onModuleSelect, activeLayers, onLayerToggle }) {
+const MIN_WIDTH = 180;
+const MAX_WIDTH = 520;
+
+function ModuleSelector({
+  modules,
+  selectedModule,
+  onModuleSelect,
+  activeLayers,
+  onLayerToggle,
+  moduleData,
+  selectedYear,
+  selectedFMUs,
+  selectedSensor,
+}) {
   const [activeTab, setActiveTab] = useState('modules');
-  // Initialize with the first module expanded
   const [expandedModules, setExpandedModules] = useState({ [modules[0]?.id]: true });
+  const [panelWidth, setPanelWidth] = useState(240);
+  const [isResizing, setIsResizing] = useState(false);
+  const moveHandler = useRef(null);
+  const upHandler = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (moveHandler.current) document.removeEventListener('mousemove', moveHandler.current);
+      if (upHandler.current) document.removeEventListener('mouseup', upHandler.current);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+  }, []);
+
+  function handleResizeMouseDown(e) {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = panelWidth;
+
+    moveHandler.current = (e) => {
+      const newWidth = Math.min(Math.max(startWidth + e.clientX - startX, MIN_WIDTH), MAX_WIDTH);
+      setPanelWidth(newWidth);
+    };
+
+    upHandler.current = () => {
+      setIsResizing(false);
+      document.removeEventListener('mousemove', moveHandler.current);
+      document.removeEventListener('mouseup', upHandler.current);
+      moveHandler.current = null;
+      upHandler.current = null;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+
+    setIsResizing(true);
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'ew-resize';
+    document.addEventListener('mousemove', moveHandler.current);
+    document.addEventListener('mouseup', upHandler.current);
+  }
 
   const handleModuleClick = (module) => {
     onModuleSelect(module);
-    // Auto-expand the module when selected
-    setExpandedModules(prev => ({
-      ...prev,
-      [module.id]: true
-    }));
+    setExpandedModules(prev => ({ ...prev, [module.id]: true }));
   };
 
   const toggleModuleExpand = (moduleId) => {
-    setExpandedModules(prev => ({
-      ...prev,
-      [moduleId]: !prev[moduleId]
-    }));
+    setExpandedModules(prev => ({ ...prev, [moduleId]: !prev[moduleId] }));
   };
 
   return (
-    <div className="module-selector">
+    <div className="module-selector" style={{ width: panelWidth }}>
       <div className="selector-header">
         <h3>Explore</h3>
         <div className="selector-tabs">
@@ -43,17 +84,18 @@ function ModuleSelector({ modules, selectedModule, onModuleSelect, activeLayers,
             onClick={() => setActiveTab('forest-ai')}
             type="button"
           >
-            Forest AI
+            Forestry AI Agent
           </button>
         </div>
       </div>
+
       {activeTab === 'modules' && (
         <div className="module-list">
           {modules.map((module) => {
             const isExpanded = expandedModules[module.id];
             const moduleActiveLayers = activeLayers[module.id] || [];
             const hasActiveLayers = moduleActiveLayers.length > 0;
-            
+
             return (
               <div key={module.id} className="module-item">
                 <button
@@ -63,7 +105,7 @@ function ModuleSelector({ modules, selectedModule, onModuleSelect, activeLayers,
                 >
                   <span className="module-btn-icon">{module.icon}</span>
                   <span className="module-btn-label">{module.name}</span>
-                  <span 
+                  <span
                     className="module-expand-indicator"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -92,9 +134,21 @@ function ModuleSelector({ modules, selectedModule, onModuleSelect, activeLayers,
           })}
         </div>
       )}
+
       {activeTab === 'forest-ai' && (
-        <div className="module-list empty-state">Forest AI modules coming soon.</div>
+        <ForestryAIAgent
+          moduleData={moduleData}
+          selectedModule={selectedModule}
+          selectedYear={selectedYear}
+          selectedFMUs={selectedFMUs}
+          selectedSensor={selectedSensor}
+        />
       )}
+
+      <div
+        className={`resize-handle${isResizing ? ' resize-handle--active' : ''}`}
+        onMouseDown={handleResizeMouseDown}
+      />
     </div>
   );
 }
