@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "groq-sdk": "^1.2.1",
     "@geoman-io/leaflet-geoman-free": "^2.18.3",
     "@react-google-maps/api": "^2.20.6",
     "@testing-library/dom": "^10.4.0",
