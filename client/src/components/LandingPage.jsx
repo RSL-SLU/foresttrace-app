@@ -2,24 +2,29 @@ import '../styles/landing.css';
 
 const METHODS = [
   {
+    icon: '🤖',
+    title: 'Forestry AI Assistant',
+    text: 'Interact with satellite-derived datasets, forest inventories, and monitoring products using natural language queries powered by a domain-specific AI assistant.',
+  },
+  {
     icon: '🪓',
     title: 'Clearcut Detection',
-    text: 'Annual deforestation mapping using multi-source satellite imagery, tracking clearcut events across the Wabigoon Forest Management Unit from 2015 to present.',
+    text: 'Annual forest disturbance mapping using multi-source satellite imagery, tracking clearcut and harvest activities across diverse Forest Management Units from 2015 to present.',
   },
   {
     icon: '🌿',
     title: 'Biomass Estimation',
-    text: 'Above-Ground Biomass (AGB) mapping derived from SAR and optical data, providing spatial estimates of carbon stocks across boreal forest landscapes.',
+    text: 'Above-Ground Biomass (AGB) mapping derived from SAR and optical data, providing spatial estimates of forest carbon stocks across large landscapes.',
   },
   {
     icon: '🛰️',
     title: 'HLS Imagery',
-    text: 'Harmonized Landsat and Sentinel-2 (HLS) time-series data providing 30 m resolution observations at high revisit frequency for consistent annual analyses.',
+    text: 'Harmonized Landsat and Sentinel-2 (HLS) imagery providing 30 m observations at high revisit frequency for consistent monitoring through time.',
   },
   {
     icon: '🌍',
     title: 'Planet Imagery',
-    text: 'High-resolution Planet imagery enabling sub-10 m monitoring of forest disturbances, offering finer spatial detail for recent-year clearcut validation.',
+    text: 'High-resolution Planet imagery enabling sub-10 m monitoring of forest disturbances, providing finer spatial detail for disturbance mapping and validation.',
   },
 ];
 
@@ -66,7 +71,7 @@ const NEWS_ITEMS = [
   {
     date: 'November 2025',
     badge: 'Platform Launch',
-    title: 'ForestTrace Goes Public',
+    title: 'ForestTrace Public Release',
     body: 'The ForestTrace web platform was officially launched, making boreal forest monitoring data accessible through an interactive map interface.',
   },
 ];
@@ -88,12 +93,11 @@ function LandingPage({ onEnter, onOpenAbout, onOpenNews, onOpenDocumentation }) 
           <p className="landing-subtitle">Remote Sensing Lab · Saint Louis University</p>
           <h1 className="landing-title">ForestTrace</h1>
           <p className="landing-tagline">
-            Monitor Forests at Satellite Scale
+            Forest Monitoring, Mapping, and AI Insights
           </p>
           <p className="landing-description">
-            An interactive platform for monitoring boreal forest dynamics. Explore annual clearcut events, biomass
-            distributions, and multi-sensor satellite analyses through an
-            integrated web-based map.
+            An integrated platform for exploring forest dynamics through satellite imagery, interactive geospatial visualization, and an AI-powered forestry assistant. 
+            Analyze disturbances, biomass patterns, and multi-sensor observations in a unified web experience.
           </p>
           <div className="landing-cta-group">
             <button className="landing-cta" onClick={onEnter}>
@@ -168,13 +172,13 @@ function LandingPage({ onEnter, onOpenAbout, onOpenNews, onOpenDocumentation }) 
             </p>
             <p className="landing-about-text">
               This platform supports Indigenous-led forest stewardship and
-              evidence-based land management decisions in the boreal region of
-              northwestern Ontario, Canada.
+              evidence-based land management decisions with an initial focus on 
+              the boreal forests of northwestern Ontario, Canada.
             </p>
           </div>
           <div>
             <p className="landing-section-title" style={{ marginBottom: 16 }}>
-              Current Team Members
+              Research Team
             </p>
             <ul className="landing-team-list">
               {TEAM_MEMBERS.map((member) => (
@@ -183,7 +187,7 @@ function LandingPage({ onEnter, onOpenAbout, onOpenNews, onOpenDocumentation }) 
             </ul>
 
             <p className="landing-section-title" style={{ marginBottom: 16, marginTop: 24 }}>
-              Current Partners
+              Partners and Collaborators
             </p>
             <div className="landing-partners">
               {PARTNERS.map(({ name, desc }) => (
