@@ -57,6 +57,12 @@ const PARTNERS = [
 
 const NEWS_ITEMS = [
   {
+    date: 'June 2026',
+    badge: 'New Feature',
+    title: 'Forestry AI Assistant Powered by Groq',
+    body: 'ForestTrace now integrates a domain-specific AI assistant powered by Groq inference and Meta Llama 3.1 8B. Users can query satellite-derived datasets, clearcut statistics, and biomass estimates in natural language — grounded in the active map context.',
+  },
+  {
     date: 'April 2025',
     badge: 'Platform Update',
     title: 'Planet Imagery Integration',
@@ -135,7 +141,7 @@ function LandingPage({ onEnter, onOpenAbout, onOpenNews, onOpenDocumentation }) 
       {/* ── Methods ──────────────────────────────────────── */}
       <section className="landing-section">
         <p className="landing-section-title">Methodology</p>
-        <h2 className="landing-section-heading">Remote Sensing Approaches</h2>
+        <h2 className="landing-section-heading">Platform Capabilities</h2>
         <div className="landing-cards">
           {METHODS.map(({ icon, title, text }) => (
             <div className="landing-card" key={title}>

@@ -30,6 +30,16 @@ const SECTIONS = [
     ],
   },
   {
+    title: 'Forestry AI Assistant',
+    items: [
+      { term: 'Provider', def: 'Groq — a high-throughput LPU (Language Processing Unit) inference platform.' },
+      { term: 'Model', def: 'Meta Llama 3.1 8B Instant (llama-3.1-8b-instant) — an 8-billion parameter instruction-tuned model optimised for low-latency responses.' },
+      { term: 'Context injection', def: 'Each request includes the active module, selected year, sensor, and region so the model can ground its answers in the current map state.' },
+      { term: 'Max tokens', def: '1 024 tokens per response.' },
+      { term: 'Logging', def: 'User queries are logged to MongoDB Atlas for research and quality-improvement purposes.' },
+    ],
+  },
+  {
     title: 'Area Statistics',
     items: [
       { term: 'Zoom level', def: 'Statistics computed at zoom 12 for consistency across all years.' },
@@ -87,9 +97,10 @@ function DocumentationPage({ onBack }) {
           <h2>Open Source</h2>
           <div className="infopage-callout">
             <p>
-              ForestTrace is built with React, Leaflet, Recharts, and react-leaflet. Processing
-              pipelines use Python with rasterio, GDAL, and Google Earth Engine. Source code
-              availability will be announced alongside the associated publication.
+              ForestTrace is built with React, Leaflet, Recharts, and react-leaflet. The AI assistant
+              runs on Groq inference with Meta Llama 3.1 8B. Processing pipelines use Python with
+              rasterio, GDAL, and Google Earth Engine. Source code availability will be announced
+              alongside the associated publication.
             </p>
           </div>
         </div>
