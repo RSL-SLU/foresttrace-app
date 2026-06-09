@@ -98,7 +98,6 @@ function LandingPage({ onEnter, onOpenAbout, onOpenNews, onOpenDocumentation }) 
           <div className="landing-cta-group">
             <button className="landing-cta" onClick={onEnter}>
               Launch Application
-              <span className="landing-cta-arrow">→</span>
             </button>
             <button className="landing-cta-secondary" onClick={onOpenDocumentation}>
               Explore Methods
@@ -112,7 +111,7 @@ function LandingPage({ onEnter, onOpenAbout, onOpenNews, onOpenDocumentation }) 
           </div>
           <video
             className="landing-video"
-            src="/hero-demo.mp4"
+            src="https://pub-1448884f2a1d4c5bbbb92161520eab76.r2.dev/videos/hero-demo.mp4"
             autoPlay
             muted
             loop
