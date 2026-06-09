@@ -1,6 +1,17 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const Groq = require('groq-sdk');
+const { MongoClient } = require('mongodb');
+
+// Reuse the connection across warm invocations
+let _mongoClient = null;
+async function getCollection() {
+  if (!_mongoClient) {
+    _mongoClient = new MongoClient(process.env.MONGODB_URI);
+    await _mongoClient.connect();
+  }
+  return _mongoClient.db('foresttrace').collection('chat_messages');
+}
 
 function buildSystemPrompt(context) {
   let prompt =
@@ -43,9 +54,20 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: 'GROQ_API_KEY is not configured on the server' });
   }
 
+  // Log the latest user message — fire and forget, never blocks the response
+  const lastUserMessage = [...messages].reverse().find(m => m.role === 'user');
+  if (lastUserMessage && process.env.MONGODB_URI) {
+    getCollection()
+      .then(col => col.insertOne({
+        message: lastUserMessage.content,
+        context: context || null,
+        timestamp: new Date(),
+      }))
+      .catch(err => console.error('MongoDB log error:', err));
+  }
+
   const client = new Groq({ apiKey });
 
-  // Groq uses OpenAI-style messages: system prompt goes in the messages array
   const groqMessages = [
     { role: 'system', content: buildSystemPrompt(context) },
     ...messages,
