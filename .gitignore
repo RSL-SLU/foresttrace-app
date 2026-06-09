@@ -153,9 +153,26 @@ client/package-lock.json
 analyze_biomass_tiles.py
 cleanup_synthetic_tiles.py
 generate_tiles*.py
+generate_tiles_final.py
 reorganize_tiles.py
-draft/6911e91393848.mp4
-draft/Create_an_animation_for_our_Fo.mp4
-draft/Can_you_fix_the_text_in_a_new.mp4
-draft/Use_a_highlight_of_a_text_base.mp4
+precompute_clearcut_stats.py
+pull_ontario_fmu_boundaries.py
+simplify_region_geometries.py
+generate-tiles.js
+generate-placeholder-tiles.js
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Draft assets
+draft/
+
+# Generated one-off documentation
+ARCHITECTURE_VISUAL.md
+COMMIT_HISTORY_REPORT.md
+IMPLEMENTATION_GUIDE.md
+LAYOUT_SUMMARY.md
+QUICK_REFERENCE.md
+VERIFICATION_CHECKLIST.md
 client/public/hero-demo.mp4
