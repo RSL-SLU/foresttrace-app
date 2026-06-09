@@ -77,24 +77,56 @@ function LandingPage({ onEnter, onOpenAbout, onOpenNews, onOpenDocumentation }) 
 
       {/* ── Hero ─────────────────────────────────────────── */}
       <section className="landing-hero">
-        <a href="https://www.remotesensinglab.org" rel="noopener noreferrer">
-          <img
-          src="/rsl-logo-transparent.png"
-          alt="Remote Sensing Lab"
-          className="landing-logo"
+        <div className="landing-hero-content">
+          <a href="https://www.remotesensinglab.org" rel="noopener noreferrer">
+            <img
+              src="/rsl-logo-transparent.png"
+              alt="Remote Sensing Lab"
+              className="landing-logo"
+            />
+          </a>
+          <p className="landing-subtitle">Remote Sensing Lab · Saint Louis University</p>
+          <h1 className="landing-title">ForestTrace</h1>
+          <p className="landing-tagline">
+            Monitor Forests at Satellite Scale
+          </p>
+          <p className="landing-description">
+            An interactive platform for monitoring boreal forest dynamics. Explore annual clearcut events, biomass
+            distributions, and multi-sensor satellite analyses through an
+            integrated web-based map.
+          </p>
+          <div className="landing-cta-group">
+            <button className="landing-cta" onClick={onEnter}>
+              Launch Application
+              <span className="landing-cta-arrow">→</span>
+            </button>
+            <button className="landing-cta-secondary" onClick={onOpenDocumentation}>
+              Explore Methods
+            </button>
+          </div>
+        </div>
+
+        <div className="landing-video-frame">
+          <div className="landing-video-bar">
+            <span /><span /><span />
+          </div>
+          <video
+            className="landing-video"
+            src="/hero-demo.mp4"
+            autoPlay
+            muted
+            loop
+            playsInline
           />
-        </a>
-        <p className="landing-subtitle">Remote Sensing Lab · Saint Louis University</p>
-        <h1 className="landing-title">ForestTrace</h1>
-        <p className="landing-description">
-          An interactive platform for monitoring boreal forest dynamics in
-          northern Ontario. Explore annual clearcut events, biomass distributions,
-          and multi-sensor satellite analyses through an integrated web-based map.
-        </p>
-        <button className="landing-cta" onClick={onEnter}>
-          Launch Application
-          <span className="landing-cta-arrow">→</span>
-        </button>
+          <div className="landing-video-overlay">
+            <p className="landing-video-overlay-title">Query the Forest</p>
+            <p className="landing-video-overlay-body">
+              ForestTrace turns decades of satellite and aerial imagery into
+              queryable datasets, so you can find patterns, derive insights
+              and act fast.
+            </p>
+          </div>
+        </div>
       </section>
 
       {/* ── Methods ──────────────────────────────────────── */}
