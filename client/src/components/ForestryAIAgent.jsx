@@ -54,7 +54,12 @@ function ForestryAIAgent({ moduleData, selectedModule, selectedYear, selectedFMU
         body: JSON.stringify({ messages: outgoing, context }),
       });
 
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error(`Server error (${res.status}) — check API key and server logs`);
+      }
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       setMessages([...outgoing, { role: 'assistant', content: data.content }]);
     } catch (err) {

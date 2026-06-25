@@ -1,5 +1,5 @@
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+try { require('dotenv').config({ path: path.join(__dirname, '..', '.env') }); } catch (_) { /* not available in production */ }
 const Groq = require('groq-sdk');
 const { MongoClient } = require('mongodb');
 
