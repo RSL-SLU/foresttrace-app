@@ -149,6 +149,9 @@ client/package-lock.json
 *.zip
 .DS_Store
 
+# R2 upload credentials (never commit)
+.env.r2
+
 # Local data/tile processing scripts (keep local only)
 analyze_biomass_tiles.py
 cleanup_synthetic_tiles.py

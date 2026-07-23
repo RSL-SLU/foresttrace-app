@@ -29,6 +29,24 @@ import './styles/topmenu.css';
 import './styles/menu.css';
 import './styles/layout.css';
 
+// Sentinel-2 cloudless annual composites (EOX IT Services GmbH).
+// Free for non-commercial use; covers 2016–2023.
+// Years outside this range fall back to the static Esri World Imagery layer.
+const EOX_S2_YEARS = new Set([2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023]);
+
+function getBasemapConfig(year) {
+  if (EOX_S2_YEARS.has(year)) {
+    return {
+      url: `https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-${year}_3857/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg`,
+      attribution: `Sentinel-2 cloudless ${year} &copy; <a href="https://eox.at">EOX IT Services GmbH</a>`,
+    };
+  }
+  return {
+    url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: '&copy; Esri, DigitalGlobe, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, and others',
+  };
+}
+
 const center = [49.80318325874751, -92.8087780822145];
 const TILE_ZOOM_LEVELS = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
 const TILE_ZOOM_RANGE = {
@@ -324,6 +342,15 @@ function App() {
   const [mapReady, setMapReady] = useState(false);
   const [clearcutPercent, setClearcutPercent] = useState(null);
   const [tilesLoading, setTilesLoading] = useState(false);
+  const hidingTimerRef = useRef(null);
+  const handleLoadingChange = useCallback((loading) => {
+    if (loading) {
+      clearTimeout(hidingTimerRef.current);
+      setTilesLoading(true);
+    } else {
+      hidingTimerRef.current = setTimeout(() => setTilesLoading(false), 300);
+    }
+  }, []);
   const [biomassHistogram, setBiomassHistogram] = useState(createEmptyBiomassHistogram());
   const [rasterOpacity, setRasterOpacity] = useState(0.5);
   const [selectedModule, setSelectedModule] = useState(MODULES[0]);
@@ -398,6 +425,15 @@ function App() {
       setSelectedSensor('hls');
     }
   }, [selectedYear, moduleYears, selectedModule, selectedSensor]);
+
+  // Safety net: if a layer unmounts mid-load (year change, layer toggle)
+  // without firing its `load` event, the spinner would stay forever.
+  // Auto-dismiss after 12 s as a fallback.
+  useEffect(() => {
+    if (!tilesLoading) return;
+    const guard = setTimeout(() => setTilesLoading(false), 12000);
+    return () => clearTimeout(guard);
+  }, [tilesLoading]);
 
   const handleSensorChange = useCallback((sensor) => {
     setSelectedSensor(sensor);
@@ -601,12 +637,19 @@ function App() {
             }}
             style={{ width: '100%', height: '100%', zIndex: 0 }}
           >
-            <TileLayer
-              url="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-              attribution="&copy; Esri, DigitalGlobe, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, and others"
-              zIndex={5}
-              pmIgnore={true}
-            />
+            {(() => {
+              const basemapYear = moduleYears[selectedModule?.id] || selectedYear;
+              const { url, attribution } = getBasemapConfig(basemapYear);
+              return (
+                <TileLayer
+                  key={basemapYear}
+                  url={url}
+                  attribution={attribution}
+                  zIndex={5}
+                  pmIgnore={true}
+                />
+              );
+            })()}
 
             {MODULES.flatMap((module) => {
               const moduleActiveLayers = activeLayers[module.id] || [];
@@ -639,7 +682,7 @@ function App() {
                           : null
                       }
                       onBiomassHistogramUpdate={setBiomassHistogram}
-                      onLoadingChange={setTilesLoading}
+                      onLoadingChange={handleLoadingChange}
                       opacity={rasterOpacity}
                       tileUrl={tileUrl}
                       layerId={layer.id}

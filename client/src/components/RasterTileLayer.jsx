@@ -112,6 +112,7 @@ function RasterTileLayer({
   onBiomassHistogramUpdateRef.current = onBiomassHistogramUpdate;
   onLoadingChangeRef.current = onLoadingChange;
 
+
   useEffect(() => {
     if (!styleTagRef.current) {
       const style = document.createElement('style');
@@ -666,6 +667,7 @@ function RasterTileLayer({
           className={RASTER_TILE_CLASS}
           tms={tms}
           crossOrigin="anonymous"
+          keepBuffer={1}
           pmIgnore={true}
           eventHandlers={{
             loading: () => {
@@ -695,6 +697,7 @@ function RasterTileLayer({
           className={RASTER_TILE_CLASS}
           tms={tms}
           crossOrigin="anonymous"
+          keepBuffer={1}
           pmIgnore={true}
           eventHandlers={{
             loading: () => {
@@ -730,6 +733,7 @@ function RasterTileLayer({
         className={RASTER_TILE_CLASS}
         tms={tms}
         crossOrigin="anonymous"
+        keepBuffer={1}
         eventHandlers={{
           loading: () => {
             if (onLoadingChangeRef.current) onLoadingChangeRef.current(true);
@@ -764,6 +768,7 @@ function RasterTileLayer({
         className={RASTER_TILE_CLASS}
         tms={tms}
         crossOrigin="anonymous"
+        keepBuffer={1}
         eventHandlers={{
           tileload: (e) => {
             handleTileLoad(e);
@@ -780,6 +785,7 @@ function RasterTileLayer({
         className={RASTER_TILE_CLASS}
         tms={tms}
         crossOrigin="anonymous"
+        keepBuffer={1}
         eventHandlers={{
           tileload: (e) => {
             handleTileLoad(e);
