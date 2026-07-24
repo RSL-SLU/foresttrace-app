@@ -1,15 +1,13 @@
 import React from 'react';
 
-/**
- * ModulePanel - Displays content for the selected module
- * Includes year slider for temporal navigation
- */
-function ModulePanel({ 
-  module, 
+function ModulePanel({
+  module,
   data,
   selectedYear,
   onYearChange,
   yearRange = [2015, 2024],
+  availableYears,
+  basemapSynced,
 }) {
   if (!module) {
     return (
@@ -19,6 +17,26 @@ function ModulePanel({
     );
   }
 
+  // When the module declares specific years (with gaps), drive the slider by
+  // index so positions snap directly to valid years instead of sweeping through
+  // empty years like 2011–2014.
+  const years = availableYears || null;
+  const sliderMin = years ? 0 : yearRange[0];
+  const sliderMax = years ? years.length - 1 : yearRange[1];
+  const sliderValue = years
+    ? Math.max(0, years.indexOf(selectedYear))
+    : selectedYear;
+
+  const handleSliderChange = (e) => {
+    const raw = parseInt(e.target.value, 10);
+    onYearChange(years ? years[raw] : raw);
+  };
+
+  const labelMin = years ? years[0] : yearRange[0];
+  const labelMax = years ? years[years.length - 1] : yearRange[1];
+
+  const showSlider = yearRange && yearRange.length === 2;
+
   return (
     <div className="module-panel">
       <div className="module-header">
@@ -26,31 +44,34 @@ function ModulePanel({
         {module.icon && <span className="module-icon">{module.icon}</span>}
       </div>
       <div className="module-content">
-        {/* Year Slider */}
-        {yearRange && yearRange.length === 2 && (
+        {showSlider && (
           <div className="module-section year-controls">
-            <h3>Year</h3>
+            <h3>YEAR</h3>
             <div className="control-group">
               <div className="year-display">
                 <span className="year-value">{selectedYear}</span>
               </div>
               <input
                 type="range"
-                min={yearRange[0]}
-                max={yearRange[1]}
-                value={selectedYear}
-                onChange={(e) => onYearChange(parseInt(e.target.value))}
+                min={sliderMin}
+                max={sliderMax}
+                value={sliderValue}
+                onChange={handleSliderChange}
                 className="slider year-slider"
               />
               <div className="year-range">
-                <span>{yearRange[0]}</span>
-                <span>{yearRange[1]}</span>
+                <span>{labelMin}</span>
+                <span>{labelMax}</span>
               </div>
+              {basemapSynced === false && (
+                <div className="basemap-warning">
+                  Basemap shows current imagery — detections used {selectedYear} satellite data
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* Module Component */}
         {module.component && <module.component data={data} />}
       </div>
     </div>

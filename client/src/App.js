@@ -47,6 +47,14 @@ function getBasemapConfig(year) {
   };
 }
 
+function isBasemapSynced(year) {
+  if (EOX_S2_YEARS.has(year)) return true;
+  // 2025 uses Esri "current" imagery which is close enough to the detection year
+  // that a warning would be misleading.
+  if (year >= 2025) return true;
+  return false;
+}
+
 const center = [49.80318325874751, -92.8087780822145];
 const TILE_ZOOM_LEVELS = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
 const TILE_ZOOM_RANGE = {
@@ -65,6 +73,7 @@ const MODULES = [
     component: ClearcutDetection,
     temporalOptions: {
       yearRange: [2010, 2025],
+      availableYears: [2010, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025],
     },
     layers: [
       {
@@ -353,7 +362,11 @@ function App() {
   }, []);
   const [biomassHistogram, setBiomassHistogram] = useState(createEmptyBiomassHistogram());
   const [rasterOpacity, setRasterOpacity] = useState(0.5);
-  const [selectedModule, setSelectedModule] = useState(MODULES[0]);
+  const [selectedModuleId, setSelectedModuleId] = useState(MODULES[0]?.id);
+  const selectedModule = useMemo(
+    () => MODULES.find((m) => m.id === selectedModuleId) ?? MODULES[0],
+    [selectedModuleId],
+  );
   const [selectedYear, setSelectedYear] = useState(MODULES[0]?.temporalOptions?.yearRange?.[1] || 2025);
   const [selectedFMUs, setSelectedFMUs] = useState(['wabigoon']);
   const [selectedSensor, setSelectedSensor] = useState('planet');
@@ -491,7 +504,7 @@ function App() {
   };
 
   const handleModuleSelect = useCallback((module) => {
-    setSelectedModule(module);
+    setSelectedModuleId(module.id);
     if (moduleYears[module.id] !== undefined) {
       setSelectedYear(moduleYears[module.id]);
     } else if (module.temporalOptions?.yearRange) {
@@ -706,6 +719,8 @@ function App() {
             selectedYear={selectedYear}
             onYearChange={handleYearChange}
             yearRange={selectedModule?.temporalOptions?.yearRange || [2010, 2024]}
+            availableYears={selectedModule?.temporalOptions?.availableYears}
+            basemapSynced={isBasemapSynced(moduleYears[selectedModule?.id] || selectedYear)}
           />
           <div className="right-column-logo">
             <img className="logo-image logo-light" src="/rsl-logo.png" alt="Remote Sensing Lab and Saint Louis University" />

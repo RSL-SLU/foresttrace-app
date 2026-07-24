@@ -1149,4 +1149,21 @@ body.dark-mode .ai-send-btn:disabled {
   color: #555;
 }
 
+.basemap-warning {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: #fff8e1;
+  color: #7a5900;
+  border-left: 3px solid #f59e0b;
+  border-radius: 3px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+body.dark-mode .basemap-warning {
+  background: #2d2200;
+  color: #fbbf24;
+  border-left-color: #d97706;
+}
+
 
