@@ -167,6 +167,9 @@ pull_ontario_fmu_boundaries.py
 simplify_region_geometries.py
 generate-tiles.js
 generate-placeholder-tiles.js
+generate-annual-clearcut-tiles.js
+compute-clearcut-stats.js
+diagnose-tiles.js
 
 # Python cache
 __pycache__/

@@ -506,6 +506,10 @@ body.dark-mode .resize-handle--active::after {
   background: #ff0000;
 }
 
+.legend-color.yellow {
+  background: #ffeb3b;
+}
+
 .legend-color.satellite {
   background: linear-gradient(135deg, #4CAF50, #8fd9af);
 }

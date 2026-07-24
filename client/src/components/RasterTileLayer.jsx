@@ -163,7 +163,7 @@ function RasterTileLayer({
   const handleTileLoad = useCallback((e) => {
     const img = e.tile;
 
-    if (layerId === 'clearcut-annual' && img?.dataset?.clearcutProcessed === 'true') {
+    if ((layerId === 'clearcut-accumulated' || layerId === 'clearcut-annual') && img?.dataset?.clearcutProcessed === 'true') {
       return;
     }
 
@@ -193,15 +193,23 @@ function RasterTileLayer({
         const a = pixels[i + 3];
         totalCount += 1;
 
-        if (layerId === 'clearcut-annual') {
+        if (layerId === 'clearcut-accumulated' || layerId === 'clearcut-annual') {
           if (a > 0 && r > 200) {
             redCount += 1;
           }
           if (a === 0) continue;
           const intensity = r / 255;
-          pixels[i] = Math.round((r * 0.35) + (255 * intensity * 0.65));
-          pixels[i + 1] = Math.round(g * 0.18);
-          pixels[i + 2] = Math.round(b * 0.18);
+          if (layerId === 'clearcut-annual') {
+            // Yellow tint (#FFD700)
+            pixels[i]     = Math.round((r * 0.35) + (255 * intensity * 0.65));
+            pixels[i + 1] = Math.round(215 * intensity);
+            pixels[i + 2] = Math.round(b * 0.05);
+          } else {
+            // Red tint for accumulated
+            pixels[i]     = Math.round((r * 0.35) + (255 * intensity * 0.65));
+            pixels[i + 1] = Math.round(g * 0.18);
+            pixels[i + 2] = Math.round(b * 0.18);
+          }
           continue;
         }
 
@@ -232,7 +240,7 @@ function RasterTileLayer({
         }
       }
 
-      if (layerId === 'clearcut-annual') {
+      if (layerId === 'clearcut-accumulated' || layerId === 'clearcut-annual') {
         ctx.putImageData(new ImageData(pixels, tmpCanvas.width, tmpCanvas.height), 0, 0);
         img.dataset.clearcutProcessed = 'true';
         img.src = tmpCanvas.toDataURL('image/png');
@@ -721,7 +729,7 @@ function RasterTileLayer({
     );
   }
 
-  if (layerId === 'clearcut-annual') {
+  if (layerId === 'clearcut-accumulated' || layerId === 'clearcut-annual') {
     return (
       <TileLayer
         ref={highResLayerRef}

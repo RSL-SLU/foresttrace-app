@@ -77,26 +77,20 @@ const MODULES = [
     },
     layers: [
       {
-        id: 'clearcut-annual',
-        name: 'Annual Clearcuts',
+        id: 'clearcut-accumulated',
+        name: 'Accumulated Clearcuts',
         tileUrl: `${TILES_BASE_URL}/tiles/clearcut/{region}_{year}/{z}/{x}/{y}.png`,
         color: '#FF0000',
-        mode: 'annual',
+        mode: 'accumulated',
         tms: false,
       },
       {
-        id: 'clearcut-accumulated',
-        name: 'Accumulated Clearcuts',
-        tileUrl: `${TILES_BASE_URL}/tiles/{z}/{x}/accumulated_{y}.png`,
-        color: '#FF6600',
-        mode: 'accumulated',
-      },
-      {
-        id: 'clearcut-frequency',
-        name: 'Frequency',
-        tileUrl: `${TILES_BASE_URL}/tiles/{z}/{x}/frequency_{y}.png`,
-        color: '#FF9900',
-        mode: 'frequency',
+        id: 'clearcut-annual',
+        name: 'Annual Clearcuts',
+        tileUrl: `${TILES_BASE_URL}/tiles/clearcut-annual/{region}_{year}/{z}/{x}/{y}.png`,
+        color: '#FFD700',
+        mode: 'annual',
+        tms: false,
       },
     ],
   },
@@ -677,7 +671,7 @@ function App() {
                   let tileUrl = layer.tileUrl.replace('{year}', moduleYear);
                   tileUrl = tileUrl.replace('{region}', region);
 
-                  if (layer.id === 'clearcut-annual' && CLEARCUT_SENSOR_SUBFOLDER_YEARS.includes(moduleYear)) {
+                  if (layer.id === 'clearcut-accumulated' && CLEARCUT_SENSOR_SUBFOLDER_YEARS.includes(moduleYear)) {
                     const folder = selectedSensor === 'planet' && CLEARCUT_PLANET_YEARS.includes(moduleYear)
                       ? 'planet' : 'hls';
                     tileUrl = tileUrl.replace(
@@ -690,7 +684,7 @@ function App() {
                     <RasterTileLayer
                       key={`${layer.id}-${region}-${moduleYear}-${selectedSensor}`}
                       onStatsUpdate={
-                        layer.id === 'clearcut-annual' && region === clearcutStatsRegion
+                        layer.id === 'clearcut-accumulated' && region === clearcutStatsRegion
                           ? setClearcutPercent
                           : null
                       }
