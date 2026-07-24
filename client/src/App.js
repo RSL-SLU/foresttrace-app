@@ -30,9 +30,9 @@ import './styles/menu.css';
 import './styles/layout.css';
 
 // Sentinel-2 cloudless annual composites (EOX IT Services GmbH).
-// Free for non-commercial use; covers 2016–2023.
+// Free for non-commercial use; tiles.maps.eox.at serves 2018–2024.
 // Years outside this range fall back to the static Esri World Imagery layer.
-const EOX_S2_YEARS = new Set([2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024]);
+const EOX_S2_YEARS = new Set([2018, 2019, 2020, 2021, 2022, 2023, 2024]);
 
 function getBasemapConfig(year) {
   if (EOX_S2_YEARS.has(year)) {
