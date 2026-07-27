@@ -17,8 +17,29 @@ const SENSORS = [
   { id: 'planet', label: 'Planet' },
 ];
 
+// Years that used Landsat 8 OLI only — not spectrally harmonized with HLS.
+// Values are not directly comparable to HLS years (2016+).
+const LANDSAT_ONLY_YEARS = new Set([2010, 2015]);
+
 // Fallback uncertainty used for years without validation notebooks (±15% HLS benchmark).
 const FALLBACK_UNCERTAINTY = 0.15;
+
+function XAxisTick({ x, y, payload }) {
+  const isLandsatOnly = LANDSAT_ONLY_YEARS.has(Number(payload.value));
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text
+        x={0} y={0} dy={10}
+        textAnchor="end"
+        transform="rotate(-45)"
+        fill={isLandsatOnly ? '#f59e0b' : 'currentColor'}
+        fontSize={10}
+      >
+        {payload.value}{isLandsatOnly ? '*' : ''}
+      </text>
+    </g>
+  );
+}
 
 function linearRegression(points) {
   const n = points.length;
@@ -114,7 +135,7 @@ function ClearcutDetection({ data }) {
           : undefined,
       };
     });
-  }, [yearlyStats, accuracy, trend]);
+  }, [yearlyStats, accuracy, trend, annualDataYears]);
 
   const hasData = yearlyStats && yearlyStats.some(d => d.historical > 0 || d.annual > 0);
 
@@ -145,10 +166,8 @@ function ClearcutDetection({ data }) {
             <ComposedChart data={chartData} margin={{ left: 0, right: 12, top: 6, bottom: 4 }}>
               <XAxis
                 dataKey="year"
-                tick={{ fontSize: 10 }}
+                tick={<XAxisTick />}
                 interval={0}
-                angle={-45}
-                textAnchor="end"
                 height={40}
               />
               <YAxis
@@ -212,6 +231,10 @@ function ClearcutDetection({ data }) {
         <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
           Area from leaf-level tiles ({region}) · {selectedSensor.toUpperCase()}
           · Error bars: precision/recall from validation notebooks (fallback ±{(FALLBACK_UNCERTAINTY * 100).toFixed(0)}%)
+        </div>
+        <div style={{ fontSize: 11, color: '#f59e0b', marginTop: 2 }}>
+          * 2010 &amp; 2015 used Landsat 8 OLI only — not spectrally harmonized with HLS (2016+).
+          Area estimates are not directly comparable to later years and are excluded from the trend.
         </div>
       </div>
 
