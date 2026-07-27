@@ -9,6 +9,7 @@ import {
   getClearcutAccuracy,
   CLEARCUT_PLANET_YEARS,
 } from '../utils/clearcutAreaStats';
+import { DATA_BASE_URL } from '../config';
 
 const CLEARCUT_YEARS = [2010, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025];
 
@@ -41,6 +42,36 @@ function XAxisTick({ x, y, payload }) {
   );
 }
 
+// Spherical shoelace formula — returns area in hectares for a GeoJSON
+// FeatureCollection or Feature (Polygon or MultiPolygon).
+function computeGeoJsonAreaHa(geoJson) {
+  if (!geoJson) return null;
+  const R = 6371000; // Earth radius in metres
+  const features = geoJson.type === 'FeatureCollection' ? geoJson.features : [geoJson];
+  let totalM2 = 0;
+  for (const feature of features) {
+    const geom = feature?.geometry;
+    if (!geom) continue;
+    const rings = geom.type === 'Polygon'
+      ? [geom.coordinates[0]]
+      : geom.type === 'MultiPolygon'
+        ? geom.coordinates.map(p => p[0])
+        : [];
+    for (const ring of rings) {
+      if (ring.length < 3) continue;
+      let area = 0;
+      for (let i = 0; i < ring.length - 1; i++) {
+        const dLng = (ring[i + 1][0] - ring[i][0]) * Math.PI / 180;
+        const phi1 = ring[i][1]     * Math.PI / 180;
+        const phi2 = ring[i + 1][1] * Math.PI / 180;
+        area += dLng * (Math.sin(phi1) + Math.sin(phi2));
+      }
+      totalM2 += Math.abs(area * R * R / 2);
+    }
+  }
+  return totalM2 / 10000;
+}
+
 function linearRegression(points) {
   const n = points.length;
   if (n < 2) return null;
@@ -63,6 +94,7 @@ function ClearcutDetection({ data }) {
   const [yearlyStats, setYearlyStats] = useState(null);
   const [annualDataYears, setAnnualDataYears] = useState(new Set());
   const [accuracy, setAccuracy] = useState({});
+  const [regionAreaHa, setRegionAreaHa] = useState(null);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState(false);
 
@@ -73,6 +105,14 @@ function ClearcutDetection({ data }) {
   const selectedSensor = data?.selectedSensor ?? 'hls';
   const onSensorChange = data?.onSensorChange;
   const selectedYear   = data?.selectedYear;
+
+  useEffect(() => {
+    setRegionAreaHa(null);
+    fetch(`${DATA_BASE_URL}/data/regions/${region}.json`)
+      .then(r => r.ok ? r.json() : null)
+      .then(geoJson => { if (geoJson) setRegionAreaHa(computeGeoJsonAreaHa(geoJson)); })
+      .catch(() => {});
+  }, [region]);
 
   useEffect(() => {
     setLoading(true);
@@ -139,22 +179,37 @@ function ClearcutDetection({ data }) {
 
   const hasData = yearlyStats && yearlyStats.some(d => d.historical > 0 || d.annual > 0);
 
+  const clearcutPercent = useMemo(() => {
+    if (!yearlyStats || !regionAreaHa || !selectedYear) return null;
+    const row = yearlyStats.find(d => d.year === String(selectedYear));
+    if (!row) return null;
+    const totalHa = row.historical + row.annual;
+    if (totalHa <= 0) return null;
+    return ((totalHa / regionAreaHa) * 100).toFixed(1);
+  }, [yearlyStats, regionAreaHa, selectedYear]);
+
   const trendColor = trend?.slope >= 0 ? '#e53e3e' : '#38a169';
 
   return (
     <div className="clearcut-module">
       <div className="module-section">
         <h3>Detection Results</h3>
-        {data?.percentage ? (
+        {clearcutPercent !== null ? (
           <div className="stat-item">
-            <div className="stat-label">Clearcut Area (current view)</div>
-            <div className="stat-value">{data.percentage}%</div>
+            <div className="stat-label">Clearcut Area ({selectedYear}) — {region}</div>
+            <div className="stat-value">{clearcutPercent}%</div>
             <div className="stat-bar">
-              <div className="stat-fill" style={{ width: `${data.percentage}%` }} />
+              <div className="stat-fill" style={{ width: `${Math.min(100, clearcutPercent)}%` }} />
+            </div>
+            <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
+              of total FMU area
+              {regionAreaHa && ` (${(regionAreaHa / 1000).toFixed(0)}k ha)`}
             </div>
           </div>
         ) : (
-          <p className="no-data">Navigate the map to see clearcut coverage %.</p>
+          <p className="no-data">
+            {regionAreaHa === null ? 'Loading region boundary…' : 'No clearcut data for this region/year.'}
+          </p>
         )}
       </div>
 
