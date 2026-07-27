@@ -109,7 +109,7 @@ function ClearcutDetection({ data }) {
         ...d,
         annualError: [lowerErr, upperErr],
         accF1: acc?.f1 ?? null,
-        trendLine: trend && (d.historical + d.annual) > 0
+        trendLine: trend && annualDataYears.has(yr)
           ? parseFloat(Math.max(0, trend.intercept + trend.slope * yr).toFixed(1))
           : undefined,
       };
