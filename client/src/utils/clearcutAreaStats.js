@@ -71,6 +71,31 @@ export async function computeAnnualClearcutAreaPerYear(region, years, sensor = '
   return results;
 }
 
+/**
+ * Returns the set of years that have actual annual detection data for a
+ * region/sensor combination (i.e. have an entry in the stats JSON).
+ * Used to constrain trendlines to years where tiles were actually processed.
+ */
+export async function getAnnualYearsWithData(region, sensor = 'hls') {
+  const all = await loadStats();
+  const byYear = all[`${region}_${sensor}_annual`] ?? {};
+  return new Set(Object.keys(byYear).map(Number));
+}
+
+/**
+ * Returns per-year accuracy metrics (precision, recall, f1, iou) for clearcut detection.
+ * Derived from validation set evaluation in the training notebooks.
+ * Returns null for a year if no validation was run.
+ *
+ * @param {string} region
+ * @param {string} sensor
+ * @returns {Promise<Object>} year → { precision, recall, f1, iou } | null
+ */
+export async function getClearcutAccuracy(region, sensor = 'hls') {
+  const all = await loadStats();
+  return all[`${region}_${sensor}_accuracy`] ?? {};
+}
+
 export function clearStatsCache() {
   _statsPromise = null;
 }

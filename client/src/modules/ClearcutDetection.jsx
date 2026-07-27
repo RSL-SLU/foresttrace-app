@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ErrorBar,
 } from 'recharts';
 import {
   computeClearcutAreaPerYear,
   computeAnnualClearcutAreaPerYear,
+  getAnnualYearsWithData,
+  getClearcutAccuracy,
   CLEARCUT_PLANET_YEARS,
 } from '../utils/clearcutAreaStats';
 
@@ -15,12 +17,31 @@ const SENSORS = [
   { id: 'planet', label: 'Planet' },
 ];
 
-/**
- * ClearcutDetection Module Component
- * Displays clearcut detection statistics, controls, and a per-year area bar chart.
- */
+// Fallback uncertainty used for years without validation notebooks (±15% HLS benchmark).
+const FALLBACK_UNCERTAINTY = 0.15;
+
+function linearRegression(points) {
+  const n = points.length;
+  if (n < 2) return null;
+  const sumX  = points.reduce((s, p) => s + p.x, 0);
+  const sumY  = points.reduce((s, p) => s + p.y, 0);
+  const sumXY = points.reduce((s, p) => s + p.x * p.y, 0);
+  const sumX2 = points.reduce((s, p) => s + p.x * p.x, 0);
+  const denom = n * sumX2 - sumX * sumX;
+  if (denom === 0) return null;
+  const slope     = (n * sumXY - sumX * sumY) / denom;
+  const intercept = (sumY - slope * sumX) / n;
+  const meanY  = sumY / n;
+  const ssTot  = points.reduce((s, p) => s + (p.y - meanY) ** 2, 0);
+  const ssRes  = points.reduce((s, p) => s + (p.y - (intercept + slope * p.x)) ** 2, 0);
+  const rSquared = ssTot < 1 ? 1 : Math.max(0, 1 - ssRes / ssTot);
+  return { slope, intercept, rSquared };
+}
+
 function ClearcutDetection({ data }) {
   const [yearlyStats, setYearlyStats] = useState(null);
+  const [annualDataYears, setAnnualDataYears] = useState(new Set());
+  const [accuracy, setAccuracy] = useState({});
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState(false);
 
@@ -30,7 +51,7 @@ function ClearcutDetection({ data }) {
 
   const selectedSensor = data?.selectedSensor ?? 'hls';
   const onSensorChange = data?.onSensorChange;
-  const selectedYear = data?.selectedYear;
+  const selectedYear   = data?.selectedYear;
 
   useEffect(() => {
     setLoading(true);
@@ -38,12 +59,16 @@ function ClearcutDetection({ data }) {
     Promise.all([
       computeClearcutAreaPerYear(region, CLEARCUT_YEARS, null, selectedSensor),
       computeAnnualClearcutAreaPerYear(region, CLEARCUT_YEARS, selectedSensor),
+      getAnnualYearsWithData(region, selectedSensor),
+      getClearcutAccuracy(region, selectedSensor),
     ])
-      .then(([accumulated, annual]) => {
+      .then(([accumulated, annual, dataYears, acc]) => {
+        setAnnualDataYears(dataYears);
+        setAccuracy(acc);
         setYearlyStats(
           CLEARCUT_YEARS.map(y => {
-            const totalHa = parseFloat((accumulated[y] ?? 0).toFixed(1));
-            const annualHa = parseFloat((annual[y] ?? 0).toFixed(1));
+            const totalHa      = parseFloat((accumulated[y] ?? 0).toFixed(1));
+            const annualHa     = parseFloat((annual[y] ?? 0).toFixed(1));
             const historicalHa = parseFloat(Math.max(0, totalHa - annualHa).toFixed(1));
             return { year: y.toString(), historical: historicalHa, annual: annualHa };
           })
@@ -53,8 +78,47 @@ function ClearcutDetection({ data }) {
       .finally(() => setLoading(false));
   }, [region, selectedSensor]);
 
-  const chartData = yearlyStats ?? CLEARCUT_YEARS.map(y => ({ year: y.toString(), historical: 0, annual: 0 }));
+  // Linear regression over annual clearcut values (non-zero years only).
+  const trend = useMemo(() => {
+    if (!yearlyStats || annualDataYears.size < 2) return null;
+    const pts = yearlyStats
+      .map(d => ({ x: parseInt(d.year), y: d.historical + d.annual }))
+      .filter(p => annualDataYears.has(p.x));
+    if (pts.length < 2) return null;
+    return linearRegression(pts);
+  }, [yearlyStats, annualDataYears]);
+
+  const chartData = useMemo(() => {
+    const base = yearlyStats ?? CLEARCUT_YEARS.map(y => ({
+      year: y.toString(), historical: 0, annual: 0,
+    }));
+    return base.map(d => {
+      const yr  = parseInt(d.year);
+      const acc = accuracy[String(yr)];
+      // Asymmetric error bars derived from per-year precision/recall:
+      //   lower error = annualHa × (1 − precision)  — false positives inflate the count
+      //   upper error = annualHa × (1/recall − 1)   — missed pixels deflate the count
+      // Falls back to ±FALLBACK_UNCERTAINTY when no validation data exists for the year.
+      const lowerErr = acc
+        ? parseFloat((d.annual * (1 - acc.precision)).toFixed(1))
+        : parseFloat((d.annual * FALLBACK_UNCERTAINTY).toFixed(1));
+      const upperErr = acc
+        ? parseFloat((d.annual * (1 / acc.recall - 1)).toFixed(1))
+        : parseFloat((d.annual * FALLBACK_UNCERTAINTY).toFixed(1));
+      return {
+        ...d,
+        annualError: [lowerErr, upperErr],
+        accF1: acc?.f1 ?? null,
+        trendLine: trend && (d.historical + d.annual) > 0
+          ? parseFloat(Math.max(0, trend.intercept + trend.slope * yr).toFixed(1))
+          : undefined,
+      };
+    });
+  }, [yearlyStats, accuracy, trend]);
+
   const hasData = yearlyStats && yearlyStats.some(d => d.historical > 0 || d.annual > 0);
+
+  const trendColor = trend?.slope >= 0 ? '#e53e3e' : '#38a169';
 
   return (
     <div className="clearcut-module">
@@ -65,10 +129,7 @@ function ClearcutDetection({ data }) {
             <div className="stat-label">Clearcut Area (current view)</div>
             <div className="stat-value">{data.percentage}%</div>
             <div className="stat-bar">
-              <div
-                className="stat-fill"
-                style={{ width: `${data.percentage}%` }}
-              ></div>
+              <div className="stat-fill" style={{ width: `${data.percentage}%` }} />
             </div>
           </div>
         ) : (
@@ -78,15 +139,10 @@ function ClearcutDetection({ data }) {
 
       <div className="module-section">
         <h3>Annual Clearcut Area — {region}</h3>
-        {loading && (
-          <div className="biomass-chart-status">Loading…</div>
-        )}
+        {loading && <div className="biomass-chart-status">Loading…</div>}
         <div className="biomass-chart">
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart
-              data={chartData}
-              margin={{ left: 0, right: 12, top: 6, bottom: 4 }}
-            >
+            <ComposedChart data={chartData} margin={{ left: 0, right: 12, top: 6, bottom: 4 }}>
               <XAxis
                 dataKey="year"
                 tick={{ fontSize: 10 }}
@@ -98,29 +154,55 @@ function ClearcutDetection({ data }) {
               <YAxis
                 tick={{ fontSize: 11 }}
                 tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(0)}
-                label={{
-                  value: 'ha',
-                  angle: -90,
-                  position: 'insideLeft',
-                  offset: 10,
-                  style: { fontSize: 11 },
-                }}
+                label={{ value: 'ha', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 11 } }}
                 width={42}
               />
               <Tooltip
-                formatter={(v, name) => [
-                  `${Number(v).toLocaleString(undefined, { maximumFractionDigits: 1 })} ha`,
-                  name === 'annual' ? 'New clearcut' : 'Historical',
-                ]}
+                formatter={(v, name, props) => {
+                  const fmt = n => Number(n).toLocaleString(undefined, { maximumFractionDigits: 1 });
+                  if (name === 'trendLine') return [`${fmt(v)} ha`, 'Forest loss trend'];
+                  if (name === 'annual') {
+                    const acc = accuracy[props.payload?.year];
+                    const note = acc
+                      ? `F1=${acc.f1.toFixed(2)}, P=${acc.precision.toFixed(2)}, R=${acc.recall.toFixed(2)}`
+                      : `±${(FALLBACK_UNCERTAINTY * 100).toFixed(0)}% (estimated)`;
+                    return [`${fmt(v)} ha  [${note}]`, 'New clearcut'];
+                  }
+                  return [`${fmt(v)} ha`, 'Historical'];
+                }}
                 labelFormatter={label => `Year ${label}`}
                 labelStyle={{ fontSize: 12 }}
                 itemStyle={{ fontSize: 12 }}
               />
               <Bar dataKey="historical" stackId="a" fill="#ff4444" name="historical" />
-              <Bar dataKey="annual" stackId="a" fill="#FFD700" name="annual" radius={[2, 2, 0, 0]} />
-            </BarChart>
+              <Bar dataKey="annual" stackId="a" fill="#FFD700" name="annual" radius={[2, 2, 0, 0]}>
+                <ErrorBar dataKey="annualError" width={3} strokeWidth={1.5} stroke="#a07800" direction="y" />
+              </Bar>
+              {trend && (
+                <Line
+                  dataKey="trendLine"
+                  type="linear"
+                  stroke={trendColor}
+                  strokeWidth={2}
+                  strokeDasharray="6 3"
+                  dot={false}
+                  name="trendLine"
+                  connectNulls
+                />
+              )}
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
+
+        {trend && (
+          <div style={{ fontSize: 11, marginTop: 4 }}>
+            <span style={{ color: trendColor }}>
+              {trend.slope >= 0 ? '▲ Forest loss increasing' : '▼ Forest loss decreasing'}{' '}
+              · {Math.abs(trend.slope).toFixed(0)} ha/yr &nbsp;(R²={trend.rSquared.toFixed(2)})
+            </span>
+          </div>
+        )}
+
         {fetchError && (
           <div className="biomass-chart-status">Could not load clearcut_stats.json — check console.</div>
         )}
@@ -128,13 +210,13 @@ function ClearcutDetection({ data }) {
           <div className="biomass-chart-status">No clearcut tile data found for this region.</div>
         )}
         <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
-          Area precomputed from leaf-level tiles ({region}) · {selectedSensor.toUpperCase()}.
+          Area from leaf-level tiles ({region}) · {selectedSensor.toUpperCase()}
+          · Error bars: precision/recall from validation notebooks (fallback ±{(FALLBACK_UNCERTAINTY * 100).toFixed(0)}%)
         </div>
       </div>
 
       <div className="module-section">
         <h3>Display Options</h3>
-
         <div className="control-group">
           <label>Sensor</label>
           <div className="mode-buttons">
@@ -154,7 +236,6 @@ function ClearcutDetection({ data }) {
             })}
           </div>
         </div>
-
         <div className="control-group">
           <label htmlFor="opacity-slider">Overlay Opacity</label>
           <input
@@ -166,10 +247,9 @@ function ClearcutDetection({ data }) {
             defaultValue="0.50"
             className="slider"
             onChange={(e) => {
-              const event = new CustomEvent('opacityChange', {
-                detail: { opacity: parseFloat(e.target.value) }
-              });
-              window.dispatchEvent(event);
+              window.dispatchEvent(new CustomEvent('opacityChange', {
+                detail: { opacity: parseFloat(e.target.value) },
+              }));
             }}
           />
         </div>
@@ -178,12 +258,16 @@ function ClearcutDetection({ data }) {
       <div className="module-section">
         <h3>Legend</h3>
         <div className="legend-item">
-          <span className="legend-color red"></span>
+          <span className="legend-color red" />
           <span>Accumulated Clearcut Area</span>
         </div>
         <div className="legend-item">
-          <span className="legend-color yellow"></span>
-          <span>New Clearcut Area</span>
+          <span className="legend-color yellow" />
+          <span>New Clearcut Area (error bars from precision/recall)</span>
+        </div>
+        <div className="legend-item">
+          <span style={{ display: 'inline-block', width: 16, height: 0, borderTop: '2px dashed #888', marginRight: 6, verticalAlign: 'middle' }} />
+          <span>Annual clearcut trend (red = increasing · green = decreasing)</span>
         </div>
       </div>
     </div>
