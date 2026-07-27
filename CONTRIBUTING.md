@@ -32,11 +32,14 @@ foresttrace-app/
 npm install          # root (Express + tile-processing scripts)
 cd client && npm install
 
-# 2. Create client/.env with your API keys (never commit this file)
+# 2. Create client/.env with your client-side API key (never commit this file)
 REACT_APP_GOOGLE_MAPS_API_KEY=...
-REACT_APP_ANTHROPIC_API_KEY=...
 
-# 3. Start the dev server
+# 3. Create a root .env for the server-side AI assistant proxy (never commit this file)
+GROQ_API_KEY=...        # powers the ForestryAI /api/chat proxy
+MONGODB_URI=...         # optional — enables chat message logging
+
+# 4. Start the dev server
 cd client && npm start   # React app at http://localhost:3000
 ```
 
@@ -233,7 +236,11 @@ Environment variables required in Vercel project settings:
 |----------|---------|
 | `REACT_APP_TILES_BASE_URL` | R2 public CDN URL for tiles |
 | `REACT_APP_DATA_BASE_URL` | R2 public CDN URL for data files |
-| `REACT_APP_GOOGLE_MAPS_API_KEY` | Google Places search |
-| `REACT_APP_ANTHROPIC_API_KEY` | ForestryAI assistant |
+| `REACT_APP_GOOGLE_MAPS_API_KEY` | Google Places search (client-side) |
+| `GROQ_API_KEY` | ForestryAI assistant — read server-side only, in `api/chat.js` |
+| `MONGODB_URI` | Optional chat message logging (server-side only) |
 
-None of these go in a committed `.env` file.
+`GROQ_API_KEY` and `MONGODB_URI` must **not** use the `REACT_APP_` prefix —
+that prefix causes Create React App to bundle the value into the client
+JavaScript, exposing it in the browser. None of these go in a committed
+`.env` file.
