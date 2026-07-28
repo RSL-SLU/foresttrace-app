@@ -98,34 +98,86 @@ function ClearcutDetection({ data }) {
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState(false);
 
-  const region = Array.isArray(data?.selectedFMUs) && data.selectedFMUs.length > 0
-    ? data.selectedFMUs[0]
-    : 'wabigoon';
+  // Stable string key for the selected FMU list — used as effect dependency.
+  const regionsKey = (Array.isArray(data?.selectedFMUs) && data.selectedFMUs.length > 0
+    ? data.selectedFMUs
+    : ['wabigoon']
+  ).join(',');
+
+  const regions = useMemo(() => regionsKey.split(','), [regionsKey]);
+
+  const regionLabel = regions.length === 1
+    ? regions[0]
+    : regions.length <= 2
+      ? regions.join(' + ')
+      : `${regions.slice(0, 2).join(', ')} +${regions.length - 2} more`;
 
   const selectedSensor = data?.selectedSensor ?? 'hls';
   const onSensorChange = data?.onSensorChange;
   const selectedYear   = data?.selectedYear;
 
+  // Sum GeoJSON areas for all selected regions.
   useEffect(() => {
     setRegionAreaHa(null);
-    fetch(`${DATA_BASE_URL}/data/regions/${region}.json`)
-      .then(r => r.ok ? r.json() : null)
-      .then(geoJson => { if (geoJson) setRegionAreaHa(computeGeoJsonAreaHa(geoJson)); })
-      .catch(() => {});
-  }, [region]);
+    Promise.all(
+      regions.map(r =>
+        fetch(`${DATA_BASE_URL}/data/regions/${r}.json`)
+          .then(res => res.ok ? res.json() : null)
+          .then(geoJson => geoJson ? computeGeoJsonAreaHa(geoJson) : 0)
+          .catch(() => 0)
+      )
+    ).then(areas => {
+      const total = areas.reduce((sum, a) => sum + (a ?? 0), 0);
+      if (total > 0) setRegionAreaHa(total);
+    });
+  }, [regionsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Sum clearcut stats across all selected regions.
   useEffect(() => {
     setLoading(true);
     setFetchError(false);
-    Promise.all([
-      computeClearcutAreaPerYear(region, CLEARCUT_YEARS, null, selectedSensor),
-      computeAnnualClearcutAreaPerYear(region, CLEARCUT_YEARS, selectedSensor),
-      getAnnualYearsWithData(region, selectedSensor),
-      getClearcutAccuracy(region, selectedSensor),
-    ])
-      .then(([accumulated, annual, dataYears, acc]) => {
+    Promise.all(
+      regions.map(r =>
+        Promise.all([
+          computeClearcutAreaPerYear(r, CLEARCUT_YEARS, null, selectedSensor),
+          computeAnnualClearcutAreaPerYear(r, CLEARCUT_YEARS, selectedSensor),
+          getAnnualYearsWithData(r, selectedSensor),
+          getClearcutAccuracy(r, selectedSensor),
+        ])
+      )
+    )
+      .then(results => {
+        // Sum accumulated and annual ha across all regions per year.
+        const accumulated = {};
+        const annual = {};
+        CLEARCUT_YEARS.forEach(y => {
+          accumulated[y] = results.reduce((sum, [acc]) => sum + (acc[y] ?? 0), 0);
+          annual[y]      = results.reduce((sum, [, ann]) => sum + (ann[y] ?? 0), 0);
+        });
+
+        // Intersection of annual data years — trend only covers years where
+        // ALL selected regions have comparable annual detection data.
+        const dataYears = results.reduce(
+          (inter, [,, years]) => new Set([...inter].filter(y => years.has(y))),
+          results[0][2]
+        );
         setAnnualDataYears(dataYears);
-        setAccuracy(acc);
+
+        // Average accuracy metrics across regions that have validation data.
+        const mergedAccuracy = {};
+        CLEARCUT_YEARS.forEach(y => {
+          const yearAccs = results.map(([,,, acc]) => acc[String(y)]).filter(Boolean);
+          if (yearAccs.length > 0) {
+            mergedAccuracy[String(y)] = {
+              precision: yearAccs.reduce((s, a) => s + a.precision, 0) / yearAccs.length,
+              recall:    yearAccs.reduce((s, a) => s + a.recall, 0) / yearAccs.length,
+              f1:        yearAccs.reduce((s, a) => s + a.f1, 0) / yearAccs.length,
+              iou:       yearAccs.reduce((s, a) => s + a.iou, 0) / yearAccs.length,
+            };
+          }
+        });
+        setAccuracy(mergedAccuracy);
+
         setYearlyStats(
           CLEARCUT_YEARS.map(y => {
             const totalHa      = parseFloat((accumulated[y] ?? 0).toFixed(1));
@@ -137,7 +189,7 @@ function ClearcutDetection({ data }) {
       })
       .catch(() => setFetchError(true))
       .finally(() => setLoading(false));
-  }, [region, selectedSensor]);
+  }, [regionsKey, selectedSensor]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Linear regression over annual clearcut values (non-zero years only).
   const trend = useMemo(() => {
@@ -193,10 +245,10 @@ function ClearcutDetection({ data }) {
   return (
     <div className="clearcut-module">
       <div className="module-section">
-        <h3>Detection Results</h3>
+        <h3>Detection Results ({selectedYear})</h3>
         {clearcutPercent !== null ? (
           <div className="stat-item">
-            <div className="stat-label">Clearcut Area ({selectedYear}) — {region}</div>
+            <div className="stat-label">Clearcut Area</div>
             <div className="stat-value">{clearcutPercent}%</div>
             <div className="stat-bar">
               <div className="stat-fill" style={{ width: `${Math.min(100, clearcutPercent)}%` }} />
@@ -214,7 +266,7 @@ function ClearcutDetection({ data }) {
       </div>
 
       <div className="module-section">
-        <h3>Annual Clearcut Area — {region}</h3>
+        <h3>Annual vs Accumulated Clearcut Area — Timeline</h3>
         {loading && <div className="biomass-chart-status">Loading…</div>}
         <div className="biomass-chart">
           <ResponsiveContainer width="100%" height={220}>
@@ -284,7 +336,7 @@ function ClearcutDetection({ data }) {
           <div className="biomass-chart-status">No clearcut tile data found for this region.</div>
         )}
         <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
-          Area from leaf-level tiles ({region}) · {selectedSensor.toUpperCase()}
+          Area from leaf-level tiles · {selectedSensor.toUpperCase()}
           · Error bars: precision/recall from validation notebooks (fallback ±{(FALLBACK_UNCERTAINTY * 100).toFixed(0)}%)
         </div>
         <div style={{ fontSize: 11, color: '#f59e0b', marginTop: 2 }}>
