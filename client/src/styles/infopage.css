@@ -212,3 +212,161 @@ body.dark-mode .infopage-callout p {
   color: #a5d6a7;
 }
 
+/* ── Documentation two-column layout ── */
+
+.docs-layout {
+  display: flex;
+  gap: 48px;
+  max-width: 1120px;
+  margin: 0 auto;
+  align-items: flex-start;
+}
+
+.docs-nav {
+  flex: 0 0 160px;
+  position: sticky;
+  top: 0;
+}
+
+.docs-nav-heading {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #999;
+  margin: 0 0 10px 10px;
+}
+
+body.dark-mode .docs-nav-heading {
+  color: #666;
+}
+
+.docs-nav-link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: #555;
+  cursor: pointer;
+  border-radius: 6px;
+  line-height: 1.4;
+  margin-bottom: 2px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.docs-nav-link:hover {
+  background: rgba(47, 143, 91, 0.08);
+  color: #1a7a4d;
+}
+
+.docs-nav-link--active {
+  background: rgba(47, 143, 91, 0.12);
+  color: #1a7a4d;
+  font-weight: 600;
+}
+
+body.dark-mode .docs-nav-link {
+  color: #aaa;
+}
+
+body.dark-mode .docs-nav-link:hover,
+body.dark-mode .docs-nav-link--active {
+  background: rgba(159, 220, 185, 0.1);
+  color: #9fdcb9;
+}
+
+.docs-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.docs-subsection-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 22px 0 10px;
+}
+
+body.dark-mode .docs-subsection-title {
+  color: #d0d0d0;
+}
+
+/* Definition table */
+.docs-def-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.docs-def-table td {
+  padding: 9px 16px 9px 0;
+  font-size: 14px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  vertical-align: top;
+  line-height: 1.65;
+}
+
+.docs-def-table td:first-child {
+  font-weight: 600;
+  white-space: nowrap;
+  width: 32%;
+  color: #333;
+}
+
+.docs-def-table td:last-child {
+  color: #555;
+}
+
+body.dark-mode .docs-def-table td {
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+body.dark-mode .docs-def-table td:first-child {
+  color: #ccc;
+}
+
+body.dark-mode .docs-def-table td:last-child {
+  color: #aaa;
+}
+
+@media (max-width: 720px) {
+  .docs-layout {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .docs-nav {
+    position: static;
+    flex: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 28px;
+  }
+
+  .docs-nav-heading {
+    display: none;
+  }
+
+  .docs-nav-link {
+    flex: 0 0 auto;
+    width: auto;
+    font-size: 12px;
+    padding: 4px 10px;
+    border: 1px solid rgba(47, 143, 91, 0.3);
+    border-radius: 100px;
+  }
+
+  .docs-nav-link--active {
+    background: rgba(47, 143, 91, 0.15);
+    border-color: #2f8f5b;
+  }
+
+  .docs-def-table td:first-child {
+    white-space: normal;
+    width: 40%;
+  }
+}
+
