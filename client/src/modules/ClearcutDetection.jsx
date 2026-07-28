@@ -106,12 +106,6 @@ function ClearcutDetection({ data }) {
 
   const regions = useMemo(() => regionsKey.split(','), [regionsKey]);
 
-  const regionLabel = regions.length === 1
-    ? regions[0]
-    : regions.length <= 2
-      ? regions.join(' + ')
-      : `${regions.slice(0, 2).join(', ')} +${regions.length - 2} more`;
-
   const selectedSensor = data?.selectedSensor ?? 'hls';
   const onSensorChange = data?.onSensorChange;
   const selectedYear   = data?.selectedYear;
