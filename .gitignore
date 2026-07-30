@@ -6,7 +6,7 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
-
+*.lock
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
@@ -184,3 +184,9 @@ LAYOUT_SUMMARY.md
 QUICK_REFERENCE.md
 VERIFICATION_CHECKLIST.md
 client/public/hero-demo.mp4
+wabigoon.cpg
+wabigoon.dbf
+wabigoon.geojson
+wabigoon.prj
+wabigoon.shp
+wabigoon.shx

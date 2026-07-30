@@ -47,6 +47,15 @@ function getBasemapConfig(year) {
   };
 }
 
+// Neutral basemap: gray canvas + boundaries/labels only, no imagery. Esri's
+// "Light Gray Canvas" style is two stacked layers — a plain gray base and a
+// reference layer carrying admin boundaries, place names, and city labels.
+const LIGHT_BASEMAP = {
+  baseUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+  referenceUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+  attribution: '&copy; Esri, HERE, Garmin, FAO, NOAA, USGS',
+};
+
 function isBasemapSynced(year) {
   if (EOX_S2_YEARS.has(year)) return true;
   // 2025 uses Esri "current" imagery which is close enough to the detection year
@@ -197,7 +206,7 @@ function DrawingTools({ mapRef }) {
   return null;
 }
 
-function RegionBoundaries({ selectedFMUs, useOntarioOverview }) {
+function RegionBoundaries({ selectedFMUs, useOntarioOverview, basemapMode }) {
   const [regionsData, setRegionsData] = useState(null);
   const legacyRegionsRef = useRef(null);
   const perAreaCacheRef = useRef(new Map());
@@ -307,18 +316,18 @@ function RegionBoundaries({ selectedFMUs, useOntarioOverview }) {
   const onEachFeature = useCallback((feature, layer) => {
     layer.options.pmIgnore = true;
     layer.setStyle({
-      color: '#ffffff',
+      color: basemapMode === 'satellite' ? '#ffffff' : '#2f8f5b',
       weight: 2,
       opacity: 0.9,
       fillOpacity: 0,
     });
-  }, []);
+  }, [basemapMode]);
 
   if (!regionsData) return null;
 
   const featureIds = regionsData.features.map((f) => f.properties?.id).sort().join('-');
 
-  return <GeoJSON key={featureIds} data={regionsData} onEachFeature={onEachFeature} />;
+  return <GeoJSON key={`${featureIds}-${basemapMode}`} data={regionsData} onEachFeature={onEachFeature} />;
 }
 
 function ZoomControlPositioner({ position = 'bottomleft' }) {
@@ -355,7 +364,7 @@ function App() {
     }
   }, []);
   const [biomassHistogram, setBiomassHistogram] = useState(createEmptyBiomassHistogram());
-  const [rasterOpacity, setRasterOpacity] = useState(0.5);
+  const [rasterOpacity, setRasterOpacity] = useState(1);
   const [selectedModuleId, setSelectedModuleId] = useState(MODULES[0]?.id);
   const selectedModule = useMemo(
     () => MODULES.find((m) => m.id === selectedModuleId) ?? MODULES[0],
@@ -365,6 +374,7 @@ function App() {
   const [selectedFMUs, setSelectedFMUs] = useState(['wabigoon']);
   const [selectedSensor, setSelectedSensor] = useState('planet');
   const [allowHeavyRaster, setAllowHeavyRaster] = useState(false);
+  const [basemapMode, setBasemapMode] = useState('light'); // 'light' | 'satellite'
 
   // Disable overview mode for now because the current simplified overview geometry
   // introduces visible boundary artifacts at Ontario-wide scale.
@@ -616,6 +626,14 @@ function App() {
           )}
 
           <button
+            className="basemap-toggle-btn"
+            onClick={() => setBasemapMode((m) => (m === 'satellite' ? 'light' : 'satellite'))}
+            title={basemapMode === 'satellite' ? 'Switch to map view' : 'Switch to satellite view'}
+          >
+            {basemapMode === 'satellite' ? '🗺️ Map' : '🛰️ Satellite'}
+          </button>
+
+          <button
             className="locate-btn"
             onClick={() => handleLocateUser(mapRef)}
             title="Locate Me"
@@ -644,19 +662,33 @@ function App() {
             }}
             style={{ width: '100%', height: '100%', zIndex: 0 }}
           >
-            {(() => {
+            {basemapMode === 'satellite' ? (() => {
               const basemapYear = moduleYears[selectedModule?.id] || selectedYear;
               const { url, attribution } = getBasemapConfig(basemapYear);
               return (
                 <TileLayer
-                  key={basemapYear}
+                  key={`satellite-${basemapYear}`}
                   url={url}
                   attribution={attribution}
                   zIndex={5}
                   pmIgnore={true}
                 />
               );
-            })()}
+            })() : (
+              <React.Fragment key="light">
+                <TileLayer
+                  url={LIGHT_BASEMAP.baseUrl}
+                  attribution={LIGHT_BASEMAP.attribution}
+                  zIndex={5}
+                  pmIgnore={true}
+                />
+                <TileLayer
+                  url={LIGHT_BASEMAP.referenceUrl}
+                  zIndex={6}
+                  pmIgnore={true}
+                />
+              </React.Fragment>
+            )}
 
             {MODULES.flatMap((module) => {
               const moduleActiveLayers = activeLayers[module.id] || [];
@@ -700,7 +732,7 @@ function App() {
               });
             })}
 
-            <RegionBoundaries selectedFMUs={selectedFMUs} useOntarioOverview={useOntarioOverview} />
+            <RegionBoundaries selectedFMUs={selectedFMUs} useOntarioOverview={useOntarioOverview} basemapMode={basemapMode} />
             <DrawingTools mapRef={mapRef} />
             <ZoomControlPositioner position="bottomleft" />
           </MapContainer>
@@ -714,7 +746,10 @@ function App() {
             onYearChange={handleYearChange}
             yearRange={selectedModule?.temporalOptions?.yearRange || [2010, 2024]}
             availableYears={selectedModule?.temporalOptions?.availableYears}
-            basemapSynced={isBasemapSynced(moduleYears[selectedModule?.id] || selectedYear)}
+            basemapSynced={
+              basemapMode !== 'satellite' ||
+              isBasemapSynced(moduleYears[selectedModule?.id] || selectedYear)
+            }
           />
           <div className="right-column-logo">
             <img className="logo-image logo-light" src="/rsl-logo.png" alt="Remote Sensing Lab and Saint Louis University" />

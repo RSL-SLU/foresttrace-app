@@ -316,6 +316,30 @@
   box-shadow: 0 2px 8px rgba(47, 143, 91, 0.4);
 }
 
+.basemap-toggle-btn {
+  position: absolute;
+  top: 10px;
+  right: 20px;
+  z-index: 20;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 20px;
+  background: #fff;
+  border: 2px solid #ccc;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.basemap-toggle-btn:hover {
+  border-color: #2f8f5b;
+  box-shadow: 0 2px 8px rgba(47, 143, 91, 0.4);
+}
+
 .stats-box {
   position: absolute;
   bottom: 20px;
@@ -647,6 +671,13 @@ body.dark-mode .search-icon {
 body.dark-mode .locate-btn {
   background: #1e1e1e;
   border-color: #3a3a3a;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+body.dark-mode .basemap-toggle-btn {
+  background: #1e1e1e;
+  border-color: #3a3a3a;
+  color: #e0e0e0;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
 }
 
