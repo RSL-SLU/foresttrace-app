@@ -14,14 +14,17 @@
  * and merges applied to the tile folders are applied here — otherwise the
  * chart would key on names the app never asks for.
  *
+ * The plan CSV is produced outside this repo by the NBAC tiler, so its location
+ * has to be supplied — there is no default.
+ *
  * Usage:
- *   node generate-wildfire-stats.js [planCsv]
+ *   node generate-wildfire-stats.js <planCsv>
+ *   WILDFIRE_PLAN_CSV=<planCsv> node generate-wildfire-stats.js
  */
 
 const fs = require('fs');
 const path = require('path');
 
-const DEFAULT_PLAN_CSV = 'F:/forest_data_curation/nbac_tiling/output/tiling_plan.csv';
 const OUT_FILE = path.join(__dirname, 'client', 'public', 'data', 'wildfire_stats.json');
 
 // Regions that were merged when the tile folders were renamed. Areas and fire
@@ -57,7 +60,16 @@ function toFmuId(region) {
   return APP_FMU_IDS.has(normalised) ? normalised : region;
 }
 
-const planCsv = process.argv[2] || DEFAULT_PLAN_CSV;
+const planCsv = process.argv[2] || process.env.WILDFIRE_PLAN_CSV;
+
+if (!planCsv) {
+  console.error('Error: no tiling plan CSV given.\n');
+  console.error('Usage:');
+  console.error('  node generate-wildfire-stats.js <planCsv>');
+  console.error('  WILDFIRE_PLAN_CSV=<planCsv> node generate-wildfire-stats.js\n');
+  console.error('  <planCsv>  tiler output with columns: region, year, n_fires, area_ha');
+  process.exit(1);
+}
 
 if (!fs.existsSync(planCsv)) {
   console.error(`Plan CSV not found: ${planCsv}`);

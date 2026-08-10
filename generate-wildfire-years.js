@@ -10,19 +10,29 @@
  * years 2010-2025 for every region and most of them render nothing, which
  * looks like a broken layer rather than "no fire that year".
  *
- * Usage:
- *   node generate-wildfire-years.js [tilesDir]
+ * The NBAC tile pyramid is produced outside this repo, so its location has to
+ * be supplied — there is no default. Re-run whenever tiles are added.
  *
- * Defaults to the local NBAC tiling output. Re-run whenever tiles are added.
+ * Usage:
+ *   node generate-wildfire-years.js <tilesDir>
+ *   WILDFIRE_TILES_DIR=<tilesDir> node generate-wildfire-years.js
  */
 
 const fs = require('fs');
 const path = require('path');
 
-const DEFAULT_TILES_DIR = 'F:/forest_data_curation/nbac_tiling/tiles/wildfire';
 const OUT_FILE = path.join(__dirname, 'client', 'public', 'data', 'wildfire_years.json');
 
-const tilesDir = process.argv[2] || DEFAULT_TILES_DIR;
+const tilesDir = process.argv[2] || process.env.WILDFIRE_TILES_DIR;
+
+if (!tilesDir) {
+  console.error('Error: no wildfire tiles directory given.\n');
+  console.error('Usage:');
+  console.error('  node generate-wildfire-years.js <tilesDir>');
+  console.error('  WILDFIRE_TILES_DIR=<tilesDir> node generate-wildfire-years.js\n');
+  console.error('  <tilesDir>  folder containing <region>_<year>/{z}/{x}/{y}.png');
+  process.exit(1);
+}
 
 if (!fs.existsSync(tilesDir)) {
   console.error(`Tiles directory not found: ${tilesDir}`);
