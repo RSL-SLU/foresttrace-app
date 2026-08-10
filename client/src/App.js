@@ -70,6 +70,10 @@ const TILE_ZOOM_RANGE = {
   min: Math.min(...TILE_ZOOM_LEVELS),
   max: Math.max(...TILE_ZOOM_LEVELS),
 };
+
+// Esri's Light Gray Canvas cache stops at level 16 — deeper requests just
+// re-serve the same overzoomed level-16 tile, so cap zoom there in light mode.
+const LIGHT_BASEMAP_MAX_ZOOM = 16;
 const RASTER_MULTI_FMU_SOFT_LIMIT = 8;
 const PREFERRED_RASTER_REGIONS = ['wabigoon', 'troutlake'];
 
@@ -345,6 +349,22 @@ function ZoomControlPositioner({ position = 'bottomleft' }) {
   return null;
 }
 
+// MapContainer's maxZoom prop only applies at initial mount, so this keeps
+// Leaflet's own max-zoom clamp in sync when the basemap (and its supported
+// zoom range) changes after the map already exists.
+function MaxZoomController({ maxZoom }) {
+  const map = useMap();
+
+  useEffect(() => {
+    map.setMaxZoom(maxZoom);
+    if (map.getZoom() > maxZoom) {
+      map.setZoom(maxZoom);
+    }
+  }, [map, maxZoom]);
+
+  return null;
+}
+
 function App() {
   const [showApp, setShowApp] = useState(false);
   const [activePage, setActivePage] = useState(null);
@@ -496,6 +516,8 @@ function App() {
     script.onload = initAutocomplete;
     document.head.appendChild(script);
   }, []);
+
+  const mapMaxZoom = basemapMode === 'satellite' ? TILE_ZOOM_RANGE.max : LIGHT_BASEMAP_MAX_ZOOM;
 
   const moduleData = {
     percentage: clearcutPercent,
@@ -651,7 +673,7 @@ function App() {
             center={center}
             zoom={TILE_ZOOM_LEVELS[0]}
             minZoom={TILE_ZOOM_RANGE.min}
-            maxZoom={TILE_ZOOM_RANGE.max}
+            maxZoom={mapMaxZoom}
             zoomControl={false}
             whenCreated={(mapInstance) => {
               console.log('Map created', mapInstance);
@@ -735,6 +757,7 @@ function App() {
             <RegionBoundaries selectedFMUs={selectedFMUs} useOntarioOverview={useOntarioOverview} basemapMode={basemapMode} />
             <DrawingTools mapRef={mapRef} />
             <ZoomControlPositioner position="bottomleft" />
+            <MaxZoomController maxZoom={mapMaxZoom} />
           </MapContainer>
         </div>
 
