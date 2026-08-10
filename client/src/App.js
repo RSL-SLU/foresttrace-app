@@ -18,10 +18,12 @@ import PublicationPage from './pages/PublicationPage';
 import DocumentationPage from './pages/DocumentationPage';
 import ClearcutDetection from './modules/ClearcutDetection';
 import BiomassModule from './modules/BiomassModule';
+import WildfireModule from './modules/WildfireModule';
 import RasterTileLayer from './components/RasterTileLayer';
 import { handleLocateUser, handlePlaceChanged } from './utils/mapUtils';
 import { CLEARCUT_PLANET_YEARS, CLEARCUT_SENSOR_SUBFOLDER_YEARS } from './utils/clearcutAreaStats';
 import { createEmptyBiomassHistogram } from './utils/biomassHistogram';
+import { getFireYearsForRegions } from './utils/wildfireYears';
 import { TILES_BASE_URL, DATA_BASE_URL } from './config';
 
 import './styles/map.css';
@@ -121,6 +123,30 @@ const MODULES = [
         id: 'biomass-density',
         name: 'Biomass Density',
         tileUrl: `${TILES_BASE_URL}/tiles/biomass/{region}_{year}_agb/{z}/{x}/{y}.png`,
+        mode: 'annual',
+        tms: false,
+      },
+    ],
+  },
+  {
+    id: 'wildfire',
+    name: 'Wildfire',
+    icon: '🔥',
+    description: 'Burned area mapping from NBAC',
+    component: WildfireModule,
+    temporalOptions: {
+      yearRange: [2010, 2025],
+      availableYears: [
+        2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017,
+        2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025,
+      ],
+    },
+    layers: [
+      {
+        id: 'wildfire-burned',
+        name: 'Burned Area',
+        tileUrl: `${TILES_BASE_URL}/tiles/wildfire/{region}_{year}/{z}/{x}/{y}.png`,
+        color: '#F8420B',
         mode: 'annual',
         tms: false,
       },
@@ -472,6 +498,33 @@ function App() {
     return () => clearTimeout(guard);
   }, [tilesLoading]);
 
+  // Fire-year markers on the year slider. Two conditions, both required:
+  // the Burned Area layer must be switched on, and the years shown are only
+  // those the currently selected FMUs actually burned in.
+  const [fireYears, setFireYears] = useState([]);
+  const wildfireLayerActive = (activeLayers.wildfire || []).includes('wildfire-burned');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!wildfireLayerActive || selectedFMUs.length === 0) {
+      setFireYears([]);
+      return undefined;
+    }
+
+    getFireYearsForRegions(selectedFMUs)
+      .then((years) => {
+        if (!cancelled) setFireYears(years);
+      })
+      .catch(() => {
+        if (!cancelled) setFireYears([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [wildfireLayerActive, selectedFMUs]);
+
   const handleSensorChange = useCallback((sensor) => {
     setSelectedSensor(sensor);
   }, []);
@@ -769,6 +822,7 @@ function App() {
             onYearChange={handleYearChange}
             yearRange={selectedModule?.temporalOptions?.yearRange || [2010, 2024]}
             availableYears={selectedModule?.temporalOptions?.availableYears}
+            fireYears={fireYears}
             basemapSynced={
               basemapMode !== 'satellite' ||
               isBasemapSynced(moduleYears[selectedModule?.id] || selectedYear)

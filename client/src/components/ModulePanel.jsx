@@ -1,5 +1,11 @@
 import React from 'react';
 
+// The range thumb is 16px wide (.slider::-webkit-slider-thumb in layout.css),
+// so its centre travels across (track width - 16px) rather than the full track.
+// Markers have to use the same inset or they drift out of line with the thumb
+// at the ends. Keep in sync if the thumb is ever resized.
+const SLIDER_THUMB_PX = 16;
+
 function ModulePanel({
   module,
   data,
@@ -8,6 +14,7 @@ function ModulePanel({
   yearRange = [2015, 2024],
   availableYears,
   basemapSynced,
+  fireYears = [],
 }) {
   if (!module) {
     return (
@@ -37,6 +44,25 @@ function ModulePanel({
 
   const showSlider = yearRange && yearRange.length === 2;
 
+  // Place a fire marker over each year that actually has burned-area tiles.
+  // Years the current slider cannot reach are dropped rather than clamped to
+  // an end position, which would point at the wrong year.
+  const fireMarkers = (fireYears || [])
+    .map((year) => {
+      let fraction;
+      if (years) {
+        const index = years.indexOf(year);
+        if (index === -1) return null;
+        fraction = years.length > 1 ? index / (years.length - 1) : 0;
+      } else {
+        const [min, max] = yearRange;
+        if (year < min || year > max) return null;
+        fraction = max > min ? (year - min) / (max - min) : 0;
+      }
+      return { year, fraction };
+    })
+    .filter(Boolean);
+
   return (
     <div className="module-panel">
       <div className="module-header">
@@ -51,14 +77,34 @@ function ModulePanel({
               <div className="year-display">
                 <span className="year-value">{selectedYear}</span>
               </div>
-              <input
-                type="range"
-                min={sliderMin}
-                max={sliderMax}
-                value={sliderValue}
-                onChange={handleSliderChange}
-                className="slider year-slider"
-              />
+              <div className="year-slider-wrap">
+                {fireMarkers.length > 0 && (
+                  <div className="fire-marker-track" aria-hidden="true">
+                    {fireMarkers.map(({ year, fraction }) => (
+                      <button
+                        key={year}
+                        type="button"
+                        className={`fire-marker${year === selectedYear ? ' fire-marker--active' : ''}`}
+                        style={{
+                          left: `calc(${SLIDER_THUMB_PX / 2}px + (100% - ${SLIDER_THUMB_PX}px) * ${fraction})`,
+                        }}
+                        title={`Fire recorded in ${year}`}
+                        onClick={() => onYearChange(year)}
+                      >
+                        🔥
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <input
+                  type="range"
+                  min={sliderMin}
+                  max={sliderMax}
+                  value={sliderValue}
+                  onChange={handleSliderChange}
+                  className="slider year-slider"
+                />
+              </div>
               <div className="year-range">
                 <span>{labelMin}</span>
                 <span>{labelMax}</span>
