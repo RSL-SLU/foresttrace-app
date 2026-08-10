@@ -78,16 +78,22 @@ if (!fs.existsSync(planCsv)) {
 
 const lines = fs.readFileSync(planCsv, 'utf8').trim().split(/\r?\n/);
 const header = lines[0].split(',').map((h) => h.trim());
-const idx = {
-  region: header.indexOf('region'),
-  year: header.indexOf('year'),
-  fires: header.indexOf('n_fires'),
-  area: header.indexOf('area_ha'),
+// Internal name -> the column heading actually expected in the CSV. Kept as a
+// map so a missing-column error can name the heading the user has to look for,
+// not the internal key.
+const COLUMNS = {
+  region: 'region',
+  year: 'year',
+  fires: 'n_fires',
+  area: 'area_ha',
 };
 
-for (const [key, value] of Object.entries(idx)) {
-  if (value === -1) {
-    console.error(`Column "${key}" missing from ${planCsv}`);
+const idx = {};
+for (const [key, column] of Object.entries(COLUMNS)) {
+  idx[key] = header.indexOf(column);
+  if (idx[key] === -1) {
+    console.error(`Column "${column}" missing from ${planCsv}`);
+    console.error(`  found: ${header.join(', ')}`);
     process.exit(1);
   }
 }

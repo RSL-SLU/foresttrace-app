@@ -60,8 +60,15 @@ function getSingleRegionAreaHa(region) {
 
   if (!_areaCache.has(id)) {
     const promise = fetch(`${DATA_BASE_URL}/data/regions/${id}.json`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((geoJson) => (geoJson ? computeGeoJsonAreaHa(geoJson) ?? 0 : 0))
+      .then((res) => {
+        // Throw rather than resolve to null: a non-OK response is a failure,
+        // and it has to reach the catch below so the cache entry is dropped.
+        // Treating it as "no data" would cache 0 ha and pin the UI to 0%
+        // until reload, even after a transient 500 clears.
+        if (!res.ok) throw new Error(`regions/${id}.json: HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((geoJson) => computeGeoJsonAreaHa(geoJson) ?? 0)
       .catch(() => {
         // Don't cache a failure — a transient error shouldn't pin the area to 0.
         _areaCache.delete(id);

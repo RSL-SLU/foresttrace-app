@@ -65,6 +65,10 @@ function WildfireModule({ data }) {
 
     if (!selectedFMUs || selectedFMUs.length === 0) {
       setRows([]);
+      // Must clear the flag here too: if a request was in flight, its own
+      // handlers are skipped by the `cancelled` guard, so this is the only
+      // path left that can take the panel out of "Loading…".
+      setLoading(false);
       return undefined;
     }
 
@@ -135,7 +139,7 @@ function WildfireModule({ data }) {
                 />
               </div>
             )}
-            <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
+            <div className="stat-sub" style={{ fontSize: 11, marginTop: 2 }}>
               {burnedPct !== null
                 ? `${fmt(current.areaHa)} ha of total FMU area (${(regionAreaHa / 1000).toFixed(0)}k ha)`
                 : 'Loading region boundary…'}
@@ -198,7 +202,7 @@ function WildfireModule({ data }) {
         )}
 
         {!loading && hasData && (
-          <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+          <div className="stat-sub" style={{ fontSize: 11, marginTop: 4 }}>
             Area from NBAC source polygons · not derived from tile pixels
           </div>
         )}

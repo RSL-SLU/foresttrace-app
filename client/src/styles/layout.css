@@ -344,10 +344,13 @@ body.dark-mode .resize-handle--active::after {
   margin-bottom: 8px;
 }
 
-/* Secondary line under a stat value (counts, "no data" notes) */
+/* Secondary line under a stat value (counts, "no data" notes).
+   Inherits the surrounding ink and dims it, rather than hardcoding a grey —
+   a fixed #666 goes low-contrast against the dark-mode background. */
 .stat-sub {
   font-size: 12px;
-  color: #666;
+  color: inherit;
+  opacity: 0.7;
   margin: 0;
 }
 

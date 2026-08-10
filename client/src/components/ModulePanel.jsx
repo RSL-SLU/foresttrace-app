@@ -78,8 +78,13 @@ function ModulePanel({
                 <span className="year-value">{selectedYear}</span>
               </div>
               <div className="year-slider-wrap">
+                {/* Not aria-hidden: these are real, focusable controls that
+                    jump the slider to a year. Hiding the container from the
+                    accessibility tree while leaving the buttons tabbable
+                    strands keyboard users on controls that announce nothing.
+                    The emoji is hidden instead, so the aria-label is read. */}
                 {fireMarkers.length > 0 && (
-                  <div className="fire-marker-track" aria-hidden="true">
+                  <div className="fire-marker-track">
                     {fireMarkers.map(({ year, fraction }) => (
                       <button
                         key={year}
@@ -89,9 +94,11 @@ function ModulePanel({
                           left: `calc(${SLIDER_THUMB_PX / 2}px + (100% - ${SLIDER_THUMB_PX}px) * ${fraction})`,
                         }}
                         title={`Fire recorded in ${year}`}
+                        aria-label={`Fire recorded in ${year} — show ${year}`}
+                        aria-pressed={year === selectedYear}
                         onClick={() => onYearChange(year)}
                       >
-                        🔥
+                        <span aria-hidden="true">🔥</span>
                       </button>
                     ))}
                   </div>
