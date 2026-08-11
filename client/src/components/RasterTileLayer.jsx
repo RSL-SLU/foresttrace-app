@@ -171,6 +171,10 @@ function RasterTileLayer({
       return;
     }
 
+    if (layerId === 'wildfire-burned' && img?.dataset?.wildfireProcessed === 'true') {
+      return;
+    }
+
     if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
       const tmpCanvas = document.createElement('canvas');
       tmpCanvas.width = img.naturalWidth;
@@ -213,6 +217,20 @@ function RasterTileLayer({
           continue;
         }
 
+        if (layerId === 'wildfire-burned') {
+          if (a > 0 && r > 200) {
+            redCount += 1;
+          }
+          if (a === 0) continue;
+          const intensity = r / 255;
+          // Fire red (#F8420B). Distinct from the clearcut-accumulated red
+          // (255,46,46), which is pinker, and from the clearcut-annual yellow.
+          pixels[i]     = Math.round(248 * intensity);
+          pixels[i + 1] = Math.round(66 * intensity);
+          pixels[i + 2] = Math.round(11 * intensity);
+          continue;
+        }
+
         if (layerId === 'biomass-density') {
           if (a === 0) continue;
 
@@ -243,6 +261,12 @@ function RasterTileLayer({
       if (layerId === 'clearcut-accumulated' || layerId === 'clearcut-annual') {
         ctx.putImageData(new ImageData(pixels, tmpCanvas.width, tmpCanvas.height), 0, 0);
         img.dataset.clearcutProcessed = 'true';
+        img.src = tmpCanvas.toDataURL('image/png');
+      }
+
+      if (layerId === 'wildfire-burned') {
+        ctx.putImageData(new ImageData(pixels, tmpCanvas.width, tmpCanvas.height), 0, 0);
+        img.dataset.wildfireProcessed = 'true';
         img.src = tmpCanvas.toDataURL('image/png');
       }
 
@@ -729,7 +753,7 @@ function RasterTileLayer({
     );
   }
 
-  if (layerId === 'clearcut-accumulated' || layerId === 'clearcut-annual') {
+  if (layerId === 'clearcut-accumulated' || layerId === 'clearcut-annual' || layerId === 'wildfire-burned') {
     return (
       <TileLayer
         ref={highResLayerRef}

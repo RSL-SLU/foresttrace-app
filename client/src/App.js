@@ -18,10 +18,12 @@ import PublicationPage from './pages/PublicationPage';
 import DocumentationPage from './pages/DocumentationPage';
 import ClearcutDetection from './modules/ClearcutDetection';
 import BiomassModule from './modules/BiomassModule';
+import WildfireModule from './modules/WildfireModule';
 import RasterTileLayer from './components/RasterTileLayer';
 import { handleLocateUser, handlePlaceChanged } from './utils/mapUtils';
 import { CLEARCUT_PLANET_YEARS, CLEARCUT_SENSOR_SUBFOLDER_YEARS } from './utils/clearcutAreaStats';
 import { createEmptyBiomassHistogram } from './utils/biomassHistogram';
+import { getFireYearsForRegions } from './utils/wildfireYears';
 import { TILES_BASE_URL, DATA_BASE_URL } from './config';
 
 import './styles/map.css';
@@ -121,6 +123,30 @@ const MODULES = [
         id: 'biomass-density',
         name: 'Biomass Density',
         tileUrl: `${TILES_BASE_URL}/tiles/biomass/{region}_{year}_agb/{z}/{x}/{y}.png`,
+        mode: 'annual',
+        tms: false,
+      },
+    ],
+  },
+  {
+    id: 'wildfire',
+    name: 'Wildfire',
+    icon: '🔥',
+    description: 'Burned area mapping from NBAC',
+    component: WildfireModule,
+    temporalOptions: {
+      yearRange: [2010, 2025],
+      availableYears: [
+        2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017,
+        2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025,
+      ],
+    },
+    layers: [
+      {
+        id: 'wildfire-burned',
+        name: 'Burned Area',
+        tileUrl: `${TILES_BASE_URL}/tiles/wildfire/{region}_{year}/{z}/{x}/{y}.png`,
+        color: '#F8420B',
         mode: 'annual',
         tms: false,
       },
@@ -472,6 +498,62 @@ function App() {
     return () => clearTimeout(guard);
   }, [tilesLoading]);
 
+  // Which years the selected FMUs actually burned in. Wildfire coverage is
+  // sparse — a region only has tiles for years something burned — so this
+  // narrows the wildfire slider to those years, the same way the clearcut
+  // module narrows its own with a static availableYears list. Years with no
+  // data are skipped rather than flagged.
+  const [fireYears, setFireYears] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (selectedFMUs.length === 0) {
+      setFireYears([]);
+      return undefined;
+    }
+
+    getFireYearsForRegions(selectedFMUs)
+      .then((years) => {
+        if (!cancelled) setFireYears(years);
+      })
+      .catch(() => {
+        if (!cancelled) setFireYears([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedFMUs]);
+
+  // The wildfire slider stops only on years with data. Falls back to the
+  // module's declared list when a region has no fires at all, so the slider
+  // stays usable and the panel's "No fire recorded" message carries the point.
+  const wildfireYearOptions = useMemo(() => {
+    const declared = MODULES.find((m) => m.id === 'wildfire')?.temporalOptions?.availableYears;
+    return fireYears.length > 0 ? fireYears : declared;
+  }, [fireYears]);
+
+  const availableYearsForPanel = selectedModule?.id === 'wildfire'
+    ? wildfireYearOptions
+    : selectedModule?.temporalOptions?.availableYears;
+
+  // Changing FMU can drop the year currently being viewed out of the list.
+  // Snap to the nearest available year, otherwise the slider handle and the
+  // year label disagree.
+  useEffect(() => {
+    if (selectedModule?.id !== 'wildfire') return;
+    if (!wildfireYearOptions?.length) return;
+    if (wildfireYearOptions.includes(selectedYear)) return;
+
+    const nearest = wildfireYearOptions.reduce((best, year) => (
+      Math.abs(year - selectedYear) < Math.abs(best - selectedYear) ? year : best
+    ), wildfireYearOptions[0]);
+
+    setSelectedYear(nearest);
+    setModuleYears((prev) => ({ ...prev, wildfire: nearest }));
+  }, [wildfireYearOptions, selectedYear, selectedModule]);
+
   const handleSensorChange = useCallback((sensor) => {
     setSelectedSensor(sensor);
   }, []);
@@ -768,7 +850,7 @@ function App() {
             selectedYear={selectedYear}
             onYearChange={handleYearChange}
             yearRange={selectedModule?.temporalOptions?.yearRange || [2010, 2024]}
-            availableYears={selectedModule?.temporalOptions?.availableYears}
+            availableYears={availableYearsForPanel}
             basemapSynced={
               basemapMode !== 'satellite' ||
               isBasemapSynced(moduleYears[selectedModule?.id] || selectedYear)

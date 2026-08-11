@@ -1,0 +1,1052 @@
+{
+  "abitibiriver": {
+    "2010": {
+      "areaHa": 260,
+      "fires": 4
+    },
+    "2011": {
+      "areaHa": 14,
+      "fires": 2
+    },
+    "2012": {
+      "areaHa": 587,
+      "fires": 5
+    },
+    "2015": {
+      "areaHa": 176,
+      "fires": 1
+    },
+    "2018": {
+      "areaHa": 3994,
+      "fires": 5
+    },
+    "2021": {
+      "areaHa": 850,
+      "fires": 4
+    },
+    "2023": {
+      "areaHa": 27510,
+      "fires": 6
+    },
+    "2024": {
+      "areaHa": 2504,
+      "fires": 2
+    }
+  },
+  "algoma": {
+    "2010": {
+      "areaHa": 1707,
+      "fires": 1
+    },
+    "2011": {
+      "areaHa": 710,
+      "fires": 1
+    },
+    "2012": {
+      "areaHa": 308,
+      "fires": 1
+    },
+    "2025": {
+      "areaHa": 1,
+      "fires": 1
+    }
+  },
+  "algonquinpark": {
+    "2016": {
+      "areaHa": 46,
+      "fires": 1
+    },
+    "2025": {
+      "areaHa": 41,
+      "fires": 1
+    }
+  },
+  "bancroftminden": {
+    "2025": {
+      "areaHa": 57,
+      "fires": 4
+    }
+  },
+  "blackspruce": {
+    "2011": {
+      "areaHa": 7,
+      "fires": 1
+    },
+    "2021": {
+      "areaHa": 268,
+      "fires": 2
+    },
+    "2024": {
+      "areaHa": 75,
+      "fires": 1
+    },
+    "2025": {
+      "areaHa": 138,
+      "fires": 1
+    }
+  },
+  "boundarywaters": {
+    "2010": {
+      "areaHa": 409,
+      "fires": 1
+    },
+    "2017": {
+      "areaHa": 169,
+      "fires": 1
+    },
+    "2019": {
+      "areaHa": 46,
+      "fires": 1
+    },
+    "2021": {
+      "areaHa": 1268,
+      "fires": 4
+    },
+    "2025": {
+      "areaHa": 20,
+      "fires": 8
+    }
+  },
+  "caribou": {
+    "2012": {
+      "areaHa": 20,
+      "fires": 4
+    },
+    "2015": {
+      "areaHa": 1237,
+      "fires": 1
+    },
+    "2018": {
+      "areaHa": 675,
+      "fires": 2
+    },
+    "2019": {
+      "areaHa": 69,
+      "fires": 1
+    },
+    "2023": {
+      "areaHa": 14959,
+      "fires": 2
+    },
+    "2025": {
+      "areaHa": 1661,
+      "fires": 1
+    }
+  },
+  "dogrivermatawin": {
+    "2016": {
+      "areaHa": 868,
+      "fires": 1
+    },
+    "2020": {
+      "areaHa": 65,
+      "fires": 1
+    },
+    "2021": {
+      "areaHa": 522,
+      "fires": 1
+    },
+    "2023": {
+      "areaHa": 81,
+      "fires": 1
+    },
+    "2024": {
+      "areaHa": 41,
+      "fires": 1
+    },
+    "2025": {
+      "areaHa": 8,
+      "fires": 3
+    }
+  },
+  "dryden": {
+    "2012": {
+      "areaHa": 10,
+      "fires": 1
+    },
+    "2025": {
+      "areaHa": 8,
+      "fires": 3
+    }
+  },
+  "englishriver": {
+    "2011": {
+      "areaHa": 187,
+      "fires": 2
+    },
+    "2012": {
+      "areaHa": 2,
+      "fires": 1
+    },
+    "2015": {
+      "areaHa": 2178,
+      "fires": 1
+    },
+    "2021": {
+      "areaHa": 2068,
+      "fires": 3
+    },
+    "2025": {
+      "areaHa": 78,
+      "fires": 7
+    }
+  },
+  "far_north_central": {
+    "2012": {
+      "areaHa": 3522,
+      "fires": 1
+    },
+    "2013": {
+      "areaHa": 180,
+      "fires": 1
+    },
+    "2017": {
+      "areaHa": 1434,
+      "fires": 2
+    },
+    "2021": {
+      "areaHa": 2178,
+      "fires": 2
+    },
+    "2023": {
+      "areaHa": 10057,
+      "fires": 2
+    }
+  },
+  "far_north_east": {
+    "2012": {
+      "areaHa": 102,
+      "fires": 2
+    },
+    "2013": {
+      "areaHa": 42,
+      "fires": 1
+    },
+    "2021": {
+      "areaHa": 247,
+      "fires": 1
+    }
+  },
+  "far_north_west": {
+    "2011": {
+      "areaHa": 40920,
+      "fires": 12
+    },
+    "2012": {
+      "areaHa": 1535,
+      "fires": 5
+    },
+    "2013": {
+      "areaHa": 19,
+      "fires": 2
+    },
+    "2014": {
+      "areaHa": 144,
+      "fires": 1
+    },
+    "2015": {
+      "areaHa": 55,
+      "fires": 2
+    },
+    "2017": {
+      "areaHa": 2339,
+      "fires": 4
+    },
+    "2018": {
+      "areaHa": 27295,
+      "fires": 10
+    },
+    "2019": {
+      "areaHa": 23378,
+      "fires": 2
+    },
+    "2020": {
+      "areaHa": 191,
+      "fires": 1
+    },
+    "2021": {
+      "areaHa": 9245,
+      "fires": 3
+    },
+    "2023": {
+      "areaHa": 5100,
+      "fires": 3
+    },
+    "2024": {
+      "areaHa": 44,
+      "fires": 1
+    },
+    "2025": {
+      "areaHa": 17979,
+      "fires": 8
+    }
+  },
+  "frenchsevern": {
+    "2018": {
+      "areaHa": 5518,
+      "fires": 1
+    },
+    "2025": {
+      "areaHa": 36,
+      "fires": 6
+    }
+  },
+  "gordoncosens": {
+    "2010": {
+      "areaHa": 587,
+      "fires": 3
+    },
+    "2012": {
+      "areaHa": 661,
+      "fires": 1
+    },
+    "2018": {
+      "areaHa": 470,
+      "fires": 1
+    },
+    "2023": {
+      "areaHa": 90,
+      "fires": 1
+    },
+    "2025": {
+      "areaHa": 0,
+      "fires": 1
+    }
+  },
+  "hearst": {
+    "2011": {
+      "areaHa": 481,
+      "fires": 1
+    },
+    "2012": {
+      "areaHa": 11,
+      "fires": 2
+    },
+    "2016": {
+      "areaHa": 1899,
+      "fires": 2
+    },
+    "2024": {
+      "areaHa": 56,
+      "fires": 1
+    },
+    "2025": {
+      "areaHa": 3,
+      "fires": 1
+    }
+  },
+  "kenogami": {
+    "2010": {
+      "areaHa": 10,
+      "fires": 1
+    },
+    "2011": {
+      "areaHa": 127,
+      "fires": 1
+    },
+    "2012": {
+      "areaHa": 142,
+      "fires": 2
+    },
+    "2016": {
+      "areaHa": 287,
+      "fires": 1
+    },
+    "2018": {
+      "areaHa": 42,
+      "fires": 1
+    },
+    "2021": {
+      "areaHa": 2632,
+      "fires": 1
+    },
+    "2025": {
+      "areaHa": 5,
+      "fires": 1
+    }
+  },
+  "kenora": {
+    "2011": {
+      "areaHa": 34,
+      "fires": 1
+    },
+    "2012": {
+      "areaHa": 652,
+      "fires": 4
+    },
+    "2014": {
+      "areaHa": 91,
+      "fires": 1
+    },
+    "2015": {
+      "areaHa": 440,
+      "fires": 2
+    },
+    "2016": {
+      "areaHa": 1772,
+      "fires": 2
+    },
+    "2017": {
+      "areaHa": 93,
+      "fires": 1
+    },
+    "2018": {
+      "areaHa": 9573,
+      "fires": 3
+    },
+    "2019": {
+      "areaHa": 83,
+      "fires": 1
+    },
+    "2021": {
+      "areaHa": 109281,
+      "fires": 7
+    },
+    "2022": {
+      "areaHa": 63,
+      "fires": 1
+    },
+    "2025": {
+      "areaHa": 32399,
+      "fires": 37
+    }
+  },
+  "lacseul": {
+    "2011": {
+      "areaHa": 1924,
+      "fires": 4
+    },
+    "2012": {
+      "areaHa": 676,
+      "fires": 2
+    },
+    "2014": {
+      "areaHa": 704,
+      "fires": 3
+    },
+    "2017": {
+      "areaHa": 209,
+      "fires": 1
+    },
+    "2018": {
+      "areaHa": 228,
+      "fires": 2
+    },
+    "2021": {
+      "areaHa": 5285,
+      "fires": 3
+    },
+    "2023": {
+      "areaHa": 818,
+      "fires": 2
+    },
+    "2025": {
+      "areaHa": 6,
+      "fires": 4
+    }
+  },
+  "lakehead": {
+    "2020": {
+      "areaHa": 46,
+      "fires": 1
+    },
+    "2021": {
+      "areaHa": 96,
+      "fires": 1
+    }
+  },
+  "lakenipigon": {
+    "2010": {
+      "areaHa": 56,
+      "fires": 1
+    },
+    "2011": {
+      "areaHa": 79,
+      "fires": 4
+    },
+    "2013": {
+      "areaHa": 81,
+      "fires": 1
+    },
+    "2017": {
+      "areaHa": 544,
+      "fires": 1
+    },
+    "2021": {
+      "areaHa": 2139,
+      "fires": 3
+    },
+    "2025": {
+      "areaHa": 5,
+      "fires": 2
+    }
+  },
+  "mazinawlanark": {
+    "2025": {
+      "areaHa": 50,
+      "fires": 3
+    }
+  },
+  "missinaibi": {
+    "2010": {
+      "areaHa": 142,
+      "fires": 1
+    },
+    "2012": {
+      "areaHa": 1335,
+      "fires": 2
+    },
+    "2023": {
+      "areaHa": 742,
+      "fires": 1
+    },
+    "2024": {
+      "areaHa": 26,
+      "fires": 1
+    },
+    "2025": {
+      "areaHa": 3,
+      "fires": 5
+    }
+  },
+  "nipissing": {
+    "2012": {
+      "areaHa": 4,
+      "fires": 1
+    },
+    "2018": {
+      "areaHa": 2919,
+      "fires": 4
+    },
+    "2025": {
+      "areaHa": 45,
+      "fires": 2
+    }
+  },
+  "northshore": {
+    "2023": {
+      "areaHa": 4,
+      "fires": 1
+    },
+    "2025": {
+      "areaHa": 0,
+      "fires": 1
+    }
+  },
+  "ogoki": {
+    "2011": {
+      "areaHa": 1550,
+      "fires": 1
+    },
+    "2012": {
+      "areaHa": 49,
+      "fires": 1
+    },
+    "2015": {
+      "areaHa": 38,
+      "fires": 1
+    },
+    "2017": {
+      "areaHa": 167,
+      "fires": 1
+    },
+    "2018": {
+      "areaHa": 71,
+      "fires": 1
+    },
+    "2020": {
+      "areaHa": 5907,
+      "fires": 1
+    },
+    "2021": {
+      "areaHa": 413,
+      "fires": 2
+    },
+    "2023": {
+      "areaHa": 32020,
+      "fires": 3
+    },
+    "2025": {
+      "areaHa": 2712,
+      "fires": 1
+    }
+  },
+  "ottawavalley": {
+    "2012": {
+      "areaHa": 210,
+      "fires": 1
+    },
+    "2018": {
+      "areaHa": 769,
+      "fires": 2
+    },
+    "2022": {
+      "areaHa": 120,
+      "fires": 1
+    },
+    "2023": {
+      "areaHa": 48,
+      "fires": 1
+    },
+    "2024": {
+      "areaHa": 1437,
+      "fires": 2
+    },
+    "2025": {
+      "areaHa": 274,
+      "fires": 4
+    }
+  },
+  "pic": {
+    "2010": {
+      "areaHa": 24,
+      "fires": 1
+    },
+    "2011": {
+      "areaHa": 58,
+      "fires": 1
+    },
+    "2016": {
+      "areaHa": 273,
+      "fires": 1
+    },
+    "2025": {
+      "areaHa": 0,
+      "fires": 1
+    }
+  },
+  "pineland": {
+    "2012": {
+      "areaHa": 209,
+      "fires": 2
+    },
+    "2019": {
+      "areaHa": 3173,
+      "fires": 1
+    },
+    "2022": {
+      "areaHa": 59,
+      "fires": 1
+    },
+    "2025": {
+      "areaHa": 10,
+      "fires": 1
+    }
+  },
+  "pukaskwa_forest": {
+    "2012": {
+      "areaHa": 43,
+      "fires": 6
+    },
+    "2021": {
+      "areaHa": 2,
+      "fires": 1
+    },
+    "2023": {
+      "areaHa": 38,
+      "fires": 10
+    }
+  },
+  "quetico_provincial_park": {
+    "2011": {
+      "areaHa": 195,
+      "fires": 2
+    },
+    "2012": {
+      "areaHa": 293,
+      "fires": 1
+    },
+    "2018": {
+      "areaHa": 2133,
+      "fires": 1
+    },
+    "2021": {
+      "areaHa": 46009,
+      "fires": 2
+    },
+    "2025": {
+      "areaHa": 92,
+      "fires": 2
+    }
+  },
+  "redlake": {
+    "2010": {
+      "areaHa": 50,
+      "fires": 1
+    },
+    "2011": {
+      "areaHa": 803,
+      "fires": 1
+    },
+    "2019": {
+      "areaHa": 45,
+      "fires": 1
+    },
+    "2020": {
+      "areaHa": 558,
+      "fires": 1
+    },
+    "2021": {
+      "areaHa": 18325,
+      "fires": 2
+    }
+  },
+  "romeomalette": {
+    "2010": {
+      "areaHa": 124,
+      "fires": 1
+    },
+    "2012": {
+      "areaHa": 32669,
+      "fires": 2
+    },
+    "2018": {
+      "areaHa": 57,
+      "fires": 1
+    },
+    "2019": {
+      "areaHa": 667,
+      "fires": 1
+    },
+    "2021": {
+      "areaHa": 134,
+      "fires": 1
+    },
+    "2023": {
+      "areaHa": 101,
+      "fires": 1
+    }
+  },
+  "sapawe_forest": {
+    "2025": {
+      "areaHa": 2848,
+      "fires": 2
+    }
+  },
+  "spanish": {
+    "2012": {
+      "areaHa": 44,
+      "fires": 2
+    },
+    "2015": {
+      "areaHa": 439,
+      "fires": 1
+    },
+    "2018": {
+      "areaHa": 50,
+      "fires": 1
+    },
+    "2020": {
+      "areaHa": 53,
+      "fires": 1
+    },
+    "2022": {
+      "areaHa": 88,
+      "fires": 2
+    },
+    "2023": {
+      "areaHa": 7202,
+      "fires": 4
+    },
+    "2025": {
+      "areaHa": 19,
+      "fires": 4
+    }
+  },
+  "sudbury": {
+    "2011": {
+      "areaHa": 9,
+      "fires": 1
+    },
+    "2016": {
+      "areaHa": 87,
+      "fires": 1
+    },
+    "2018": {
+      "areaHa": 4570,
+      "fires": 1
+    },
+    "2021": {
+      "areaHa": 51,
+      "fires": 1
+    },
+    "2022": {
+      "areaHa": 324,
+      "fires": 2
+    },
+    "2024": {
+      "areaHa": 99,
+      "fires": 1
+    },
+    "2025": {
+      "areaHa": 12,
+      "fires": 11
+    }
+  },
+  "temagami": {
+    "2012": {
+      "areaHa": 23,
+      "fires": 1
+    },
+    "2016": {
+      "areaHa": 59,
+      "fires": 1
+    },
+    "2018": {
+      "areaHa": 13242,
+      "fires": 8
+    },
+    "2023": {
+      "areaHa": 334,
+      "fires": 1
+    },
+    "2024": {
+      "areaHa": 107,
+      "fires": 1
+    },
+    "2025": {
+      "areaHa": 28,
+      "fires": 1
+    }
+  },
+  "timiskaming": {
+    "2010": {
+      "areaHa": 272,
+      "fires": 2
+    },
+    "2011": {
+      "areaHa": 29,
+      "fires": 1
+    },
+    "2012": {
+      "areaHa": 2006,
+      "fires": 4
+    },
+    "2018": {
+      "areaHa": 12307,
+      "fires": 1
+    },
+    "2021": {
+      "areaHa": 99,
+      "fires": 1
+    },
+    "2022": {
+      "areaHa": 1337,
+      "fires": 3
+    },
+    "2023": {
+      "areaHa": 1544,
+      "fires": 1
+    },
+    "2024": {
+      "areaHa": 342,
+      "fires": 1
+    }
+  },
+  "troutlake": {
+    "2010": {
+      "areaHa": 1078,
+      "fires": 1
+    },
+    "2011": {
+      "areaHa": 37388,
+      "fires": 2
+    },
+    "2012": {
+      "areaHa": 80,
+      "fires": 2
+    },
+    "2013": {
+      "areaHa": 15,
+      "fires": 1
+    },
+    "2014": {
+      "areaHa": 348,
+      "fires": 2
+    },
+    "2018": {
+      "areaHa": 207,
+      "fires": 2
+    },
+    "2019": {
+      "areaHa": 29809,
+      "fires": 2
+    },
+    "2021": {
+      "areaHa": 908,
+      "fires": 3
+    },
+    "2023": {
+      "areaHa": 19376,
+      "fires": 4
+    },
+    "2025": {
+      "areaHa": 10,
+      "fires": 1
+    }
+  },
+  "wabakimi_provincial_park": {
+    "2011": {
+      "areaHa": 20291,
+      "fires": 9
+    },
+    "2012": {
+      "areaHa": 1055,
+      "fires": 3
+    },
+    "2017": {
+      "areaHa": 870,
+      "fires": 4
+    },
+    "2018": {
+      "areaHa": 6801,
+      "fires": 2
+    },
+    "2023": {
+      "areaHa": 68341,
+      "fires": 2
+    },
+    "2025": {
+      "areaHa": 7,
+      "fires": 2
+    }
+  },
+  "wabigoon": {
+    "2025": {
+      "areaHa": 0,
+      "fires": 2
+    }
+  },
+  "whiskeyjack": {
+    "2011": {
+      "areaHa": 44,
+      "fires": 2
+    },
+    "2012": {
+      "areaHa": 6,
+      "fires": 1
+    },
+    "2013": {
+      "areaHa": 28,
+      "fires": 1
+    },
+    "2014": {
+      "areaHa": 93,
+      "fires": 1
+    },
+    "2015": {
+      "areaHa": 119,
+      "fires": 1
+    },
+    "2016": {
+      "areaHa": 74,
+      "fires": 1
+    },
+    "2021": {
+      "areaHa": 5627,
+      "fires": 5
+    },
+    "2025": {
+      "areaHa": 7,
+      "fires": 10
+    }
+  },
+  "whitefeather": {
+    "2010": {
+      "areaHa": 2863,
+      "fires": 2
+    },
+    "2011": {
+      "areaHa": 13865,
+      "fires": 7
+    },
+    "2013": {
+      "areaHa": 12885,
+      "fires": 4
+    },
+    "2015": {
+      "areaHa": 828,
+      "fires": 2
+    },
+    "2018": {
+      "areaHa": 4679,
+      "fires": 2
+    },
+    "2019": {
+      "areaHa": 54763,
+      "fires": 6
+    },
+    "2020": {
+      "areaHa": 14,
+      "fires": 2
+    },
+    "2021": {
+      "areaHa": 101630,
+      "fires": 7
+    },
+    "2025": {
+      "areaHa": 56972,
+      "fires": 13
+    }
+  },
+  "whiteriver": {
+    "2012": {
+      "areaHa": 119,
+      "fires": 2
+    },
+    "2023": {
+      "areaHa": 6082,
+      "fires": 2
+    },
+    "2025": {
+      "areaHa": 9,
+      "fires": 2
+    }
+  },
+  "woodland_caribou_provincial_park": {
+    "2011": {
+      "areaHa": 18314,
+      "fires": 2
+    },
+    "2012": {
+      "areaHa": 678,
+      "fires": 1
+    },
+    "2013": {
+      "areaHa": 3175,
+      "fires": 1
+    },
+    "2014": {
+      "areaHa": 195,
+      "fires": 1
+    },
+    "2015": {
+      "areaHa": 4058,
+      "fires": 5
+    },
+    "2016": {
+      "areaHa": 67759,
+      "fires": 2
+    },
+    "2017": {
+      "areaHa": 1539,
+      "fires": 1
+    },
+    "2018": {
+      "areaHa": 36928,
+      "fires": 7
+    },
+    "2019": {
+      "areaHa": 11652,
+      "fires": 3
+    },
+    "2021": {
+      "areaHa": 192209,
+      "fires": 6
+    },
+    "2025": {
+      "areaHa": 9828,
+      "fires": 5
+    }
+  }
+}
