@@ -500,44 +500,6 @@ body.dark-mode .resize-handle--active::after {
   font-weight: 500;
 }
 
-/* Fire-year markers above the year slider */
-.year-slider-wrap {
-  position: relative;
-}
-
-.fire-marker-track {
-  position: relative;
-  height: 18px;
-  margin-bottom: -2px;
-}
-
-.fire-marker {
-  position: absolute;
-  top: 2px;
-  transform: translateX(-50%);
-  padding: 0;
-  border: none;
-  background: none;
-  font-size: 12px;
-  line-height: 1;
-  cursor: pointer;
-  opacity: 0.55;
-  filter: grayscale(0.35);
-  transition: opacity 0.15s ease, transform 0.15s ease, filter 0.15s ease;
-}
-
-.fire-marker:hover {
-  opacity: 1;
-  filter: none;
-  transform: translateX(-50%) scale(1.25);
-}
-
-.fire-marker--active {
-  opacity: 1;
-  filter: none;
-  transform: translateX(-50%) scale(1.2);
-}
-
 /* Legend */
 .legend-item {
   display: flex;

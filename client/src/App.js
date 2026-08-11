@@ -498,16 +498,17 @@ function App() {
     return () => clearTimeout(guard);
   }, [tilesLoading]);
 
-  // Fire-year markers on the year slider. Two conditions, both required:
-  // the Burned Area layer must be switched on, and the years shown are only
-  // those the currently selected FMUs actually burned in.
+  // Which years the selected FMUs actually burned in. Wildfire coverage is
+  // sparse — a region only has tiles for years something burned — so this
+  // narrows the wildfire slider to those years, the same way the clearcut
+  // module narrows its own with a static availableYears list. Years with no
+  // data are skipped rather than flagged.
   const [fireYears, setFireYears] = useState([]);
-  const wildfireLayerActive = (activeLayers.wildfire || []).includes('wildfire-burned');
 
   useEffect(() => {
     let cancelled = false;
 
-    if (!wildfireLayerActive || selectedFMUs.length === 0) {
+    if (selectedFMUs.length === 0) {
       setFireYears([]);
       return undefined;
     }
@@ -523,7 +524,35 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [wildfireLayerActive, selectedFMUs]);
+  }, [selectedFMUs]);
+
+  // The wildfire slider stops only on years with data. Falls back to the
+  // module's declared list when a region has no fires at all, so the slider
+  // stays usable and the panel's "No fire recorded" message carries the point.
+  const wildfireYearOptions = useMemo(() => {
+    const declared = MODULES.find((m) => m.id === 'wildfire')?.temporalOptions?.availableYears;
+    return fireYears.length > 0 ? fireYears : declared;
+  }, [fireYears]);
+
+  const availableYearsForPanel = selectedModule?.id === 'wildfire'
+    ? wildfireYearOptions
+    : selectedModule?.temporalOptions?.availableYears;
+
+  // Changing FMU can drop the year currently being viewed out of the list.
+  // Snap to the nearest available year, otherwise the slider handle and the
+  // year label disagree.
+  useEffect(() => {
+    if (selectedModule?.id !== 'wildfire') return;
+    if (!wildfireYearOptions?.length) return;
+    if (wildfireYearOptions.includes(selectedYear)) return;
+
+    const nearest = wildfireYearOptions.reduce((best, year) => (
+      Math.abs(year - selectedYear) < Math.abs(best - selectedYear) ? year : best
+    ), wildfireYearOptions[0]);
+
+    setSelectedYear(nearest);
+    setModuleYears((prev) => ({ ...prev, wildfire: nearest }));
+  }, [wildfireYearOptions, selectedYear, selectedModule]);
 
   const handleSensorChange = useCallback((sensor) => {
     setSelectedSensor(sensor);
@@ -821,8 +850,7 @@ function App() {
             selectedYear={selectedYear}
             onYearChange={handleYearChange}
             yearRange={selectedModule?.temporalOptions?.yearRange || [2010, 2024]}
-            availableYears={selectedModule?.temporalOptions?.availableYears}
-            fireYears={fireYears}
+            availableYears={availableYearsForPanel}
             basemapSynced={
               basemapMode !== 'satellite' ||
               isBasemapSynced(moduleYears[selectedModule?.id] || selectedYear)

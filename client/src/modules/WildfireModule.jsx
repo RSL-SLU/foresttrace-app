@@ -115,6 +115,46 @@ function WildfireModule({ data }) {
     ? null
     : (burnedPct < 0.1 ? '<0.1' : burnedPct.toFixed(1));
 
+  // "No fire recorded" is a claim about the data, so it must not be shown
+  // before the data exists. Loading and no-selection are distinct states and
+  // each gets its own message — collapsing them into the no-fire branch makes
+  // the panel assert something it does not yet know.
+  function renderCurrentYear() {
+    if (loading) {
+      return <p className="stat-sub">Loading…</p>;
+    }
+    if (!selectedFMUs || selectedFMUs.length === 0) {
+      return <p className="no-data">Select a forest management unit.</p>;
+    }
+    if (!current || current.fires === 0) {
+      return <p className="no-data">No fire recorded in {selectedYear}</p>;
+    }
+
+    return (
+      <div className="stat-item">
+        <div className="stat-label">Burned Area</div>
+        <div className="stat-value">
+          {burnedPct !== null ? `${burnedPctLabel}%` : `${fmt(current.areaHa)} ha`}
+        </div>
+        {burnedPct !== null && (
+          <div className="stat-bar">
+            <div
+              className="stat-fill stat-fill--fire"
+              style={{ width: `${Math.min(100, Math.max(burnedPct, 0.5))}%` }}
+            />
+          </div>
+        )}
+        <div className="stat-sub" style={{ fontSize: 11, marginTop: 2 }}>
+          {burnedPct !== null
+            ? `${fmt(current.areaHa)} ha of total FMU area (${(regionAreaHa / 1000).toFixed(0)}k ha)`
+            : 'Loading region boundary…'}
+          {' · '}
+          {current.fires} fire{current.fires === 1 ? '' : 's'}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="clearcut-module">
       <div className="module-section">
@@ -125,31 +165,7 @@ function WildfireModule({ data }) {
 
       <div className="module-section">
         <h3>Fire Results ({selectedYear})</h3>
-        {current && current.fires > 0 ? (
-          <div className="stat-item">
-            <div className="stat-label">Burned Area</div>
-            <div className="stat-value">
-              {burnedPct !== null ? `${burnedPctLabel}%` : `${fmt(current.areaHa)} ha`}
-            </div>
-            {burnedPct !== null && (
-              <div className="stat-bar">
-                <div
-                  className="stat-fill stat-fill--fire"
-                  style={{ width: `${Math.min(100, Math.max(burnedPct, 0.5))}%` }}
-                />
-              </div>
-            )}
-            <div className="stat-sub" style={{ fontSize: 11, marginTop: 2 }}>
-              {burnedPct !== null
-                ? `${fmt(current.areaHa)} ha of total FMU area (${(regionAreaHa / 1000).toFixed(0)}k ha)`
-                : 'Loading region boundary…'}
-              {' · '}
-              {current.fires} fire{current.fires === 1 ? '' : 's'}
-            </div>
-          </div>
-        ) : (
-          <p className="no-data">No fire recorded in {selectedYear}</p>
-        )}
+        {renderCurrentYear()}
       </div>
 
       <div className="module-section">
@@ -220,8 +236,8 @@ function WildfireModule({ data }) {
             <span>Selected year</span>
           </div>
           <div className="legend-item">
-            <span aria-hidden="true">🔥</span>
-            <span>Years with recorded fire (marked on the year slider)</span>
+            <span>Year slider</span>
+            <strong>skips years with no fire</strong>
           </div>
         </div>
       )}
