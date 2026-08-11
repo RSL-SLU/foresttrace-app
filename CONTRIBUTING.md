@@ -141,8 +141,9 @@ tiles/<layer>/<region>_<year>/<z>/<x>/<y>.png
 
 ### Generating tiles locally
 
-The processing scripts live at the repo root and are **gitignored** (they
-contain no credentials but are large/environment-specific). They accept
+The processing scripts shown below are committed to the repo root. Other
+one-off/local tooling scripts (data exploration, cleanup one-shots, etc.) stay
+**gitignored** — no reason to version those. Committed scripts accept
 `--local` (read/write `client/public/tiles/`) or `--production` (read/write
 Cloudflare R2).
 
@@ -177,8 +178,12 @@ R2_BUCKET_NAME=          # Exact bucket name, e.g. foresttrace-tiles
 
 ### Uploading tiles to Cloudflare R2
 
-The upload script (`upload-tiles.js`) is local-only and gitignored. It reads
-from `client/public/tiles/` and mirrors the directory tree to R2.
+`upload-tiles.js` is committed to the repo. It reads from
+`client/public/tiles/` and mirrors the directory tree to R2. You'll need R2
+credentials to run it — ask a maintainer for the token values and fill them
+into your own local `.env.r2` (see
+[Setting up R2 credentials](#setting-up-r2-credentials) above; that file is
+gitignored and must never be committed).
 
 ```bash
 node upload-tiles.js --region wabigoon --layer clearcut-annual --year 2023
