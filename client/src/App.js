@@ -482,7 +482,13 @@ function App() {
     });
   };
 
+  // Planet tiles only exist for CLEARCUT_PLANET_YEARS, so fall back to HLS when
+  // the clearcut year has no Planet coverage. Scoped to the clearcut module:
+  // without this guard the check reads whichever module is selected, so changing
+  // the wildfire year would flip the sensor and repoint the clearcut layer at an
+  // empty tile folder.
   useEffect(() => {
+    if (selectedModule?.id !== 'clearcut') return;
     const moduleYear = moduleYears[selectedModule?.id] ?? selectedYear;
     if (selectedSensor === 'planet' && !CLEARCUT_PLANET_YEARS.includes(moduleYear)) {
       setSelectedSensor('hls');
