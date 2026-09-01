@@ -538,6 +538,86 @@ body.dark-mode .resize-handle--active::after {
   background: #8c1d00;
 }
 
+/* Caribou core-patch size ramp.
+   A horizontal colour bar rather than a stacked list of swatches, because the
+   four bins are an ordered progression (small fragments -> large intact core)
+   and a bar shows that ordering the way a list does not. */
+.habitat-ramp {
+  margin-top: 4px;
+}
+
+.habitat-ramp-bar {
+  height: 14px;
+  border-radius: 3px;
+  /* Viridis ends on a bright yellow that would otherwise bleed into a light
+     panel, so the bar carries its own outline at both ends. */
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+/* Ticks are absolutely positioned because the labelled classes fall at uneven
+   points along the ramp (0%, 39%, 61%, 78%, 100%) — patch-area classes are
+   roughly log-spaced, so equal flex columns would put every label in the wrong
+   place. */
+.habitat-ramp-ticks {
+  position: relative;
+  height: 13px;
+  margin-top: 3px;
+}
+
+.habitat-ramp-ticks span {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 10px;
+  white-space: nowrap;
+  opacity: 0.7;
+}
+
+/* The end ticks would overhang the panel if they stayed centred on their mark. */
+.habitat-ramp-ticks span[data-edge='start'] {
+  transform: none;
+}
+
+.habitat-ramp-ticks span[data-edge='end'] {
+  transform: translateX(-100%);
+}
+
+/* Share-of-habitat rows: the four coarse groupings, kept visually distinct from
+   the ramp above so they don't read as the map's colour scheme. */
+.habitat-shares {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.habitat-shares span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.habitat-shares i {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.habitat-shares em {
+  font-style: normal;
+  opacity: 0.75;
+}
+
+.habitat-shares strong {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+body.dark-mode .habitat-ramp-bar {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
 .legend-gradient {
   margin-top: 8px;
 }

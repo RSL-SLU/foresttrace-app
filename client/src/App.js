@@ -19,6 +19,7 @@ import DocumentationPage from './pages/DocumentationPage';
 import ClearcutDetection from './modules/ClearcutDetection';
 import BiomassModule from './modules/BiomassModule';
 import WildfireModule from './modules/WildfireModule';
+import CaribouHabitatModule from './modules/CaribouHabitatModule';
 import RasterTileLayer from './components/RasterTileLayer';
 import { handleLocateUser, handlePlaceChanged } from './utils/mapUtils';
 import { CLEARCUT_PLANET_YEARS, CLEARCUT_SENSOR_SUBFOLDER_YEARS } from './utils/clearcutAreaStats';
@@ -182,12 +183,32 @@ const MODULES = [
     id: 'wildlife',
     name: 'Wildlife & Species',
     icon: '🐦',
-    description: 'Track birds and wildlife species distribution',
-    component: ClearcutDetection,
+    description: 'Species habitat and distribution',
+    component: CaribouHabitatModule,
     temporalOptions: {
+      // Caribou habitat (MSPA) is the only layer here with tiles behind it; the
+      // bird/mammal entries below are still placeholders. availableYears drives
+      // the slider by index so it snaps to assessed years.
+      //
+      // Year-over-year change is small by nature -- disturbance is cumulative,
+      // so each year only ADDS to an existing footprint (0.01-1.35% of pixels
+      // per step). The full span is where it reads: -12.9% core on troutlake.
+      // 2023-2025 is nearly flat because the input disturbance layers do not
+      // appear to extend past 2023.
       yearRange: [2015, 2025],
+      availableYears: [2015, 2016, 2017, 2018, 2019, 2020,
+        2021, 2022, 2023, 2024, 2025],
     },
     layers: [
+      {
+        id: 'caribou-habitat',
+        name: 'Caribou Habitat',
+        tileUrl: `${TILES_BASE_URL}/tiles/caribou/{region}_{year}/{z}/{x}/{y}.png`,
+        // Mid-viridis: a single swatch standing in for the 5-class ramp.
+        color: '#21918C',
+        mode: 'annual',
+        tms: false,
+      },
       {
         id: 'wildlife-birds',
         name: 'Bird Species',
