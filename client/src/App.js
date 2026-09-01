@@ -203,6 +203,11 @@ const MODULES = [
       {
         id: 'caribou-habitat',
         name: 'Caribou Habitat',
+        // Headline for the right panel while this layer is on. The Wildlife
+        // module hosts several species, so the panel names the species rather
+        // than the module. The left-hand module selector is untouched.
+        panelTitle: 'Caribou Suitable Habitat',
+        panelIcon: '🦌',
         tileUrl: `${TILES_BASE_URL}/tiles/caribou/{region}_{year}/{z}/{x}/{y}.png`,
         // Mid-viridis: a single swatch standing in for the 5-class ramp.
         color: '#21918C',
@@ -874,6 +879,7 @@ function App() {
           <ModulePanel
             module={selectedModule}
             data={moduleData}
+            activeLayers={activeLayers[selectedModule?.id] || []}
             selectedYear={selectedYear}
             onYearChange={handleYearChange}
             yearRange={selectedModule?.temporalOptions?.yearRange || [2010, 2024]}
