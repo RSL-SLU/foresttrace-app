@@ -175,6 +175,13 @@ function RasterTileLayer({
       return;
     }
 
+    // Caribou habitat tiles are pre-coloured by their tiler and carry a 5-class
+    // viridis ramp (with class 1 at reduced alpha) that a single-hue tint would
+    // destroy, so they skip the canvas pass entirely.
+    if (layerId === 'caribou-habitat') {
+      return;
+    }
+
     if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
       const tmpCanvas = document.createElement('canvas');
       tmpCanvas.width = img.naturalWidth;
@@ -753,7 +760,8 @@ function RasterTileLayer({
     );
   }
 
-  if (layerId === 'clearcut-accumulated' || layerId === 'clearcut-annual' || layerId === 'wildfire-burned') {
+  if (layerId === 'clearcut-accumulated' || layerId === 'clearcut-annual'
+      || layerId === 'wildfire-burned' || layerId === 'caribou-habitat') {
     return (
       <TileLayer
         ref={highResLayerRef}
