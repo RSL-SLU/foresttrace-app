@@ -208,7 +208,9 @@ const MODULES = [
         // than the module. The left-hand module selector is untouched.
         panelTitle: 'Caribou Suitable Habitat',
         panelIcon: '🦌',
-        tileUrl: `${TILES_BASE_URL}/tiles/caribou/{region}_{year}/{z}/{x}/{y}.png`,
+        // tiles/wildlife/{specie}/... so the module can host more species
+        // without each one claiming a top-level prefix.
+        tileUrl: `${TILES_BASE_URL}/tiles/wildlife/caribou/{region}_{year}/{z}/{x}/{y}.png`,
         // Mid-viridis: a single swatch standing in for the 5-class ramp.
         color: '#21918C',
         mode: 'annual',

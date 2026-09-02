@@ -216,17 +216,14 @@ function CaribouHabitatModule({ data }) {
                 />
                 <Tooltip
                   formatter={(value, name, props) => {
-                    const { functionalPct, subFunctionalHa } = props.payload;
+                    const { functionalPct } = props.payload;
                     return [
-                      `${fmt(value)} ha${functionalPct !== null ? ` — ${functionalPct.toFixed(1)}% of assessed` : ''}`
-                      + ` (excludes ${fmt(subFunctionalHa)} ha under 100 ha)`,
-                      'Patches ≥ 100 ha',
+                      `${fmt(value)} ha${functionalPct !== null ? ` — ${functionalPct.toFixed(1)}% of assessed` : ''}`,
+                      'Core ≥ 100 ha',
                     ];
                   }}
                   labelFormatter={(label) => `Year ${label}`}
-                  // Recharts defaults the label to #666, which reads as
-                  // disabled next to the value. Only this chart is changed.
-                  labelStyle={{ fontSize: 12, color: '#1a1a1a', fontWeight: 600 }}
+                  labelStyle={{ fontSize: 12 }}
                   itemStyle={{ fontSize: 12 }}
                 />
                 <Bar dataKey="functionalHa" name="Functional core" radius={[2, 2, 0, 0]}>
