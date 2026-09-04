@@ -802,7 +802,7 @@ function App() {
 
                   return (
                     <RasterTileLayer
-                      key={`${layer.id}-${region}-${moduleYear}`}
+                      key={`${layer.id}-${region}`}
                       onStatsUpdate={
                         layer.id === 'clearcut-accumulated' && region === clearcutStatsRegion
                           ? setClearcutPercent
@@ -813,6 +813,8 @@ function App() {
                       opacity={rasterOpacity}
                       tileUrl={tileUrl}
                       layerId={layer.id}
+                      region={region}
+                      year={moduleYear}
                       tms={layer.tms !== undefined ? layer.tms : true}
                     />
                   );

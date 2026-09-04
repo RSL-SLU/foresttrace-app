@@ -3,6 +3,7 @@ import { TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { createEmptyBiomassHistogram } from '../utils/biomassHistogram';
 import { processTile } from '../utils/tileWorkerClient';
+import { needsBoundaryMask, preloadBoundaryManifest, isWithinReferenceBoundarySync } from '../utils/clearcutBoundaryMask';
 
 const NATIVE_TILE_ZOOM_LEVELS = [6, 7, 8, 9, 10, 11, 12, 13, 14];
 const TILE_ZOOM_LEVELS = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
@@ -15,6 +16,9 @@ const NATIVE_TILE_ZOOM_RANGE = {
   max: Math.max(...NATIVE_TILE_ZOOM_LEVELS),
 };
 const RASTER_TILE_CLASS = 'foresttrace-raster-tile';
+// Delay before a tileUrl change (e.g. dragging the year slider) triggers an
+// actual tile refetch — collapses many rapid ticks into one redraw.
+const TILE_REDRAW_DEBOUNCE_MS = 200;
 
 // Layer types whose tiles need per-pixel recoloring + stat tallying. That
 // work happens in a worker (see tileWorkerClient) and the resulting canvas
@@ -55,6 +59,8 @@ function RasterTileLayer({
   tileUrl,
   tms = true,
   layerId = '',
+  region = null,
+  year = null,
 }) {
   const map = useMap();
   const lowResLayerRef = useRef(null);
@@ -63,6 +69,9 @@ function RasterTileLayer({
   const tileCountsRef = useRef(new Map());
   const biomassTileHistogramRef = useRef(new Map());
   const styleTagRef = useRef(null);
+  const tileUrlRef = useRef(tileUrl);
+  const yearRef = useRef(year);
+  const isFirstTileUrlSync = useRef(true);
   const onStatsUpdateRef = useRef(onStatsUpdate);
   const onBiomassHistogramUpdateRef = useRef(onBiomassHistogramUpdate);
   const onLoadingChangeRef = useRef(onLoadingChange);
@@ -178,6 +187,14 @@ function RasterTileLayer({
   // hands the raw pixels to the worker for recoloring + stat tallying, then
   // paints the result. Keeps the pixel loop and PNG re-encode off the main
   // thread entirely.
+  //
+  // The layer instance itself is created once per map/layerId/tms — NOT per
+  // tileUrl — so a year change (which only changes tileUrl) doesn't tear
+  // down and rebuild the whole GridLayer (and the onLoadingChange/histogram
+  // churn that came with it). createTile reads the URL from tileUrlRef at
+  // request time; the effect below updates that ref and calls redraw() to
+  // refetch tiles in place, the same way react-leaflet's own <TileLayer>
+  // handles a url change via setUrl instead of remounting.
   useEffect(() => {
     if (!map || !PROCESSED_LAYER_IDS.has(layerId)) return undefined;
 
@@ -185,13 +202,11 @@ function RasterTileLayer({
     const biomassHistogramMap = biomassTileHistogramRef.current;
     const tileCountsMap = tileCountsRef.current;
 
-    if (onLoadingChangeRef.current) onLoadingChangeRef.current(true);
-    if (isBiomass) {
-      biomassHistogramMap.clear();
-      if (onBiomassHistogramUpdateRef.current) {
-        onBiomassHistogramUpdateRef.current(createEmptyBiomassHistogram());
-      }
+    if (needsBoundaryMask(layerId, region, yearRef.current)) {
+      preloadBoundaryManifest();
     }
+
+    if (onLoadingChangeRef.current) onLoadingChangeRef.current(true);
 
     const ProcessedTileLayer = L.GridLayer.extend({
       createTile(coords, done) {
@@ -214,8 +229,24 @@ function RasterTileLayer({
         canvas.height = 256;
         const ctx = canvas.getContext('2d');
 
+        const applyMask = needsBoundaryMask(layerId, region, yearRef.current);
+        if (applyMask) {
+          const withinBoundary = isWithinReferenceBoundarySync(nativeCoords.z, nativeCoords.x, nativeCoords.y);
+          if (withinBoundary === false) {
+            // Known to fall outside the 2021 reference footprint — skip the
+            // fetch entirely and leave the tile blank.
+            done(null, canvas);
+            return canvas;
+          }
+        }
+
         const img = new Image();
         img.crossOrigin = 'anonymous';
+        // Stashed so a superseded tile (panned away, or redrawn for a new
+        // year before this one finished) can abort the in-flight fetch
+        // instead of leaving it to run to completion in the background —
+        // see handleTileUnload below.
+        canvas._pendingImage = img;
 
         img.onload = () => {
           const tmpCanvas = document.createElement('canvas');
@@ -224,6 +255,16 @@ function RasterTileLayer({
           const tmpCtx = tmpCanvas.getContext('2d');
           tmpCtx.drawImage(img, srcX, srcY, srcSize, srcSize, 0, 0, 256, 256);
           const imageData = tmpCtx.getImageData(0, 0, 256, 256);
+
+          delete canvas._pendingImage;
+
+          if (applyMask) {
+            const withinBoundary = isWithinReferenceBoundarySync(nativeCoords.z, nativeCoords.x, nativeCoords.y);
+            if (withinBoundary === false) {
+              done(null, canvas);
+              return;
+            }
+          }
 
           processTile(layerId, imageData, normalizedCoords).then((result) => {
             ctx.putImageData(result.imageData, 0, 0);
@@ -242,11 +283,12 @@ function RasterTileLayer({
         };
 
         img.onerror = () => {
+          delete canvas._pendingImage;
           done(new Error(`Failed to load tile ${nativeCoords.z}/${nativeCoords.x}/${nativeCoords.y}`), canvas);
         };
 
         const tileY = tms ? (2 ** nativeCoords.z - 1 - nativeCoords.y) : nativeCoords.y;
-        img.src = L.Util.template(tileUrl, { ...nativeCoords, y: tileY });
+        img.src = L.Util.template(tileUrlRef.current, { ...nativeCoords, y: tileY });
 
         return canvas;
       },
@@ -264,6 +306,13 @@ function RasterTileLayer({
     gridLayer.addTo(map);
 
     const handleTileUnload = (e) => {
+      const pendingImage = e.tile && e.tile._pendingImage;
+      if (pendingImage) {
+        pendingImage.onload = null;
+        pendingImage.onerror = null;
+        pendingImage.src = ''; // aborts the in-flight request
+        delete e.tile._pendingImage;
+      }
       if (!e.coords) return;
       const key = `${e.coords.z}/${e.coords.x}/${e.coords.y}`;
       if (isBiomass) {
@@ -303,7 +352,29 @@ function RasterTileLayer({
         updateVisiblePercentage();
       }
     };
-  }, [map, layerId, tileUrl, tms, emitBiomassHistogram, updateVisiblePercentage]);
+  }, [map, layerId, tms, region, emitBiomassHistogram, updateVisiblePercentage]);
+
+  // Keeps the GridLayer above alive across a tileUrl change (e.g. the year
+  // slider) — updates the ref createTile reads from immediately (cheap), but
+  // debounces the actual redraw(). redraw() re-fetches every visible tile
+  // from scratch, and a slider drag fires one tileUrl change per pixel of
+  // movement — without debouncing, a single drag triggers a full refetch
+  // storm per tick. Waiting for the drag to pause collapses that into one
+  // redraw per interaction instead of one per tick.
+  useEffect(() => {
+    tileUrlRef.current = tileUrl;
+    yearRef.current = year;
+    if (isFirstTileUrlSync.current) {
+      isFirstTileUrlSync.current = false;
+      return undefined;
+    }
+    const timer = setTimeout(() => {
+      if (canvasLayerRef.current) {
+        canvasLayerRef.current.redraw();
+      }
+    }, TILE_REDRAW_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [tileUrl, year]);
 
   if (PROCESSED_LAYER_IDS.has(layerId)) {
     return null;
