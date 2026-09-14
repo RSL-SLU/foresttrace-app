@@ -4,6 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import '@geoman-io/leaflet-geoman-free';
 import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import TopMenu from './components/TopMenu';
 import ModuleSelector from './components/ModuleSelector';
