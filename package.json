@@ -7,7 +7,6 @@
     "@mapbox/point-geometry": "^1.1.0",
     "@mapbox/vector-tile": "^2.0.4",
     "@react-google-maps/api": "^2.20.6",
-    "@vercel/speed-insights": "^2.0.0",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "groq-sdk": "^1.2.1",
