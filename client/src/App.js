@@ -1221,6 +1221,7 @@ function App() {
 
   return (
     <div className="app-wrapper">
+      <SpeedInsights />
       <MobileWarning />
       <TopMenu
         onNavigate={setActivePage}
