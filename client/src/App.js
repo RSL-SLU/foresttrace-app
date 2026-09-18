@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import '@geoman-io/leaflet-geoman-free';
 import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { Analytics } from "@vercel/analytics/react";
 
 import TopMenu from './components/TopMenu';
 import ModuleSelector from './components/ModuleSelector';
@@ -1283,6 +1284,7 @@ function App() {
   return (
     <div className="app-wrapper">
       <SpeedInsights />
+      <Analytics />
       <MobileWarning />
       <TopMenu
         onNavigate={setActivePage}
