@@ -82,7 +82,6 @@ function ModuleSelector({
   return (
     <div className="module-selector" style={{ width: panelWidth }}>
       <div className="selector-header">
-        <h3>Explore</h3>
         <div className="selector-tabs">
           <button
             className={`selector-tab ${activeTab === 'modules' ? 'active' : ''}`}
@@ -130,13 +129,16 @@ function ModuleSelector({
                 {isExpanded && module.layers && (
                   <div className="module-options" role="group" aria-label={`${module.name} layers`}>
                     {module.layers.map((layer) => (
-                      <label key={layer.id} className="module-option">
+                      <label key={layer.id} className="switch range-switch module-switch" htmlFor={`module-layer-${module.id}-${layer.id}`}>
+                        <span className="range-name module-switch-name">{layer.name}</span>
                         <input
+                          id={`module-layer-${module.id}-${layer.id}`}
                           type="checkbox"
+                          role="switch"
                           checked={moduleActiveLayers.includes(layer.id)}
                           onChange={() => onLayerToggle(module.id, layer.id)}
                         />
-                        {layer.name}
+                        <span className="switch-track" aria-hidden="true" />
                       </label>
                     ))}
                   </div>

@@ -70,7 +70,7 @@ body.dark-mode .resize-handle--active::after {
 }
 
 .selector-header {
-  padding: 16px;
+  padding: 12px 16px;
   border-bottom: 1px solid #e0e0e0;
   background: #f9f9f9;
   position: sticky;
@@ -78,17 +78,10 @@ body.dark-mode .resize-handle--active::after {
   z-index: 10;
 }
 
-.selector-header h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-}
-
 .selector-tabs {
   display: flex;
   gap: 6px;
-  margin-top: 10px;
+  margin-top: 0;
 }
 
 .selector-tab {
@@ -136,8 +129,18 @@ body.dark-mode .resize-handle--active::after {
   border: 1px solid #e0e0e0;
   border-top: none;
   background: #fafafa;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 6px;
+}
+
+.module-switch {
+  width: 100%;
+  padding: 2px 0;
+}
+
+.module-switch-name {
+  font-size: 12px;
 }
 
 .module-option {

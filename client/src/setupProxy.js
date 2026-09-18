@@ -108,6 +108,11 @@ module.exports = function (app) {
   // from public/data, where it is committed.
   app.use('/data/regions', createProxyMiddleware(r2Proxy('/data/regions')));
 
+  // Clearcut patch vectors used for drawn-area intersection checks. They are
+  // not committed under client/public/data in local checkouts, so proxy them
+  // from the same R2 origin as production.
+  app.use('/data/patches', createProxyMiddleware(r2Proxy('/data/patches')));
+
   // COGs are range-read by the browser, and a Range header isn't CORS-safelisted,
   // so every read triggers a preflight the bucket must answer. Proxying them
   // through the dev server makes them same-origin, so local work isn't blocked on

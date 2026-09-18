@@ -53,7 +53,7 @@
   width: 300px;
   max-height: 300px;
   z-index: 20;
-  background: linear-gradient(180deg, rgba(246, 250, 246, 0.96) 0%, rgba(236, 243, 236, 0.96) 100%);
+  background: #ffffff;
   backdrop-filter: blur(3px);
   border-radius: 10px;
   border: 1px solid rgba(76, 108, 84, 0.4);
@@ -142,28 +142,30 @@
 }
 
 .fmu-province-group {
-  border: 1px solid rgba(112, 145, 121, 0.4);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.66);
-  overflow: hidden;
+  width: 100%;
 }
 
 .fmu-province-toggle {
   width: 100%;
-  border: 0;
-  background: linear-gradient(180deg, rgba(236, 246, 238, 0.95) 0%, rgba(225, 238, 228, 0.95) 100%);
-  color: #203427;
-  padding: 7px 8px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #333;
+  padding: 12px 12px;
   display: grid;
   grid-template-columns: 14px 1fr auto;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   text-align: left;
+  font-size: 14px;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .fmu-province-toggle:hover {
-  background: linear-gradient(180deg, rgba(228, 242, 232, 0.98) 0%, rgba(214, 233, 219, 0.98) 100%);
+  background: #f5f5f5;
+  border-color: #2f8f5b;
+  color: #2f8f5b;
 }
 
 .fmu-province-chevron {
@@ -171,8 +173,12 @@
   font-size: 12px;
 }
 
+.fmu-province-toggle:hover .fmu-province-chevron {
+  color: #2f8f5b;
+}
+
 .fmu-province-label {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -718,22 +724,24 @@ body.dark-mode .fmu-selector-list::-webkit-scrollbar-thumb {
   border-color: rgba(34, 45, 40, 0.8);
 }
 
-body.dark-mode .fmu-province-group {
-  border-color: rgba(75, 105, 87, 0.6);
-  background: rgba(33, 45, 39, 0.72);
-}
-
 body.dark-mode .fmu-province-toggle {
-  background: linear-gradient(180deg, rgba(39, 54, 46, 0.95) 0%, rgba(29, 42, 35, 0.95) 100%);
-  color: #dceee1;
+  background: #1e1e1e;
+  border-color: #2b2b2b;
+  color: #e0e0e0;
 }
 
 body.dark-mode .fmu-province-toggle:hover {
-  background: linear-gradient(180deg, rgba(46, 62, 53, 0.98) 0%, rgba(34, 49, 41, 0.98) 100%);
+  background: #242424;
+  border-color: #9fdcb9;
+  color: #9fdcb9;
 }
 
 body.dark-mode .fmu-province-chevron {
   color: #9cc6ab;
+}
+
+body.dark-mode .fmu-province-toggle:hover .fmu-province-chevron {
+  color: #9fdcb9;
 }
 
 body.dark-mode .fmu-province-meta {

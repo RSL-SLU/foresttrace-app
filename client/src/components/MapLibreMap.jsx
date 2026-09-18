@@ -33,6 +33,12 @@ function ensureCogProtocol() {
 // on a year change is precisely the situation that exposes it: every tile
 // reloads at once with parents already released.
 const BASEMAP_PAINT = { 'raster-fade-duration': 0 };
+const BASEMAP_SAT_SOURCE_ID = 'basemap-satellite';
+const BASEMAP_LIGHT_SOURCE_ID = 'basemap-light';
+const BASEMAP_LIGHT_REF_SOURCE_ID = 'basemap-light-reference';
+const BASEMAP_SAT_LAYER_ID = 'basemap-satellite-layer';
+const BASEMAP_LIGHT_LAYER_ID = 'basemap-light-layer';
+const BASEMAP_LIGHT_REF_LAYER_ID = 'basemap-light-reference-layer';
 
 const EMPTY_STYLE = {
   version: 8,
@@ -53,40 +59,51 @@ const EMPTY_STYLE = {
  * way would paint over the rasters it's supposed to sit behind.
  */
 function buildBasemapStyle({ basemapMode, satelliteUrl, satelliteAttribution, lightBasemap }) {
-  if (basemapMode === 'satellite') {
-    return {
-      ...EMPTY_STYLE,
-      sources: {
-        basemap: {
-          type: 'raster',
-          tiles: [satelliteUrl],
-          tileSize: 256,
-          attribution: satelliteAttribution,
-        },
-      },
-      layers: [{ id: 'basemap', type: 'raster', source: 'basemap', paint: BASEMAP_PAINT }],
-    };
-  }
-
+  const satelliteVisible = basemapMode === 'satellite';
   return {
     ...EMPTY_STYLE,
     sources: {
-      basemap: {
+      [BASEMAP_SAT_SOURCE_ID]: {
+        type: 'raster',
+        tiles: [satelliteUrl],
+        tileSize: 256,
+        attribution: satelliteAttribution,
+      },
+      [BASEMAP_LIGHT_SOURCE_ID]: {
         type: 'raster',
         tiles: [lightBasemap.baseUrl],
         tileSize: 256,
         attribution: lightBasemap.attribution,
       },
-      'basemap-reference': {
+      [BASEMAP_LIGHT_REF_SOURCE_ID]: {
         type: 'raster',
         tiles: [lightBasemap.referenceUrl],
         tileSize: 256,
       },
     },
     layers: [
-      { id: 'basemap', type: 'raster', source: 'basemap', paint: BASEMAP_PAINT },
-      // Labels/roads ride above the base but below overlays.
-      { id: 'basemap-reference', type: 'raster', source: 'basemap-reference', paint: BASEMAP_PAINT },
+      {
+        id: BASEMAP_SAT_LAYER_ID,
+        type: 'raster',
+        source: BASEMAP_SAT_SOURCE_ID,
+        paint: BASEMAP_PAINT,
+        layout: { visibility: satelliteVisible ? 'visible' : 'none' },
+      },
+      {
+        id: BASEMAP_LIGHT_LAYER_ID,
+        type: 'raster',
+        source: BASEMAP_LIGHT_SOURCE_ID,
+        paint: BASEMAP_PAINT,
+        layout: { visibility: satelliteVisible ? 'none' : 'visible' },
+      },
+      {
+        // Labels/roads ride above the light base but below overlays.
+        id: BASEMAP_LIGHT_REF_LAYER_ID,
+        type: 'raster',
+        source: BASEMAP_LIGHT_REF_SOURCE_ID,
+        paint: BASEMAP_PAINT,
+        layout: { visibility: satelliteVisible ? 'none' : 'visible' },
+      },
     ],
   };
 }
@@ -383,7 +400,7 @@ function BasemapUrlSync({ url, enabled }) {
     if (!map || !enabled || !url) return undefined;
 
     const apply = () => {
-      const source = map.getSource('basemap');
+      const source = map.getSource(BASEMAP_SAT_SOURCE_ID);
       // setTiles exists on raster sources only, and the source is absent for a
       // beat after a genuine style change (basemap mode toggle).
       if (source?.setTiles) source.setTiles([url]);
@@ -407,6 +424,37 @@ function BasemapUrlSync({ url, enabled }) {
       map.off('styledata', apply);
     };
   }, [mapRef, url, enabled]);
+
+  return null;
+}
+
+// Basemap mode is switched by layer visibility, not by replacing mapStyle. This
+// keeps overlay and terra-draw sources alive across toggles.
+function BasemapModeSync({ basemapMode }) {
+  const { current: mapRef } = useMap();
+
+  useEffect(() => {
+    const map = mapRef?.getMap?.();
+    if (!map) return undefined;
+
+    const apply = () => {
+      const satelliteVisible = basemapMode === 'satellite';
+      const setVis = (layerId, visible) => {
+        if (!map.getLayer(layerId)) return;
+        map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none');
+      };
+      setVis(BASEMAP_SAT_LAYER_ID, satelliteVisible);
+      setVis(BASEMAP_LIGHT_LAYER_ID, !satelliteVisible);
+      setVis(BASEMAP_LIGHT_REF_LAYER_ID, !satelliteVisible);
+    };
+
+    if (map.isStyleLoaded()) apply();
+    else map.once('styledata', apply);
+
+    return () => {
+      map.off('styledata', apply);
+    };
+  }, [mapRef, basemapMode]);
 
   return null;
 }
@@ -532,9 +580,7 @@ function MapLibreMap({
   ensureCogProtocol();
   ensureTintedProtocol();
 
-  // Held in a ref so a year change does not rebuild the style. The style is
-  // rebuilt only when the basemap MODE changes, which is a real style change;
-  // the per-year URL is applied by <BasemapUrlSync> below instead.
+  // Held in a ref so a year change does not rebuild the style.
   const satelliteRef = useRef({ url: satelliteUrl, attribution: satelliteAttribution });
   satelliteRef.current = { url: satelliteUrl, attribution: satelliteAttribution };
 
@@ -545,8 +591,10 @@ function MapLibreMap({
       satelliteAttribution: satelliteRef.current.attribution,
       lightBasemap,
     }),
+    // Basemap mode toggles are applied by <BasemapModeSync>; keeping style
+    // identity stable avoids style teardown that drops terra-draw sources.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [basemapMode, lightBasemap],
+    [lightBasemap],
   );
 
   // Class colors are applied by a per-pixel function keyed on the COG's URL, so
@@ -630,6 +678,7 @@ function MapLibreMap({
       <NavigationControl position="bottom-left" showCompass={false} />
 
       <LoadingReporter onLoadingChange={onLoadingChange} sourceIds={overlaySourceIds} />
+      <BasemapModeSync basemapMode={basemapMode} />
       <BasemapUrlSync url={satelliteUrl} enabled={basemapMode === 'satellite'} />
 
       {regionsData && (

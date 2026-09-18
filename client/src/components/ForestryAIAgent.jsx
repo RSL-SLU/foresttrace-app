@@ -20,6 +20,8 @@ function buildContext(moduleData, selectedModule, selectedYear, selectedFMUs, se
     region: selectedFMUs?.length ? selectedFMUs.join(', ') : 'All regions',
     year: selectedYear,
     sensor: selectedSensor,
+    // View-level percentage from the raster tally in the current map viewport,
+    // not a statistic clipped to the user-drawn geometry.
     clearcut: moduleData?.percentage ?? null,
     // Every layer currently switched on, so "what's in here" can speak to all
     // of them rather than only the module in front.
@@ -40,6 +42,7 @@ function buildContext(moduleData, selectedModule, selectedYear, selectedFMUs, se
     // Omitted entirely when nothing is drawn, so the prompt doesn't carry an
     // empty section the model might try to reason about.
     drawing: drawingContext || undefined,
+    drawingStats: moduleData?.drawingStats || { clearcutInDrawnAreaAvailable: false },
   };
 }
 
@@ -83,7 +86,6 @@ function ForestryAIAgent({
   const context = buildContext(
     moduleData, selectedModule, selectedYear, selectedFMUs, selectedSensor, drawingContext,
     availableRegions);
-  const hasClearcut = context.clearcut !== null && context.clearcut !== undefined;
 
   // Assigned on every render so the ref always points at the current closure.
   sendRef.current = send;
@@ -109,21 +111,26 @@ function ForestryAIAgent({
       try {
         data = await res.json();
       } catch {
-        throw new Error(`Server error (${res.status}) — check API key and server logs`);
+        if (res.status === 502 || res.status === 504) {
+          throw new Error('API backend is unreachable (proxy 502/504). Start the Node server on port 3001 and retry.');
+        }
+        throw new Error(`Server error (${res.status}) — check backend logs`);
       }
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      if (!res.ok) {
+        if (res.status === 502 || res.status === 504) {
+          throw new Error('API backend is unreachable (proxy 502/504). Start the Node server on port 3001 and retry.');
+        }
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
       // Geometry the model proposed rides in a fenced block. Strip it from the
       // prose either way -- raw JSON in the transcript helps nobody -- and only
       // draw what survives validation.
       const { action, text } = extractMapAction(data.content);
       let note = '';
       if (action && onProposeFeatures) {
-        const { features, rejected } = await actionToFeatures(action, regionsData);
-        // Not exclusive: a request for several regions can succeed for the ones
-        // that are loaded and fail for the rest, and the user needs both halves.
+        const { features, rejected } = await actionToFeatures(action);
         // Success needs no note: the shapes are on the map, and the model has
-        // already said in prose what it drew. Counting rings ("26 areas") was
-        // actively misleading anyway -- one FMU is many rings.
+        // already said in prose what it drew.
         if (features.length) onProposeFeatures(features);
         if (rejected) {
           // Surfaced rather than swallowed: a proposal that silently fails to
@@ -148,17 +155,6 @@ function ForestryAIAgent({
 
   return (
     <div className="ai-panel">
-      <div className="ai-context-bar">
-        {context.region && <span className="ai-ctx-chip">{context.region}</span>}
-        {context.year && <span className="ai-ctx-chip">{context.year}</span>}
-        {context.sensor && <span className="ai-ctx-chip">{context.sensor}</span>}
-        {hasClearcut && (
-          <span className="ai-ctx-chip ai-ctx-chip--clearcut">
-            {Number(context.clearcut).toFixed(1)}% cleared
-          </span>
-        )}
-      </div>
-
       <div className="ai-messages">
         {messages.length === 0 && !loading && (
           <div className="ai-empty">

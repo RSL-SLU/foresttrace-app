@@ -10,11 +10,13 @@
  *   draw_bbox         a box of a stated size around a stated point -- arithmetic
  *                     done here, from numbers the user supplied
  *   draw_polygon      coordinates the USER gave in the conversation
- *   highlight_region  an FMU, drawn from OUR boundary file by id, never from
- *                     coordinates the model wrote
- *   highlight_patches the largest detected clearcut patches, drawn from the
- *                     published patch vectors -- the model chooses the region,
- *                     year and how many, and the geometry comes from the data
+ *   highlight_patches the clearcut patches matching a query -- largest first, or
+ *                     above a size threshold -- drawn from the published patch
+ *                     vectors. The model chooses the region, year and query;
+ *                     the geometry comes from the data. This is deliberately
+ *                     the only way the agent draws a shape tied to a specific
+ *                     place: a generic FMU outline says nothing a query didn't
+ *                     already ask for, so there is no "outline this region" action.
  *
  * Everything below is validation of untrusted model output: bounds, size, and
  * count are all capped, and anything failing is dropped rather than corrected,
@@ -28,9 +30,10 @@ import { DATA_BASE_URL } from '../config';
 const BOUNDS = { minLon: -96.5, maxLon: -73.0, minLat: 41.0, maxLat: 57.5 };
 
 const MAX_SHAPES = 5;
-// Separate from MAX_SHAPES because one requested shape can expand to many: an
-// FMU is a MultiPolygon, so "outline these five" became 26 rings. The cap is on
-// what actually reaches the map, not on what was asked for.
+// Separate from MAX_SHAPES because one requested shape can expand to many: a
+// highlight_patches query resolves to several patch polygons, and a patch can
+// itself be a MultiPolygon. The cap is on what actually reaches the map, not
+// on what was asked for.
 const MAX_FEATURES = 60;
 const MAX_VERTICES = 200;
 // Larger than any FMU. A "polygon" spanning the province is a sign the model
@@ -39,9 +42,9 @@ const MAX_SIZE_KM = 400;
 
 // terra-draw validates against a default coordinatePrecision of 9 and rejects
 // anything finer -- and it does so through addFeatures' return value rather than
-// by throwing, so the failure is silent. Every source here trips it: the FMU
-// overview file stores 15 decimal places, and the bbox maths produces full
-// float expansions. 6 decimals is ~0.1 m, far beyond what any of this data
+// by throwing, so the failure is silent. Every source here trips it: the
+// published patch vectors and the bbox maths both produce full float
+// expansions. 6 decimals is ~0.1 m, far beyond what any of this data
 // supports, so rounding costs nothing real.
 const COORD_PRECISION = 6;
 
@@ -131,37 +134,12 @@ function regionKey(value) {
     .trim();
 }
 
-function ringsFromCollection(wanted, collection) {
-  const rings = [];
-  for (const feature of collection?.features ?? []) {
-    const props = feature.properties || {};
-    if (regionKey(props.id) !== wanted && regionKey(props.name) !== wanted) continue;
-    const geom = feature.geometry;
-    if (geom?.type === 'Polygon') rings.push(geom.coordinates[0]);
-    else if (geom?.type === 'MultiPolygon') geom.coordinates.forEach((p) => rings.push(p[0]));
-  }
-  return rings;
-}
-
-async function regionRings(regionId, regionsData) {
-  const wanted = regionKey(regionId);
-  if (!wanted) return [];
-  // Prefer the full-detail boundary already loaded for a selected region; fall
-  // back to the simplified province-wide overview for everything else.
-  const loaded = ringsFromCollection(wanted, regionsData);
-  if (loaded.length) return loaded;
-  return ringsFromCollection(wanted, await loadOverview());
-}
-
 /**
  * Every Ontario FMU, from the overview file the app already ships.
  *
- * Outlining a region deliberately does NOT depend on which FMUs happen to be
- * selected. Tying it to the selection meant "outline Wabigoon" failed whenever
- * Wabigoon wasn't already on screen -- precisely when the user is most likely to
- * ask -- and it made "compare against other FMUs" impossible by construction.
- * The overview is one simplified file covering all 39, which is the right level
- * of detail for an outline anyway.
+ * Only used to tell the model which region ids are valid for highlight_patches
+ * (see availableRegionIds below) -- the overview itself is no longer drawn, now
+ * that the agent has no "outline this region" action.
  */
 let _overviewPromise = null;
 
@@ -188,13 +166,34 @@ function loadPatches(region, year) {
   return _patchCache.get(key);
 }
 
+// Spherical shoelace formula, mirrors ClearcutDetection.jsx's
+// computeGeoJsonAreaHa. Patch files carry no pre-computed area property, so
+// minAreaHa filtering (below) has to derive it from the ring itself.
+const EARTH_RADIUS_M = 6371000;
+
+function ringAreaM2(ring) {
+  if (!Array.isArray(ring) || ring.length < 3) return 0;
+  let area = 0;
+  for (let i = 0; i < ring.length - 1; i++) {
+    const dLng = ((ring[i + 1][0] - ring[i][0]) * Math.PI) / 180;
+    const phi1 = (ring[i][1] * Math.PI) / 180;
+    const phi2 = (ring[i + 1][1] * Math.PI) / 180;
+    area += dLng * (Math.sin(phi1) + Math.sin(phi2));
+  }
+  return Math.abs((area * EARTH_RADIUS_M * EARTH_RADIUS_M) / 2);
+}
+
+const featureAreaHa = (rings) => rings.reduce((sum, ring) => sum + ringAreaM2(ring), 0) / 10000;
+
 /**
- * The N largest clearcut patches for a region/year.
+ * The clearcut patches for a region/year matching a query: the N largest, or
+ * the N largest above a minAreaHa threshold.
  *
- * This is the answer to "highlight the biggest clearcuts", which the assistant
- * previously had to refuse: it has no way to know where they are, and guessing
- * is the one thing it must not do. Here it chooses only the query; every
- * coordinate comes from the published vectors.
+ * This is the answer to "highlight the biggest clearcuts" / "clearcuts bigger
+ * than X ha", which the assistant previously had to refuse: it has no way to
+ * know where they are, and guessing is the one thing it must not do. Here it
+ * chooses only the query; every coordinate comes from the published vectors,
+ * which are pre-sorted largest first.
  */
 async function patchRings(shape) {
   const region = regionKey(shape.region);
@@ -205,16 +204,29 @@ async function patchRings(shape) {
   if (!fc?.features?.length) return [];
 
   const count = Math.min(Math.max(Number(shape.count) || 5, 1), 25);
+  const minAreaHa = Number(shape.minAreaHa);
+  const hasMinArea = Number.isFinite(minAreaHa) && minAreaHa > 0;
+
   const rings = [];
-  for (const feature of fc.features.slice(0, count)) {
+  let taken = 0;
+  for (const feature of fc.features) {
+    if (taken >= count) break;
     const geom = feature.geometry;
-    if (geom?.type === 'Polygon') rings.push(geom.coordinates[0]);
-    else if (geom?.type === 'MultiPolygon') geom.coordinates.forEach((poly) => rings.push(poly[0]));
+    const featureRings = geom?.type === 'Polygon'
+      ? [geom.coordinates[0]]
+      : geom?.type === 'MultiPolygon'
+        ? geom.coordinates.map((poly) => poly[0])
+        : [];
+    if (!featureRings.length) continue;
+    if (hasMinArea && featureAreaHa(featureRings) < minAreaHa) continue;
+
+    rings.push(...featureRings);
+    taken += 1;
   }
   return rings;
 }
 
-/** Ids the assistant may outline. Falls back to what's loaded if the fetch fails. */
+/** Ids the assistant may query with highlight_patches. Falls back to what's loaded if the fetch fails. */
 export async function availableRegionIds(regionsData) {
   const overview = await loadOverview();
   const ids = (overview?.features ?? []).map((f) => f.properties?.id).filter(Boolean);
@@ -229,7 +241,7 @@ export async function availableRegionIds(regionsData) {
  *   reason to show the user -- a refusal the reader can see beats geometry that
  *   quietly never appeared.
  */
-export async function actionToFeatures(action, regionsData) {
+export async function actionToFeatures(action) {
   if (!action || typeof action !== 'object') return { features: [], rejected: null };
 
   const shapes = Array.isArray(action.shapes) ? action.shapes : [action];
@@ -238,7 +250,6 @@ export async function actionToFeatures(action, regionsData) {
   }
 
   const features = [];
-  const missingRegions = [];
   for (const shape of shapes) {
     let rings = [];
     switch (shape?.action) {
@@ -252,9 +263,6 @@ export async function actionToFeatures(action, regionsData) {
         if (ring) rings = [ring];
         break;
       }
-      case 'highlight_region':
-        rings = await regionRings(shape.region, regionsData);
-        break;
       case 'highlight_patches':
         rings = await patchRings(shape);
         break;
@@ -263,14 +271,6 @@ export async function actionToFeatures(action, regionsData) {
     }
 
     if (rings.length === 0) {
-      // A region we don't hold is a different failure from invented geometry:
-      // the request was legitimate, the boundary just isn't loaded because it
-      // isn't selected. Skip that one and keep the rest, rather than throwing
-      // away a valid "outline Wabigoon" because a second FMU wasn't available.
-      if (shape?.action === 'highlight_region') {
-        missingRegions.push(String(shape.region || 'unnamed'));
-        continue;
-      }
       if (shape?.action === 'highlight_patches') {
         return {
           features: [],
@@ -308,18 +308,5 @@ export async function actionToFeatures(action, regionsData) {
     };
   }
 
-  if (features.length === 0 && missingRegions.length) {
-    return {
-      features: [],
-      rejected: `no boundary loaded for ${missingRegions.join(', ')} — `
-        + 'no Ontario FMU matches that name',
-    };
-  }
-
-  return {
-    features,
-    rejected: missingRegions.length
-      ? `no boundary loaded for ${missingRegions.join(', ')}`
-      : null,
-  };
+  return { features, rejected: null };
 }

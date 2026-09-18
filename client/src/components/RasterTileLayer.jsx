@@ -321,6 +321,7 @@ function RasterTileLayer({
       keepBuffer: 1,
       zIndex: 10,
       className: RASTER_TILE_CLASS,
+      pmIgnore: true,
     });
 
     canvasLayerRef.current = gridLayer;
@@ -413,6 +414,7 @@ function RasterTileLayer({
         zIndex={10}
         className={RASTER_TILE_CLASS}
         tms={tms}
+        pmIgnore={true}
         crossOrigin="anonymous"
         keepBuffer={1}
         eventHandlers={{
@@ -434,6 +436,7 @@ function RasterTileLayer({
         zIndex={10}
         className={RASTER_TILE_CLASS}
         tms={tms}
+        pmIgnore={true}
         crossOrigin="anonymous"
         keepBuffer={1}
         eventHandlers={{
@@ -457,6 +460,7 @@ function RasterTileLayer({
         zIndex={10}
         className={RASTER_TILE_CLASS}
         tms={tms}
+        pmIgnore={true}
         crossOrigin="anonymous"
         keepBuffer={1}
         eventHandlers={{

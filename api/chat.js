@@ -34,13 +34,11 @@ Available actions:
 - draw_bbox: a box of sizeKm around center [lat, lon]
 - draw_polygon: {"coordinates": [[lon, lat], ...]} -- ONLY coordinates the user
   gave you in this conversation
-- highlight_region: {"region": "wabigoon"} -- outlines an FMU from the app's own
-  boundary data
-- highlight_patches: {"region": "wabigoon", "year": 2025, "count": 5} -- outlines
-  the N largest detected clearcut patches, largest first, from published patch
-  vectors. Use this whenever asked to show, find or highlight the biggest,
-  largest or most significant clearcuts. You are choosing the query, not the
-  locations: the coordinates come from the data, so this is not guessing.
+- highlight_patches: {"region": "wabigoon", "year": 2025, "count": 5}
+  Optional filter: "minAreaHa": 50 to keep only patches >= 50 ha.
+  Use this to draw data-backed clearcut polygons (largest patches, or patches
+  above a size threshold). You choose the query; coordinates come from the
+  published patch vectors.
 
 NEVER invent coordinates to show where clearcuts, fires, forest stands or any
 other mapped feature are. (highlight_patches is not an exception to this -- it
@@ -49,7 +47,8 @@ comes from you.) You have not seen the imagery and cannot know their
 locations; a drawn shape looks like a measurement to the user, so guessing one
 is a factual error, not a helpful illustration. If asked to outline something
 whose location you were not given, say that you cannot locate it and suggest the
-user draw the area themselves, or use highlight_region for a whole FMU.
+user draw the area themselves, or use highlight_patches for data-driven
+clearcut polygons.
 
 Only include the block when drawing genuinely helps, at most 5 shapes. Explain
 in prose what you drew and where it came from.`;
@@ -134,7 +133,7 @@ function buildSystemPrompt(context) {
     if (context.year) parts.push(`Year: ${context.year}`);
     if (context.sensor) parts.push(`Satellite sensor: ${context.sensor}`);
     if (context.clearcut !== null && context.clearcut !== undefined) {
-      parts.push(`Clearcut coverage: ${Number(context.clearcut).toFixed(2)}% of the selected area`);
+      parts.push(`Clearcut coverage: ${Number(context.clearcut).toFixed(2)}% of the current map view`);
     }
     if (parts.length) {
       prompt += '\n\nCurrent visualization context:\n- ' + parts.join('\n- ');
@@ -154,12 +153,33 @@ function buildSystemPrompt(context) {
         + context.biomass.map((b) => `${b.range}: ${Number(b.areaHa).toLocaleString('en-US')} ha`).join('\n- ');
     }
 
+    if (context.drawingStats?.clearcutInDrawnAreaAvailable === true) {
+      const year = context.drawingStats?.year;
+      const count = Number(context.drawingStats?.intersectingPatchCount) || 0;
+      const regions = Array.isArray(context.drawingStats?.regionsChecked)
+        ? context.drawingStats.regionsChecked.join(', ')
+        : '';
+      if (context.drawingStats?.intersectsClearcut) {
+        prompt += `\n\nDrawn-area clearcut check: the user's drawn area intersects ${count} `
+          + `published clearcut patch(es) for ${year}${regions ? ` in ${regions}` : ''}. `
+          + 'State this clearly when answering questions about whether clearcuts are inside the drawn area.';
+      } else {
+        prompt += `\n\nDrawn-area clearcut check: no published clearcut patches intersect `
+          + `the drawn area for ${year}${regions ? ` in ${regions}` : ''}.`;
+      }
+    } else {
+      prompt += '\n\nImportant accuracy rule for drawn shapes: the app did NOT provide '
+        + 'a clearcut percentage computed inside the drawn polygon/rectangle. '
+        + 'Therefore, do not claim values like "no clearcut pixels in this box" '
+        + 'or any numeric inside-shape coverage unless the user explicitly '
+        + 'provides those numbers.';
+    }
+
     if (Array.isArray(context.availableRegions) && context.availableRegions.length) {
-      // Naming them stops the model reaching for FMUs whose boundaries aren't
-      // loaded, which is the most common way a legitimate request gets refused.
-      prompt += `\n\nRegions you can outline with highlight_region (use these ids exactly): `
+      // Naming them keeps patch queries grounded on regions we actually publish.
+      prompt += `\n\nRegion ids available for highlight_patches (use these ids exactly): `
         + context.availableRegions.join(', ')
-        + '. No other boundary is loaded; say so rather than guessing coordinates.';
+        + '. If a region id is not in this list, do not guess coordinates.';
     }
 
     prompt += describeDrawing(context.drawing);

@@ -39,6 +39,7 @@ import useRegionBoundaries from './hooks/useRegionBoundaries';
 import { TINTED_LAYER_IDS, tintedTileUrl } from './utils/tintedTileProtocol';
 import { summarizeDrawing } from './utils/drawnShapeContext';
 import { getCogCoverage, getTileCoverage } from './utils/clearcutCogCoverage';
+import { computeClearcutDrawingPresence } from './utils/clearcutDrawingStats';
 
 import './styles/map.css';
 import './styles/topmenu.css';
@@ -489,21 +490,29 @@ function useCaribouRangeGeoJson(selectedRanges) {
 function RegionBoundaries({ selectedFMUs, useOntarioOverview, basemapMode }) {
   const regionsData = useRegionBoundaries(selectedFMUs, useOntarioOverview);
 
+  const boundaryStyle = useMemo(() => ({
+    color: basemapMode === 'satellite' ? '#ffffff' : '#2f8f5b',
+    weight: 2,
+    opacity: 0.9,
+    fillOpacity: 0,
+  }), [basemapMode]);
+
   const onEachFeature = useCallback((feature, layer) => {
     layer.options.pmIgnore = true;
-    layer.setStyle({
-      color: basemapMode === 'satellite' ? '#ffffff' : '#2f8f5b',
-      weight: 2,
-      opacity: 0.9,
-      fillOpacity: 0,
-    });
-  }, [basemapMode]);
+  }, []);
 
   if (!regionsData) return null;
 
   const featureIds = regionsData.features.map((f) => f.properties?.id).sort().join('-');
 
-  return <GeoJSON key={`${featureIds}-${basemapMode}`} data={regionsData} onEachFeature={onEachFeature} />;
+  return (
+    <GeoJSON
+      key={featureIds}
+      data={regionsData}
+      style={boundaryStyle}
+      onEachFeature={onEachFeature}
+    />
+  );
 }
 
 function ZoomControlPositioner({ position = 'bottomleft' }) {
@@ -809,6 +818,57 @@ function App() {
     () => summarizeDrawing(drawnFeatures, maplibreRegions),
     [drawnFeatures, maplibreRegions],
   );
+  const [drawingStats, setDrawingStats] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      const hasDrawnArea = drawnFeatures.some((f) => (
+        f?.geometry?.type === 'Polygon' || f?.geometry?.type === 'MultiPolygon'
+      ));
+      const hasClearcutLayer = (activeLayers.clearcut || []).some(
+        (id) => id === 'clearcut-accumulated' || id === 'clearcut-annual',
+      );
+      const clearcutYear = moduleYears.clearcut || selectedYear;
+      const candidateRegions = drawingContext?.regionsContaining?.length
+        ? drawingContext.regionsContaining
+        : drawingContext?.regionsNearby?.length
+          ? drawingContext.regionsNearby
+          : selectedFMUs;
+
+      if (!hasDrawnArea || !hasClearcutLayer || candidateRegions.length === 0) {
+        if (!cancelled) {
+          setDrawingStats({ clearcutInDrawnAreaAvailable: false });
+        }
+        return;
+      }
+
+      const presence = await computeClearcutDrawingPresence({
+        features: drawnFeatures,
+        regions: candidateRegions,
+        year: clearcutYear,
+      });
+
+      if (cancelled) return;
+
+      if (!presence.available) {
+        setDrawingStats({ clearcutInDrawnAreaAvailable: false });
+        return;
+      }
+
+      setDrawingStats({
+        clearcutInDrawnAreaAvailable: true,
+        intersectsClearcut: presence.intersects,
+        intersectingPatchCount: presence.intersectingPatchCount,
+        regionsChecked: presence.regionsChecked,
+        year: clearcutYear,
+      });
+    };
+
+    run();
+    return () => { cancelled = true; };
+  }, [drawnFeatures, drawingContext, activeLayers.clearcut, moduleYears.clearcut, selectedYear]);
 
   // Which panel tab is showing. Lifted out of <ModuleSelector> so the map's
   // "Ask AI" button can bring the agent forward.
@@ -1147,6 +1207,7 @@ function App() {
     caribouRegions: caribouRasterRegions,
     // Lets the clearcut module narrow its chart to regions the map can draw.
     useCogClearcut: USE_COG,
+    drawingStats,
   };
 
   const handleModuleSelect = useCallback((module) => {
