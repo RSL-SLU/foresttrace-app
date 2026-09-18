@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import '@geoman-io/leaflet-geoman-free';
 import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { Analytics } from "@vercel/analytics/react";
 
 import TopMenu from './components/TopMenu';
 import ModuleSelector from './components/ModuleSelector';
@@ -215,7 +216,7 @@ const MODULES = [
         id: 'wildfire-burned',
         name: 'Burned Area',
         tileUrl: `${TILES_BASE_URL}/tiles/wildfire/{region}_{year}/{z}/{x}/{y}.png`,
-        color: '#F8420B',
+        color: '#FF7F00',
         mode: 'annual',
         tms: false,
         // Wildfire carries its own class table rather than borrowing clearcut's:
@@ -1283,6 +1284,7 @@ function App() {
   return (
     <div className="app-wrapper">
       <SpeedInsights />
+      <Analytics />
       <MobileWarning />
       <TopMenu
         onNavigate={setActivePage}

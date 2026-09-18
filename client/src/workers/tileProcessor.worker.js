@@ -85,10 +85,10 @@ function processPixels(layerId, pixels, coords) {
       if (a > 0 && r > 200) redCount += 1;
       if (a === 0) continue;
       const intensity = r / 255;
-      // Fire red (#F8420B).
-      pixels[i]     = Math.round(248 * intensity);
-      pixels[i + 1] = Math.round(66 * intensity);
-      pixels[i + 2] = Math.round(11 * intensity);
+      // Fire orange (#FF7F00), kept clear of clearcut's red.
+      pixels[i]     = Math.round(255 * intensity);
+      pixels[i + 1] = Math.round(127 * intensity);
+      pixels[i + 2] = 0;
       continue;
     }
 

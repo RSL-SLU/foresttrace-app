@@ -10,8 +10,8 @@ const WILDFIRE_YEARS = [
   2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025,
 ];
 
-const FIRE_COLOR = '#F8420B';
-const FIRE_COLOR_ACTIVE = '#8C1D00';
+const FIRE_COLOR = '#FF7F00';
+const FIRE_COLOR_ACTIVE = '#A34700';
 
 const fmt = (n) => Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
