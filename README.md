@@ -10,24 +10,33 @@ The platform currently provides:
 
 - Clearcut detection and annual disturbance tracking (Wabigoon FMU and related regions)
 - Above-Ground Biomass (AGB) visualization from remote sensing products
-- Multi-year tiled map overlays (2015 to present for clearcut workflows)
-- Interactive map exploration with module-based analysis panels
+- Multi-year raster overlays (2015 to present for clearcut workflows), served as PNG tile pyramids and, increasingly, as Cloud-Optimized GeoTIFFs (COGs)
+- Interactive map exploration with module-based analysis panels, including user-drawn areas of interest
+- A Forestry AI Agent that answers questions about the active map view and can highlight AI-selected clearcut patches drawn from published data
 
 Primary datasets and analysis context include Landsat/Sentinel-derived products, HLS time series, SAR-assisted biomass workflows, and high-resolution imagery support for validation.
 
 ## Tech Stack
 
-- Frontend: React + Leaflet (`client/`)
-- Backend: Node.js + Express (`index.js`)
-- Mapping: Raster tile services, vector overlays, and custom analysis modules
+- Frontend: React (`client/`), with two map renderers:
+  - **Leaflet** — the default renderer for all modules today
+  - **MapLibre GL** — a WebGL renderer being brought to parity behind the `REACT_APP_USE_MAPLIBRE` flag; it's what renders Cloud-Optimized GeoTIFFs directly in-browser (`REACT_APP_USE_COG_CLEARCUT`) instead of pre-tiled PNGs
+- Backend: Node.js + Express (`index.js`) for production-style serving, plus Vercel serverless functions under `api/` (the Groq-backed Forestry AI Agent proxy)
+- Data/CDN: Cloudflare R2 hosts tile pyramids, COGs, and geospatial data files (region boundaries, clearcut patch vectors) in production
+- Mapping: Raster tile and COG services, vector overlays, and custom per-module analysis panels
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full development setup, environment variables, and the tile/COG pipeline.
 
 ## Repository Structure
 
 - `client/`: React application and map UI components
-- `client/public/tiles/`: Static tile resources and map examples
-- `client/src/modules/`: Analysis modules (Clearcut, Biomass, etc.)
+  - `client/src/components/MapLibreMap.jsx`: the MapLibre GL / COG renderer
+  - `client/src/components/RasterTileLayer.jsx`: the Leaflet PNG tile renderer
+  - `client/src/modules/`: Analysis modules (Clearcut, Biomass, etc.)
+  - `client/public/tiles/`: Local tile resources for development (gitignored)
+- `api/`: Vercel serverless functions, including the Forestry AI Agent's `/api/chat` proxy
 - `index.js`: Express server for production build hosting
-- Python/Node helper scripts at repo root: tile generation, reorganization, and validation utilities
+- Node helper scripts at repo root: tile/COG generation, R2 upload, and manifest utilities (see CONTRIBUTING.md)
 
 ## Getting Started
 

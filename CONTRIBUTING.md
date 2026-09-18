@@ -11,13 +11,14 @@ foresttrace-app/
 │   │       └── clearcut_stats.json  # Precomputed area statistics
 │   └── src/
 │       ├── App.js                   # MODULES array — central registry
-│       ├── config.js                # TILES_BASE_URL / DATA_BASE_URL
+│       ├── config.js                # TILES_BASE_URL / DATA_BASE_URL / COG_BASE_URL
 │       ├── modules/                 # One JSX file per analysis module
 │       │   ├── ModuleTemplate.jsx   # Start here when adding a module
 │       │   ├── ClearcutDetection.jsx
 │       │   └── BiomassModule.jsx
 │       ├── components/
-│       │   └── RasterTileLayer.jsx  # Canvas-based PNG tile renderer
+│       │   ├── RasterTileLayer.jsx  # Leaflet path: canvas-based PNG tile renderer
+│       │   └── MapLibreMap.jsx      # MapLibre path: WebGL renderer, draws COGs directly
 │       └── utils/
 │           └── clearcutAreaStats.js # Stats helpers (reads clearcut_stats.json)
 ├── api/                             # Vercel serverless functions
@@ -46,6 +47,35 @@ cd client && npm start   # React app at http://localhost:3000
 In development, `REACT_APP_TILES_BASE_URL` is empty so tiles are read from
 `client/public/tiles/` via the CRA dev server. In production (Vercel), the
 env var is set to the Cloudflare R2 public URL.
+
+---
+
+## Map renderers: Leaflet vs. MapLibre
+
+The app can draw the map two ways, chosen at build time by env vars in
+`client/.env` (unset = off):
+
+```bash
+REACT_APP_USE_MAPLIBRE=true          # switch from Leaflet to the MapLibre GL renderer
+REACT_APP_USE_COG_CLEARCUT=true      # on the MapLibre path, draw clearcut from COGs instead of PNG tiles
+```
+
+- **Leaflet** (`MapContainer` in `App.js`, tiles via `RasterTileLayer.jsx`) is
+  the renderer every visitor gets today. It reads pre-generated PNG XYZ tile
+  pyramids and tints them per-pixel on a canvas.
+- **MapLibre GL** (`MapLibreMap.jsx`, lazy-loaded so its ~400 kB bundle cost is
+  only paid when the flag is on) is a WebGL renderer being brought to parity
+  with the Leaflet path (stats tallying, biomass, etc. are still catching up).
+  With `REACT_APP_USE_COG_CLEARCUT` also on, it reads **Cloud-Optimized
+  GeoTIFFs (COGs)** directly — range-read over HTTP, so no tiling step or
+  pyramid is needed for that layer. Without a COG for a given region/year, the
+  MapLibre path falls back to the same PNG tiles Leaflet uses.
+
+Both paths read the same underlying data; which one a given deployment runs is
+purely an env var choice. See `client/src/config.js` for how a layer resolves
+to a COG prefix (`cogPrefixForLayer`) versus a PNG tile URL, and the
+[COG availability manifest](#cog-availability-manifest) section below for how
+the app knows which region/year COGs actually exist.
 
 ---
 
@@ -110,6 +140,12 @@ Tiles are rendered by `RasterTileLayer`, which applies per-pixel canvas tinting
 using the layer's `color`. If your layer needs custom rendering (e.g. a
 different color formula), add a branch in
 `client/src/components/RasterTileLayer.jsx` keyed on `layerId`.
+
+This `tileUrl` pattern is what every layer falls back to. If you also want
+your layer to draw from a COG on the MapLibre path (see
+[Map renderers](#map-renderers-leaflet-vs-maplibre) above), add it to
+`COG_PREFIX_BY_LAYER` in `client/src/config.js` instead of duplicating the URL
+logic here.
 
 ### 3. Add statistics (optional)
 
