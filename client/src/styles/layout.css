@@ -373,7 +373,7 @@ body.dark-mode .resize-handle--active::after {
 
 /* Wildfire variant — green would read as "healthy" for a burn statistic. */
 .stat-fill--fire {
-  background: linear-gradient(90deg, #8c1d00, #f8420b);
+  background: linear-gradient(90deg, #a34700, #ff7f00);
 }
 
 .no-data {
@@ -534,11 +534,11 @@ body.dark-mode .resize-handle--active::after {
 
 /* Wildfire — must track FIRE_COLOR / FIRE_COLOR_ACTIVE in WildfireModule.jsx */
 .legend-color.fire {
-  background: #f8420b;
+  background: #ff7f00;
 }
 
 .legend-color.fire-active {
-  background: #8c1d00;
+  background: #a34700;
 }
 
 /* Caribou core-patch size ramp.
