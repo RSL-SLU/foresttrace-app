@@ -868,7 +868,7 @@ function App() {
 
     run();
     return () => { cancelled = true; };
-  }, [drawnFeatures, drawingContext, activeLayers.clearcut, moduleYears.clearcut, selectedYear]);
+  }, [drawnFeatures, drawingContext, activeLayers.clearcut, moduleYears.clearcut, selectedYear, selectedFMUs]);
 
   // Which panel tab is showing. Lifted out of <ModuleSelector> so the map's
   // "Ask AI" button can bring the agent forward.
