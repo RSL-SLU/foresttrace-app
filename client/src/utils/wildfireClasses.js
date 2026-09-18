@@ -14,7 +14,7 @@
 
 export const WILDFIRE_CLASSES = {
   0: { name: 'unburned', color: null }, // nodata -- always transparent
-  1: { name: 'burned', color: '#F8420B' },
+  1: { name: 'burned', color: '#FF7F00' },
 };
 
 /** The burned class -- the one the layer's own color overrides. */

@@ -215,7 +215,7 @@ const MODULES = [
         id: 'wildfire-burned',
         name: 'Burned Area',
         tileUrl: `${TILES_BASE_URL}/tiles/wildfire/{region}_{year}/{z}/{x}/{y}.png`,
-        color: '#F8420B',
+        color: '#FF7F00',
         mode: 'annual',
         tms: false,
         // Wildfire carries its own class table rather than borrowing clearcut's:
