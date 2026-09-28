@@ -22,7 +22,7 @@ Primary datasets and analysis context include Landsat/Sentinel-derived products,
   - **Leaflet** — the default renderer for all modules today
   - **MapLibre GL** — a WebGL renderer being brought to parity behind the `REACT_APP_USE_MAPLIBRE` flag; it's what renders Cloud-Optimized GeoTIFFs directly in-browser (`REACT_APP_USE_COG_CLEARCUT`) instead of pre-tiled PNGs
 - Backend: Node.js + Express (`index.js`) for production-style serving, plus Vercel serverless functions under `api/` (the Groq-backed Forestry AI Agent proxy)
-- Data/CDN: Cloudflare R2 hosts tile pyramids, COGs, and geospatial data files (region boundaries, clearcut patch vectors) in production
+- Data/CDN: Vercel Pro Storage (Vercel Blob) hosts Cloud-Optimized GeoTIFFs (COGs) and availability manifests in production. Cloudflare R2 hosts raster tile pyramids and geospatial data files (and serves as an alternative for local dev environments).
 - Mapping: Raster tile and COG services, vector overlays, and custom per-module analysis panels
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full development setup, environment variables, and the tile/COG pipeline.

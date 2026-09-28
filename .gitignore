@@ -204,3 +204,4 @@ wabigoon.shx
 # Local drafts for GitHub issues -- written to be pasted into the tracker, not
 # kept in the tree.
 issues/
+.env.vercel

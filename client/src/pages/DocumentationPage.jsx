@@ -269,12 +269,12 @@ function DocumentationPage({ onBack }) {
 
           {/* ── 6. Tile Architecture ── */}
           <div id="tiles" ref={s('tiles')} className="infopage-section">
-            <h2>Tile Architecture</h2>
+            <h2>Tile &amp; COG Architecture</h2>
             <DefTable rows={[
-              ['Format',          'PNG tiles following the XYZ tile scheme.'],
-              ['Zoom levels',     '6 – 14.'],
-              ['Hosting',         'Tiles served from Cloudflare R2 via a public bucket URL.'],
-              ['URL pattern',     'tiles/<layer>/<region>_<year>/<z>/<x>/<y>.png'],
+              ['Raster tiles',    'PNG tiles following the XYZ tile scheme (zoom 6–14). Served from Cloudflare R2.'],
+              ['Cloud-Optimized GeoTIFFs', 'COGs range-read directly over HTTP by the MapLibre GL WebGL renderer. Hosted on Vercel Pro Storage (Vercel Blob) in production.'],
+              ['COG availability', 'Indexed dynamically via cogs/manifest.json to avoid high-volume HEAD probing.'],
+              ['URL patterns',    'tiles/<layer>/<region>_<year>/<z>/<x>/<y>.png  |  cogs/<prefix>/<region>_<year>.tif'],
               ['Sensor subfolders','For years with multiple sensors (e.g. 2025), tiles are stored under hls/ or planet/ subfolders within the year directory.'],
             ]} />
           </div>

@@ -52,9 +52,16 @@ export const COG_BASE_URL = process.env.REACT_APP_COG_BASE_URL || TILES_BASE_URL
 //   caribou-fmu-v1  per FMU    (troutlake_2021) -- every range reaching that FMU
 // An FMU raster carries all three ranges crossing troutlake, which is right when
 // you asked for that FMU and wrong when you asked for Berens.
+// clearcut-annual/clearcut-accumulated point at the ARI ground-truth product
+// (utils/generate_ari_harvest_cogs.py), not the ML model's inferred output,
+// for now -- see the clearcut module's comment in App.js. The ML prefixes are
+// kept below, commented, rather than deleted: swapping the two active lines
+// back is the entire revert once inference is back in the picture.
 const COG_PREFIX_BY_LAYER = {
-  'clearcut-annual': 'clearcut-annual',
-  'clearcut-accumulated': 'clearcut-accumulated-v4',
+  'clearcut-annual': 'clearcut-annual-ari',
+  'clearcut-accumulated': 'clearcut-accumulated-ari',
+  // 'clearcut-annual': 'clearcut-annual',
+  // 'clearcut-accumulated': 'clearcut-accumulated-v4',
   'wildfire-burned': 'wildfire-v3',
   'caribou-habitat': 'caribou-v1',
   'caribou-habitat-fmu': 'caribou-fmu-v1',

@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Map, { Source, Layer, NavigationControl, useMap } from 'react-map-gl/maplibre';
+import Map, { Source, Layer, NavigationControl, Popup, useMap } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 import { cogProtocol, setColorFunction } from '@geomatico/maplibre-cog-protocol';
+import { Protocol as PMTilesProtocol } from 'pmtiles';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { buildClassColorFunction } from '../utils/rasterClasses';
 import { CLEARCUT_CLASSES, DEFAULT_VISIBLE_CLASSES, CLEARCUT_CLASS_ID } from '../utils/clearcutClasses';
@@ -17,6 +18,17 @@ function ensureCogProtocol() {
   if (cogProtocolRegistered) return;
   maplibregl.addProtocol('cog', cogProtocol);
   cogProtocolRegistered = true;
+}
+
+// Same idea as the COG protocol above, for vector tiles: a pmtiles:// source
+// range-reads one archive file directly, no tile server. Registered once at
+// module scope for the same reason.
+let pmtilesProtocolRegistered = false;
+function ensurePmtilesProtocol() {
+  if (pmtilesProtocolRegistered) return;
+  const protocol = new PMTilesProtocol();
+  maplibregl.addProtocol('pmtiles', protocol.tile);
+  pmtilesProtocolRegistered = true;
 }
 
 // MapLibre ships no default basemap, so the style is built by hand. These are
@@ -567,6 +579,7 @@ function MapLibreMap({
   rangeBoundaries = null,
   rasterLayers = [],
   cogLayers = [],
+  vectorLayers = [],
   rasterOpacity = 0.5,
   onShapeCreate = null,
   onDrawChange = null,
@@ -578,7 +591,27 @@ function MapLibreMap({
   mapRef = null,
 }) {
   ensureCogProtocol();
+  ensurePmtilesProtocol();
   ensureTintedProtocol();
+
+  // Feature clicked on a vector (PMTiles) layer -- {lngLat, properties} or null.
+  // Local to this component: nothing outside the map needs to know what's
+  // currently popped up.
+  const [clickedFeature, setClickedFeature] = useState(null);
+
+  const vectorLayerIds = useMemo(
+    () => vectorLayers.map((l) => `vector-layer-${l.id}`),
+    [vectorLayers],
+  );
+
+  const handleMapClick = useCallback((e) => {
+    if (!e.features || e.features.length === 0) {
+      setClickedFeature(null);
+      return;
+    }
+    const feature = e.features[0];
+    setClickedFeature({ lngLat: e.lngLat, properties: feature.properties });
+  }, []);
 
   // Held in a ref so a year change does not rebuild the style.
   const satelliteRef = useRef({ url: satelliteUrl, attribution: satelliteAttribution });
@@ -651,9 +684,10 @@ function MapLibreMap({
     () => [
       ...rasterLayers.map((l) => `raster-${l.id}`),
       ...cogLayers.map((l) => `cog-${l.id}`),
+      ...vectorLayers.map((l) => `vector-${l.id}`),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rasterLayers.map((l) => l.id).join('|'), cogLayers.map((l) => l.id).join('|')],
+    [rasterLayers.map((l) => l.id).join('|'), cogLayers.map((l) => l.id).join('|'), vectorLayers.map((l) => l.id).join('|')],
   );
 
   const handleLoad = useCallback((e) => {
@@ -673,6 +707,8 @@ function MapLibreMap({
       mapStyle={mapStyle}
       style={{ width: '100%', height: '100%' }}
       onLoad={handleLoad}
+      onClick={handleMapClick}
+      interactiveLayerIds={vectorLayerIds}
       attributionControl={{ compact: true }}
     >
       <NavigationControl position="bottom-left" showCompass={false} />
@@ -735,6 +771,47 @@ function MapLibreMap({
           />
         </Source>
       ))}
+
+      {vectorLayers.map((layer) => (
+        <Source key={layer.id} id={`vector-${layer.id}`} type="vector" url={`pmtiles://${layer.url}`}>
+          {/* Invisible: exists only so interactiveLayerIds has a fill to hit-test
+              clicks against (a click anywhere inside a stand should register, not
+              just on its border pixel). A visible fill here shaded the accumulated/
+              annual raster underneath, which is the whole thing this layer is meant
+              to annotate -- borders read the boundaries without hiding the color. */}
+          <Layer
+            id={`vector-layer-${layer.id}`}
+            type="fill"
+            source-layer={layer.sourceLayer}
+            filter={layer.filter}
+            paint={{ 'fill-color': layer.color || '#FF1493', 'fill-opacity': 0 }}
+          />
+          <Layer
+            id={`vector-outline-${layer.id}`}
+            type="line"
+            source-layer={layer.sourceLayer}
+            filter={layer.filter}
+            paint={{ 'line-color': layer.color || '#FF1493', 'line-width': 1.5 }}
+          />
+        </Source>
+      ))}
+
+      {clickedFeature && (
+        <Popup
+          longitude={clickedFeature.lngLat.lng}
+          latitude={clickedFeature.lngLat.lat}
+          onClose={() => setClickedFeature(null)}
+          closeOnClick={false}
+        >
+          <div style={{ fontSize: 13 }}>
+            <strong>Harvested: {clickedFeature.properties.YRDEP}</strong>
+            <br />
+            Clearcut (DEPHARV): {clickedFeature.properties.IS_DEPHARV ? 'yes' : 'no'}
+            <br />
+            Harvest type: {clickedFeature.properties.IS_HARVTYP ? 'yes' : 'no'}
+          </div>
+        </Popup>
+      )}
 
       {/* Caribou range outlines. Must stay AFTER both raster blocks: MapLibre
           paints layers in the order they are added, so declared any earlier the

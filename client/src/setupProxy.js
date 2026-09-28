@@ -4,6 +4,8 @@ const https = require('https');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env.r2') });
+try { require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env.vercel') }); } catch (_) {}
+try { require('dotenv').config({ path: path.join(__dirname, '..', '.env') }); } catch (_) {}
 
 // A map view fans out into dozens of parallel tile requests, and without a
 // keep-alive agent each one opens a fresh TLS connection and a fresh DNS
@@ -17,11 +19,14 @@ const keepAliveAgent = new https.Agent({
   timeout: 30000,
 });
 
-// Public R2 bucket -- the same origin the production build reads directly, and
-// the same bucket upload-cogs.js and upload-tiles.js write to. Read from the
-// root .env.r2 rather than hardcoded, so the bucket URL lives in one place and a
-// bucket swap doesn't mean editing source.
+// Public R2 bucket -- the origin the dev proxy and production tile fallback reads.
 const R2_PUBLIC = process.env.R2_PUBLIC;
+
+// COG remote target: Vercel Blob store (production requirement) or Cloudflare R2 (local dev alternative).
+const COG_TARGET = process.env.REACT_APP_COG_BASE_URL
+  || process.env.VERCEL_BLOB_BASE_URL
+  || process.env.VERCEL_BLOB_PUBLIC
+  || R2_PUBLIC;
 
 // Port the Express API (index.js) listens on. Its own default is 3001 -- chosen
 // so CRA can hold 3000 -- and this proxy used to point at 5001, so /api/chat got
@@ -54,10 +59,26 @@ const LOCAL_TILE_DIRS = {
   '/tiles/wildfire-baseline': process.env.WILDFIRE_BASELINE_TILES_DIR,
 };
 
-// Shared config for the R2 passthroughs.
-function r2Proxy(prefix) {
+// Same idea as LOCAL_TILE_DIRS, but for COGs: ARI ground-truth clearcut rasters
+// (boreal-canada-mapping's utils/generate_ari_harvest_cogs.py) aren't on R2 yet,
+// so these two prefixes are served straight off disk instead. Mounted before the
+// /cogs R2 proxy below, so express falls through to R2 for every other prefix
+// unchanged -- this only intercepts the two ARI-specific ones.
+const LOCAL_COG_DIRS = {
+  '/cogs/clearcut-annual-ari': process.env.ARI_CLEARCUT_ANNUAL_COG_DIR,
+  '/cogs/clearcut-accumulated-ari': process.env.ARI_CLEARCUT_ACCUMULATED_COG_DIR,
+};
+
+// ARI harvest-year PMTiles archive (boreal-canada-mapping's
+// utils/generate_ari_harvest_mvt.py). One static file, not a prefix of many --
+// mounted the same way so it's reachable at /mvt/wabigoon.pmtiles without a
+// bucket round trip while it's still local-only.
+const ARI_MVT_DIR = process.env.ARI_MVT_DIR;
+
+// Shared config for remote passthroughs (R2 or Vercel Blob).
+function r2Proxy(prefix, target = R2_PUBLIC) {
   return {
-    target: R2_PUBLIC,
+    target,
     changeOrigin: true,
     agent: keepAliveAgent,
     pathRewrite: { [`^${prefix}`]: prefix },
@@ -81,6 +102,16 @@ module.exports = function (app) {
       app.use(route, express.static(path.normalize(dir)));
     }
   });
+
+  Object.entries(LOCAL_COG_DIRS).forEach(([route, dir]) => {
+    if (dir) {
+      app.use(route, express.static(path.normalize(dir)));
+    }
+  });
+
+  if (ARI_MVT_DIR) {
+    app.use('/mvt', express.static(path.normalize(ARI_MVT_DIR)));
+  }
 
   app.use(
     '/api',
@@ -122,7 +153,9 @@ module.exports = function (app) {
   // production build, where the app reads the bucket directly and the CORS policy
   // is load-bearing. Verifying a COG works locally therefore proves nothing about
   // whether it will work in production.
-  app.use('/cogs', createProxyMiddleware(r2Proxy('/cogs')));
+  if (COG_TARGET) {
+    app.use('/cogs', createProxyMiddleware(r2Proxy('/cogs', COG_TARGET)));
+  }
 
   // PNG tiles, for the same two reasons as the COGs above.
   //

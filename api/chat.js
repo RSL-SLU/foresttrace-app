@@ -5,9 +5,12 @@ const { MongoClient } = require('mongodb');
 
 // Reuse the connection across warm invocations
 let _mongoClient = null;
+const getMongoUri = () => process.env.VERCEL_MONGODB_URI || process.env.MONGODB_URI;
+
 async function getCollection() {
-  if (!_mongoClient) {
-    _mongoClient = new MongoClient(process.env.MONGODB_URI);
+  const uri = getMongoUri();
+  if (!_mongoClient && uri) {
+    _mongoClient = new MongoClient(uri);
     await _mongoClient.connect();
   }
   return _mongoClient.db('foresttrace').collection('chat_messages');
@@ -211,7 +214,7 @@ module.exports = async function handler(req, res) {
 
   // Log the latest user message — fire and forget, never blocks the response
   const lastUserMessage = [...messages].reverse().find(m => m.role === 'user');
-  if (lastUserMessage && process.env.MONGODB_URI) {
+  if (lastUserMessage && getMongoUri()) {
     getCollection()
       .then(col => col.insertOne({
         message: lastUserMessage.content,

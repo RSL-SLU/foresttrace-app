@@ -20,6 +20,7 @@ import PublicationPage from './pages/PublicationPage';
 import DocumentationPage from './pages/DocumentationPage';
 import MapSourcesInfo from './components/MapSourcesInfo';
 import MapTimeline from './components/MapTimeline';
+import MapDisplayOptions from './components/MapDisplayOptions';
 import ClearcutDetection from './modules/ClearcutDetection';
 import BiomassModule from './modules/BiomassModule';
 import WildfireModule from './modules/WildfireModule';
@@ -149,6 +150,13 @@ const RASTER_MULTI_FMU_SOFT_LIMIT = 8;
 const RASTER_RANGE_MODE_LIMIT = 25;
 const PREFERRED_RASTER_REGIONS = ['wabigoon', 'troutlake'];
 
+// Matches WINDOW_YEARS in boreal-canada-mapping's utils/accumulated_clearcut.py
+// (and the ARI COG pipeline's use of it) -- the two repos aren't wired together,
+// so this stays in sync by comment rather than import. Used to filter the
+// "Inspect harvest year" sub-layer to the same window Accumulated Clearcuts is
+// currently showing, rather than every inspectable year in the archive at once.
+const ARI_ACCUMULATED_WINDOW_YEARS = 5;
+
 const MODULES = [
   {
     id: 'clearcut',
@@ -161,21 +169,64 @@ const MODULES = [
       availableYears: [2010, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025],
     },
     layers: [
+      // ARI ground-truth harvest data (utils/generate_ari_harvest_cogs.py in
+      // boreal-canada-mapping), standing in for the ML model's inferred
+      // clearcut layers for now -- reuses their ids/mode/default-active
+      // wiring so nothing downstream (hasClearcutLayer, the default-layer
+      // bootstrap, etc.) needs to know the source changed. wabigoon-only
+      // today: FC130 (the ARI inventory tile matching the Wabigoon Forest
+      // FMU) is the first region run through the pipeline. cogAuthoritative
+      // because no PNG pyramid exists or ever will for these -- it skips the
+      // fallback path instead of requesting one that was never generated.
       {
         id: 'clearcut-accumulated',
         name: 'Accumulated Clearcuts',
-        tileUrl: `${TILES_BASE_URL}/tiles/clearcut/{region}_{year}/{z}/{x}/{y}.png`,
-        color: '#FF0000',
+        tileUrl: `${TILES_BASE_URL}/tiles/clearcut-accumulated-ari/{region}_{year}/{z}/{x}/{y}.png`,
+        // Inverted from the ML layer's original red/yellow (red=accumulated,
+        // yellow=annual) -- same palette family, swapped, so the two schemes
+        // read as related but never get mistaken for one another.
+        color: '#ffeb3b',
         mode: 'accumulated',
         tms: false,
+        cogAuthoritative: true,
       },
       {
         id: 'clearcut-annual',
         name: 'Annual Clearcuts',
-        tileUrl: `${TILES_BASE_URL}/tiles/clearcut-annual/{region}_{year}/{z}/{x}/{y}.png`,
-        color: '#FFD700',
+        tileUrl: `${TILES_BASE_URL}/tiles/clearcut-annual-ari/{region}_{year}/{z}/{x}/{y}.png`,
+        color: '#ff0000',
         mode: 'annual',
         tms: false,
+        cogAuthoritative: true,
+      },
+      // Harvest polygons themselves (utils/generate_ari_harvest_mvt.py), as
+      // vector tiles rather than a raster -- carries YRDEP per feature, so a
+      // click reads the exact harvest year straight off the tile with no
+      // separate lookup. A sub-layer of Accumulated Clearcuts, not an
+      // independent one: parentLayerId keeps it off the map (and off the
+      // checkbox, ModuleSelector.jsx) whenever its parent isn't active, and
+      // toggling the parent off takes it with it (see handleLayerToggle).
+      // The archive itself is pre-filtered to the app's own candidate years
+      // (2010, 2015+), not the full ARI history -- matches what the
+      // accumulated/annual rasters can show, so inspecting a polygon never
+      // surfaces a year the map can't otherwise display.
+      {
+        id: 'clearcut-harvest-year-ari',
+        name: 'Inspect harvest year',
+        vectorUrl: `${TILES_BASE_URL}/mvt/wabigoon.pmtiles`,
+        vectorSourceLayer: 'harvest',
+        color: '#FF1493',
+        parentLayerId: 'clearcut-accumulated',
+        // Filters features to (year - ARI_ACCUMULATED_WINDOW_YEARS, year] --
+        // the same window the accumulated raster is showing -- rather than
+        // every inspectable year in the archive at once.
+        yearFilterField: 'YRDEP',
+        // An option of Accumulated Clearcuts, not a layer in its own right --
+        // toggled from within ClearcutDetection's own panel (see moduleData's
+        // onToggleInspectHarvest) instead of the left-hand layer list. Still
+        // a real entry in `layers` so the existing activeLayers/vectorLayers
+        // construction and parent-cascade logic need no special-casing.
+        hideFromLayerList: true,
       },
     ],
   },
@@ -696,7 +747,15 @@ function App() {
     setActiveLayers((prev) => {
       const current = prev[moduleId] || [];
       if (current.includes(layerId)) {
-        return { ...prev, [moduleId]: current.filter((l) => l !== layerId) };
+        // A sub-layer (parentLayerId) has no reason to stay active once its
+        // parent is gone -- the render loop below wouldn't draw it anyway,
+        // and leaving it "on" in state would make its checkbox look checked
+        // while disabled with nothing on the map to show for it.
+        const module = MODULES.find((m) => m.id === moduleId);
+        const childIds = new Set(
+          (module?.layers || []).filter((l) => l.parentLayerId === layerId).map((l) => l.id),
+        );
+        return { ...prev, [moduleId]: current.filter((l) => l !== layerId && !childIds.has(l)) };
       }
       return { ...prev, [moduleId]: [...current, layerId] };
     });
@@ -791,14 +850,6 @@ function App() {
     setModuleYears((prev) => ({ ...prev, wildfire: nearest }));
   }, [wildfireYearOptions, selectedYear, selectedModule]);
 
-  useEffect(() => {
-    const handleOpacityChange = (e) => {
-      setRasterOpacity(e.detail.opacity);
-    };
-
-    window.addEventListener('opacityChange', handleOpacityChange);
-    return () => window.removeEventListener('opacityChange', handleOpacityChange);
-  }, []);
 
 
   const mapMaxZoom = basemapMode === 'satellite' ? TILE_ZOOM_RANGE.max : LIGHT_BASEMAP_MAX_ZOOM;
@@ -1012,17 +1063,44 @@ function App() {
 
     const rasterLayers = [];
     const cogLayers = [];
+    const vectorLayers = [];
 
     MODULES.forEach((module) => {
-      (activeLayers[module.id] || []).forEach((layerId) => {
-        const layer = module.layers?.find((l) => l.id === layerId);
-        // Not `rasterRegions.length === 0`: caribou in range mode draws from the
-        // selected ranges and needs no FMU selection at all, so that guard hid
-        // the layer entirely when a range was toggled with no FMU chosen. The
-        // per-layer region list below is the real emptiness check.
-        if (!layer) return;
+      const moduleActiveLayerIds = activeLayers[module.id] || [];
+      // Iterates module.layers (fixed definition order) rather than
+      // activeLayers[module.id] (toggle order) -- draw order otherwise
+      // depended on which layer got switched on first, so accumulated could
+      // end up painted over annual or vice versa depending on click order.
+      // Definition order is the actual z-order contract: annual is listed
+      // after accumulated in MODULES specifically so it always draws on top.
+      (module.layers || []).forEach((layer) => {
+        if (!moduleActiveLayerIds.includes(layer.id)) return;
 
         const moduleYear = moduleYears[module.id] || selectedYear;
+
+        // Vector (PMTiles) layers carry no region/year in their URL -- one
+        // archive covers every region and the full year range already, tiled
+        // spatially -- so they skip the per-region-year raster machinery below
+        // entirely rather than being forced through a loop built for it. The
+        // features themselves still get a year filter, though: this layer is
+        // a sub-layer of Accumulated Clearcuts, so it should only ever show
+        // what that raster is currently showing, not every inspectable year
+        // in the archive at once.
+        if (layer.vectorUrl) {
+          if (layer.parentLayerId && !moduleActiveLayerIds.includes(layer.parentLayerId)) return;
+          vectorLayers.push({
+            id: layer.id,
+            url: layer.vectorUrl,
+            sourceLayer: layer.vectorSourceLayer,
+            color: layer.color,
+            filter: layer.yearFilterField
+              ? ['all',
+                  ['>', ['get', layer.yearFilterField], moduleYear - ARI_ACCUMULATED_WINDOW_YEARS],
+                  ['<=', ['get', layer.yearFilterField], moduleYear]]
+              : undefined,
+          });
+          return;
+        }
 
         // Caribou is the one layer whose unit is not the FMU. With ranges
         // selected it draws per RANGE, because an FMU pyramid carries every
@@ -1177,7 +1255,7 @@ function App() {
       });
     });
 
-    return { rasterLayers, cogLayers };
+    return { rasterLayers, cogLayers, vectorLayers };
   }, [activeLayers, rasterRegions, caribouRasterRegions, selectedRanges,
       moduleYears, selectedYear, cogCoverageByPrefix,
       clearcutRegions, tileCoverage, playing, timelineYears]);
@@ -1195,7 +1273,6 @@ function App() {
 
   const moduleData = {
     percentage: clearcutPercent,
-    opacity: rasterOpacity,
     biomassHistogram,
     activeLayerSummary,
     selectedFMUs,
@@ -1210,6 +1287,14 @@ function App() {
     useCogClearcut: USE_COG,
     drawingStats,
   };
+
+  // "Inspect harvest year" reads as an option OF Accumulated Clearcuts, not a
+  // layer of its own -- it's the <MapDisplayOptions> extra slot for the
+  // clearcut module (see the render below), not a left-hand-panel layer row.
+  // Still backed by the same activeLayers/handleLayerToggle state (including
+  // the parent-off-turns-child-off cascade) rather than a parallel toggle.
+  const inspectHarvestActive = (activeLayers.clearcut || []).includes('clearcut-harvest-year-ari');
+  const accumulatedActive = (activeLayers.clearcut || []).includes('clearcut-accumulated');
 
   const handleModuleSelect = useCallback((module) => {
     setSelectedModuleId(module.id);
@@ -1333,16 +1418,44 @@ function App() {
             </div>
           )}
 
-          {/* The year drives what is drawn, so it lives with the map rather than
-              in the module panel -- and stays reachable while the panel is
-              showing a chart or the AI agent. */}
-          <MapTimeline
-            years={timelineYears}
-            selectedYear={selectedYear}
-            onYearChange={handleYearChange}
-            onPlayingChange={setPlaying}
-            loading={tilesBusy}
-          />
+          {/* Both docked above the map, stacked in one positioned column so
+              the pair moves as a unit -- MapDisplayOptions is common to every
+              module (opacity applies to whatever is drawn, not to whichever
+              module the panel happens to be showing) for the same reason the
+              year timeline itself lives on the map rather than in the panel. */}
+          <div className="map-bottom-controls">
+            <MapDisplayOptions
+              opacity={rasterOpacity}
+              onOpacityChange={setRasterOpacity}
+              extra={selectedModule?.id === 'clearcut' ? (
+                <label
+                  htmlFor="inspect-harvest-toggle"
+                  className="map-display-options-checkbox"
+                  title={
+                    accumulatedActive
+                      ? 'Click a stand on the map to see its harvest year'
+                      : 'Turn on Accumulated Clearcuts to inspect stands'
+                  }
+                >
+                  <input
+                    id="inspect-harvest-toggle"
+                    type="checkbox"
+                    checked={inspectHarvestActive}
+                    disabled={!accumulatedActive}
+                    onChange={() => handleLayerToggle('clearcut', 'clearcut-harvest-year-ari')}
+                  />
+                  Inspect harvest year
+                </label>
+              ) : null}
+            />
+            <MapTimeline
+              years={timelineYears}
+              selectedYear={selectedYear}
+              onYearChange={handleYearChange}
+              onPlayingChange={setPlaying}
+              loading={tilesBusy}
+            />
+          </div>
 
           <MapSourcesInfo onOpenDocumentation={() => setActivePage('documentation')} />
 
@@ -1402,6 +1515,7 @@ function App() {
                 rangeBoundaries={caribouRangeGeoJson}
                 rasterLayers={maplibreLayers.rasterLayers}
                 cogLayers={maplibreLayers.cogLayers}
+                vectorLayers={maplibreLayers.vectorLayers}
                 rasterOpacity={rasterOpacity}
                 mapRef={mapRef}
                 onMapReady={() => setMapReady(true)}
@@ -1459,9 +1573,15 @@ function App() {
 
             {MODULES.flatMap((module) => {
               const moduleActiveLayers = activeLayers[module.id] || [];
-              return moduleActiveLayers.flatMap((layerId) => {
-                const layer = module.layers?.find((l) => l.id === layerId);
-                if (!layer) return null;
+              // module.layers order, not moduleActiveLayers (toggle) order --
+              // same reasoning as the MapLibre branch above: draw order must
+              // not depend on which layer was switched on first.
+              return (module.layers || []).flatMap((layer) => {
+                if (!moduleActiveLayers.includes(layer.id)) return null;
+                // Vector (PMTiles) layers only exist on the MapLibre path --
+                // this Leaflet branch has no PMTiles rendering, and layer.tileUrl
+                // is undefined for them, so skip rather than crash on it below.
+                if (layer.vectorUrl) return null;
 
                 // Range mode addresses tiles by range rather than by FMU, so the
                 // region list and the URL template have to change together.

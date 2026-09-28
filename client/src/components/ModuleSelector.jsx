@@ -128,19 +128,32 @@ function ModuleSelector({
                 </button>
                 {isExpanded && module.layers && (
                   <div className="module-options" role="group" aria-label={`${module.name} layers`}>
-                    {module.layers.map((layer) => (
-                      <label key={layer.id} className="switch range-switch module-switch" htmlFor={`module-layer-${module.id}-${layer.id}`}>
-                        <span className="range-name module-switch-name">{layer.name}</span>
-                        <input
-                          id={`module-layer-${module.id}-${layer.id}`}
-                          type="checkbox"
-                          role="switch"
-                          checked={moduleActiveLayers.includes(layer.id)}
-                          onChange={() => onLayerToggle(module.id, layer.id)}
-                        />
-                        <span className="switch-track" aria-hidden="true" />
-                      </label>
-                    ))}
+                    {module.layers.filter((layer) => !layer.hideFromLayerList).map((layer) => {
+                      // A sub-layer (parentLayerId) only makes sense with its
+                      // parent on -- disabled rather than hidden, so its
+                      // existence and dependency are visible even when it
+                      // can't be toggled yet.
+                      const parentActive = !layer.parentLayerId
+                        || moduleActiveLayers.includes(layer.parentLayerId);
+                      return (
+                        <label
+                          key={layer.id}
+                          className={`switch range-switch module-switch${layer.parentLayerId ? ' module-switch--sub' : ''}`}
+                          htmlFor={`module-layer-${module.id}-${layer.id}`}
+                        >
+                          <span className="range-name module-switch-name">{layer.name}</span>
+                          <input
+                            id={`module-layer-${module.id}-${layer.id}`}
+                            type="checkbox"
+                            role="switch"
+                            checked={moduleActiveLayers.includes(layer.id)}
+                            disabled={!parentActive}
+                            onChange={() => onLayerToggle(module.id, layer.id)}
+                          />
+                          <span className="switch-track" aria-hidden="true" />
+                        </label>
+                      );
+                    })}
                   </div>
                 )}
               </div>

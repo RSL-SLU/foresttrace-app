@@ -430,12 +430,14 @@ function ClearcutDetection({ data }) {
                   label={{ value: 'window filling', position: 'insideTop', fontSize: 10, fill: '#64748b' }}
                 />
               )}
-              <Bar dataKey="historical" stackId="a" fill="#ff4444" name="historical">
+              {/* Colors inverted from the ML layer's original red=historical,
+                  gold=annual -- matches the map layers and legend below. */}
+              <Bar dataKey="historical" stackId="a" fill="#FFD700" name="historical">
                 {chartData.map(d => (
                   <Cell key={d.year} fillOpacity={windowMeta[d.year]?.comparable === false ? 0.45 : 1} />
                 ))}
               </Bar>
-              <Bar dataKey="annual" stackId="a" fill="#FFD700" name="annual" radius={[2, 2, 0, 0]}>
+              <Bar dataKey="annual" stackId="a" fill="#ff4444" name="annual" radius={[2, 2, 0, 0]}>
                 {chartData.map(d => (
                   <Cell key={d.year} fillOpacity={windowMeta[d.year]?.comparable === false ? 0.45 : 1} />
                 ))}
@@ -479,34 +481,13 @@ function ClearcutDetection({ data }) {
       </div>
 
       <div className="module-section">
-        <h3>Display Options</h3>
-        <div className="control-group">
-          <label htmlFor="opacity-slider">Overlay Opacity</label>
-          <input
-            id="opacity-slider"
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            defaultValue="0.50"
-            className="slider"
-            onChange={(e) => {
-              window.dispatchEvent(new CustomEvent('opacityChange', {
-                detail: { opacity: parseFloat(e.target.value) },
-              }));
-            }}
-          />
-        </div>
-      </div>
-
-      <div className="module-section">
         <h3>Legend</h3>
         <div className="legend-item">
-          <span className="legend-color red" />
+          <span className="legend-color yellow" />
           <span>Accumulated Clearcut Area</span>
         </div>
         <div className="legend-item">
-          <span className="legend-color yellow" />
+          <span className="legend-color red" />
           <span>New Clearcut Area (error bars from precision/recall)</span>
         </div>
         <div className="legend-item">

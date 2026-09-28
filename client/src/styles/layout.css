@@ -143,6 +143,20 @@ body.dark-mode .resize-handle--active::after {
   font-size: 12px;
 }
 
+/* A sub-layer (parentLayerId) reads as belonging to the switch above it. */
+.module-switch--sub {
+  padding-left: 16px;
+}
+
+.module-switch--sub .module-switch-name {
+  color: #888;
+}
+
+.module-switch input:disabled + .switch-track {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .module-option {
   display: flex;
   align-items: center;

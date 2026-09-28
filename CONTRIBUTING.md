@@ -22,8 +22,9 @@ foresttrace-app/
 │       └── utils/
 │           └── clearcutAreaStats.js # Stats helpers (reads clearcut_stats.json)
 ├── api/                             # Vercel serverless functions
-├── package.json                     # Root: Express dev server + tile scripts
-└── .env.r2.example                  # Template for R2 credentials
+├── package.json                     # Root: Express dev server + tile & COG scripts
+├── .env.r2.example                  # Template for R2 credentials (tiles & dev alternative)
+└── .env.vercel.example              # Template for Vercel Blob credentials (production COGs)
 ```
 
 ## Development setup
@@ -318,54 +319,94 @@ set to the R2 bucket in production.
 
 ---
 
-## COG availability manifest
+## Vercel Pro Storage for Production COGs
 
-`cogs/manifest.json` on R2 lists which region/year COGs exist, per versioned
-prefix. The app reads it before requesting any COG; without it, selecting all
-39 FMUs issued ~195 HEAD probes at once and left the FMU boundaries queued
-behind lookups for regions that have no COGs at all.
+Production deployments host Cloud-Optimized GeoTIFFs (COGs) and the COG availability manifest on **Vercel Pro Storage (Vercel Blob)**. Cloudflare R2 serves raster tile pyramids and acts as an alternative/fallback for local development.
 
-It is **generated, never committed** — it describes the bucket rather than the
-source tree, so a checked-in copy goes stale the moment anyone uploads.
-`client/public/cogs/` is gitignored, and development reads the published
-manifest through the `/cogs` dev proxy.
+### 1. Setting up Vercel Blob credentials
 
-`upload-cogs.js` re-indexes automatically whenever it uploads to a `cogs/`
-prefix, so the manifest cannot drift from the bucket in normal use. Run it by
-hand after any other change to the bucket:
+Copy `.env.vercel.example` to `.env.vercel` in the project root:
 
 ```bash
-node generate-cog-manifest.js --dry-run   # show what it would publish
-node generate-cog-manifest.js             # rebuild from R2 and publish
+cp .env.vercel.example .env.vercel
 ```
 
-A region whose COGs are on the bucket but absent from the manifest is treated as
-having none, and falls back to the PNG pyramid silently — the map still draws,
-so nothing looks broken. That is why the re-index is automatic rather than a
-documented step.
+```ini
+# .env.vercel — never commit this file
+BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...   # Vercel Dashboard → Project/Team → Storage → Blob Store
+VERCEL_BLOB_BASE_URL=https://<id>.public.blob.vercel-storage.com
+```
 
-If the manifest is missing entirely the app falls back to HEAD-probing each
-region, which is correct but slow; that path exists so a bucket that has never
-been indexed still works.
+### 2. Uploading COGs to Vercel Blob
+
+Use `upload-cogs-vercel.js` to upload local `.tif`, `.tiff`, and sidecar `.json` files directly to Vercel Blob:
+
+```bash
+node upload-cogs-vercel.js ./cogs cogs/clearcut-accumulated-ari
+```
+
+This script:
+- Sets `addRandomSuffix: false` and `allowOverwrite: true` so filenames match conventions.
+- Sets standard COG headers (`Content-Type: image/tiff`, `Cache-Control: public, max-age=31536000, immutable`).
+- **Automatically re-indexes** `cogs/manifest.json` on Vercel Blob upon completion.
+
+### 3. Migrating existing files from Cloudflare R2 to Vercel
+
+If you already have COGs or assets on Cloudflare R2, use `migrate-r2-to-vercel.js` to stream them directly to Vercel Blob without downloading to disk:
+
+```bash
+# Preview what will be migrated without transferring
+node migrate-r2-to-vercel.js --dry-run
+
+# Migrate all files under cogs/ (default) and rebuild the manifest
+node migrate-r2-to-vercel.js
+
+# Migrate another prefix or all bucket contents
+node migrate-r2-to-vercel.js --prefix data/patches/
+node migrate-r2-to-vercel.js --all
+```
+
+Requirements for migration:
+- `.env.r2` configured with Cloudflare R2 credentials
+- `.env.vercel` (or `.env`) configured with `BLOB_READ_WRITE_TOKEN`
+
+---
+
+## COG availability manifest
+
+`cogs/manifest.json` lists which region/year COGs exist, per versioned prefix. The app reads it before requesting any COG; without it, selecting all 39 FMUs issued ~195 HEAD probes at once and left the FMU boundaries queued behind lookups for regions that have no COGs at all.
+
+It is **generated, never committed** — it describes the storage bucket/store rather than the source tree, so a checked-in copy goes stale the moment anyone uploads.
+
+- **For Vercel Blob (Production)**:
+  `upload-cogs-vercel.js` and `migrate-r2-to-vercel.js` rebuild it automatically. You can also re-index manually:
+  ```bash
+  node generate-cog-manifest-vercel.js --dry-run   # preview manifest
+  node generate-cog-manifest-vercel.js             # rebuild and publish to Vercel Blob
+  ```
+
+- **For Cloudflare R2 (Local dev fallback / alternative)**:
+  ```bash
+  node generate-cog-manifest.js --dry-run
+  node generate-cog-manifest.js
+  ```
 
 ---
 
 ## Deployment
 
-The app is deployed on Vercel. Pushes to `main` trigger automatic deploys.
-Serverless API routes live under `api/` and are deployed as Vercel Functions.
+The app is deployed on Vercel. Pushes to `main` trigger automatic deploys. Serverless API routes live under `api/` and are deployed as Vercel Functions.
 
 Environment variables required in Vercel project settings:
 
-| Variable | Purpose |
-|----------|---------|
-| `REACT_APP_TILES_BASE_URL` | R2 public CDN URL for tiles |
-| `REACT_APP_DATA_BASE_URL` | R2 public CDN URL for data files |
-| `REACT_APP_GOOGLE_MAPS_API_KEY` | Google Places search (client-side) |
-| `GROQ_API_KEY` | ForestryAI assistant — read server-side only, in `api/chat.js` |
-| `MONGODB_URI` | Optional chat message logging (server-side only) |
+| Variable | Required In | Purpose |
+|----------|-------------|---------|
+| `REACT_APP_COG_BASE_URL` | Production (Vercel) | Vercel Blob store public base URL (`https://<id>.public.blob.vercel-storage.com`) |
+| `BLOB_READ_WRITE_TOKEN` | Production & Build/CLI | Vercel Blob store access token (generated in Vercel Storage) |
+| `REACT_APP_TILES_BASE_URL` | Production (Vercel) | R2 public CDN URL for raster tile pyramids |
+| `REACT_APP_DATA_BASE_URL` | Production (Vercel) | R2 public CDN URL for data files (or local fallback) |
+| `REACT_APP_GOOGLE_MAPS_API_KEY` | Client (Browser) | Google Places search |
+| `GROQ_API_KEY` | Serverless (`api/chat.js`) | ForestryAI assistant — read server-side only |
+| `VERCEL_MONGODB_URI` | Serverless (`api/chat.js`) | Optional chat message logging (falls back to `MONGODB_URI` if unset) |
 
-`GROQ_API_KEY` and `MONGODB_URI` must **not** use the `REACT_APP_` prefix —
-that prefix causes Create React App to bundle the value into the client
-JavaScript, exposing it in the browser. None of these go in a committed
-`.env` file.
+`GROQ_API_KEY`, `VERCEL_MONGODB_URI`, and `BLOB_READ_WRITE_TOKEN` must **not** use the `REACT_APP_` prefix — that prefix causes Create React App to bundle the value into the client JavaScript, exposing it in the browser. None of these go in a committed `.env` file.
