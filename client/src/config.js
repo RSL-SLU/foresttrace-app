@@ -6,17 +6,17 @@
  *                           e.g. https://pub-<id>.r2.dev
  */
 
-// Base URL for all raster tiles. No trailing slash.
-export const TILES_BASE_URL = process.env.REACT_APP_TILES_BASE_URL || '';
+const appMode = (process.env.REACT_APP_MODE || process.env.REACT_APP_APP_MODE || '').toLowerCase();
+const isForcedLocal = appMode === 'local' || appMode === 'development' || appMode === 'dev';
+
+// Base URL for all raster tiles. No trailing slash. Empty string uses local proxy / disk.
+export const TILES_BASE_URL = isForcedLocal ? '' : (process.env.REACT_APP_TILES_BASE_URL || '');
 
 // Base URL for static data files (GeoJSON, etc.). No trailing slash.
-export const DATA_BASE_URL = process.env.REACT_APP_DATA_BASE_URL || '';
+export const DATA_BASE_URL = isForcedLocal ? '' : (process.env.REACT_APP_DATA_BASE_URL || '');
 
-// Base URL for Cloud Optimized GeoTIFFs. Separate from TILES_BASE_URL because
-// COGs are range-read cross-origin by the browser, so their host needs a CORS
-// policy that the PNG tile host does not -- keeping them separable means the two
-// can live on different buckets or domains during the migration.
-export const COG_BASE_URL = process.env.REACT_APP_COG_BASE_URL || TILES_BASE_URL;
+// Base URL for Cloud Optimized GeoTIFFs.
+export const COG_BASE_URL = isForcedLocal ? '' : (process.env.REACT_APP_COG_BASE_URL || TILES_BASE_URL);
 
 // Maps a module layer id to its COG prefix. The two clearcut products are
 // genuinely different rasters, not two renderings of one:
@@ -58,10 +58,12 @@ export const COG_BASE_URL = process.env.REACT_APP_COG_BASE_URL || TILES_BASE_URL
 // kept below, commented, rather than deleted: swapping the two active lines
 // back is the entire revert once inference is back in the picture.
 const COG_PREFIX_BY_LAYER = {
-  'clearcut-annual': 'clearcut-annual-ari',
+  // Official Provincial Inventory (ARI ground-truth harvest)
   'clearcut-accumulated': 'clearcut-accumulated-ari',
-  // 'clearcut-annual': 'clearcut-annual',
-  // 'clearcut-accumulated': 'clearcut-accumulated-v4',
+  'clearcut-annual': 'clearcut-annual-ari',
+  // Satellite Deep-Learning Detections (HLS ML v4 / v5 Beta)
+  'clearcut-ml-accumulated': 'clearcut-accumulated-v4',
+  'clearcut-ml-annual': 'clearcut-annual',
   'wildfire-burned': 'wildfire-v3',
   'caribou-habitat': 'caribou-v1',
   'caribou-habitat-fmu': 'caribou-fmu-v1',
@@ -100,7 +102,10 @@ export function cogPrefixForLayer(layerId, { caribouRangeMode = false } = {}) {
  * other.
  */
 export function coveragePrefixForLayer(layerId, opts) {
-  if (layerId === 'clearcut-annual') return COG_PREFIX_FOR_COVERAGE;
+  // Each product has its own separate entry in the availability manifest.
+  // Gating each layer against its own prefix prevents requesting years that
+  // exist in one product (e.g. accumulated ARI 2024-2025) but not in another
+  // (e.g. annual ARI, which currently extends through 2023).
   return cogPrefixForLayer(layerId, opts);
 }
 

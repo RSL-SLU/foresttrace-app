@@ -87,7 +87,7 @@ function LandingPage({ onEnter, onOpenAbout, onOpenNews, onOpenDocumentation }) 
     <div className="landing">
 
       {/* ── Hero ─────────────────────────────────────────── */}
-      <section className="landing-hero">
+      <section className="landing-hero" id="overview">
         <div className="landing-hero-content">
           <a href="https://www.remotesensinglab.org" rel="noopener noreferrer">
             <img
@@ -139,7 +139,7 @@ function LandingPage({ onEnter, onOpenAbout, onOpenNews, onOpenDocumentation }) 
       </section>
 
       {/* ── Methods ──────────────────────────────────────── */}
-      <section className="landing-section">
+      <section className="landing-section" id="methodology">
         <p className="landing-section-title">Methodology</p>
         <h2 className="landing-section-heading">Platform Capabilities</h2>
         <div className="landing-cards">
@@ -157,7 +157,7 @@ function LandingPage({ onEnter, onOpenAbout, onOpenNews, onOpenDocumentation }) 
       </section>
 
       {/* ── About ────────────────────────────────────────── */}
-      <section className="landing-section">
+      <section className="landing-section" id="about">
         <p className="landing-section-title">About</p>
         <h2 className="landing-section-heading">Team and Institution</h2>
         <div className="landing-about">
@@ -211,7 +211,7 @@ function LandingPage({ onEnter, onOpenAbout, onOpenNews, onOpenDocumentation }) 
       </section>
 
       {/* ── News ─────────────────────────────────────────── */}
-      <section className="landing-section">
+      <section className="landing-section" id="news">
         <p className="landing-section-title">News</p>
         <h2 className="landing-section-heading">Latest Updates</h2>
         <div className="landing-cards">
@@ -229,7 +229,7 @@ function LandingPage({ onEnter, onOpenAbout, onOpenNews, onOpenDocumentation }) 
       </section>
 
       {/* ── Contact ──────────────────────────────────────── */}
-      <section className="landing-section landing-contact-section">
+      <section className="landing-section landing-contact-section" id="contact">
         <p className="landing-section-title">Contact</p>
         <h2 className="landing-section-heading">Get in Touch</h2>
         <p className="landing-about-text" style={{ marginBottom: 12 }}>

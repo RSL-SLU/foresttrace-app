@@ -1,20 +1,11 @@
 const path = require('path');
 try { require('dotenv').config({ path: path.join(__dirname, '..', '.env') }); } catch (_) { /* not available in production */ }
 const Groq = require('groq-sdk');
-const { MongoClient } = require('mongodb');
-
-// Reuse the connection across warm invocations
-let _mongoClient = null;
-const getMongoUri = () => process.env.VERCEL_MONGODB_URI || process.env.MONGODB_URI;
-
-async function getCollection() {
-  const uri = getMongoUri();
-  if (!_mongoClient && uri) {
-    _mongoClient = new MongoClient(uri);
-    await _mongoClient.connect();
-  }
-  return _mongoClient.db('foresttrace').collection('chat_messages');
-}
+const {
+  getCollection,
+  getUserFromRequest,
+  getMongoUri,
+} = require('./_db');
 
 // Drawing protocol handed to the model.
 //
@@ -198,6 +189,43 @@ function buildSystemPrompt(context) {
 }
 
 module.exports = async function handler(req, res) {
+  // 1. GET: Return personal chat history for the authenticated user
+  if (req.method === 'GET') {
+    const user = getUserFromRequest(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Authentication required to view chat history.' });
+    }
+    if (!getMongoUri()) {
+      return res.status(503).json({ error: 'Database service unavailable' });
+    }
+    try {
+      const col = await getCollection('chat_messages');
+      const history = await col
+        .find({
+          $or: [
+            { userId: user.id },
+            { userEmail: (user.email || '').toLowerCase() },
+          ],
+        })
+        .sort({ timestamp: -1 })
+        .limit(50)
+        .toArray();
+
+      return res.status(200).json({
+        history: history.map((h) => ({
+          id: h._id.toString(),
+          message: h.message,
+          response: h.response || null,
+          context: h.context,
+          timestamp: h.timestamp,
+        })),
+      });
+    } catch (err) {
+      console.error('[Chat History Error]', err);
+      return res.status(500).json({ error: 'Failed to retrieve chat history' });
+    }
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -212,18 +240,7 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: 'GROQ_API_KEY is not configured on the server' });
   }
 
-  // Log the latest user message — fire and forget, never blocks the response
-  const lastUserMessage = [...messages].reverse().find(m => m.role === 'user');
-  if (lastUserMessage && getMongoUri()) {
-    getCollection()
-      .then(col => col.insertOne({
-        message: lastUserMessage.content,
-        context: context || null,
-        timestamp: new Date(),
-      }))
-      .catch(err => console.error('MongoDB log error:', err));
-  }
-
+  const currentUser = getUserFromRequest(req);
   const client = new Groq({ apiKey });
 
   const groqMessages = [
@@ -235,14 +252,26 @@ module.exports = async function handler(req, res) {
     const response = await client.chat.completions.create({
       model: 'qwen/qwen3.8-27b',
       messages: groqMessages,
-      // Groq enforces an output-tokens-per-minute ceiling per org, and rejects
-      // the request up front if max_tokens exceeds it -- nothing is generated,
-      // so the cost of asking for too much is a hard 429 rather than a truncated
-      // answer. The on-demand tier allows 1000; 1024 failed every call.
       max_tokens: Number(process.env.GROQ_MAX_TOKENS) || 900,
     });
 
     const text = response.choices[0].message.content;
+
+    // Log the user message and assistant reply with user provenance
+    const lastUserMessage = [...messages].reverse().find(m => m.role === 'user');
+    if (lastUserMessage && getMongoUri()) {
+      getCollection('chat_messages')
+        .then(col => col.insertOne({
+          userId: currentUser?.id || null,
+          userEmail: currentUser?.email || null,
+          message: lastUserMessage.content,
+          response: text,
+          context: context || null,
+          timestamp: new Date(),
+        }))
+        .catch(err => console.error('MongoDB log error:', err));
+    }
+
     return res.json({ content: text });
   } catch (err) {
     console.error('Groq API error:', err);

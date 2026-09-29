@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { id: 'biomass',   label: 'Biomass Estimation' },
   { id: 'tiles',     label: 'Tile Architecture' },
   { id: 'ai',        label: 'AI Assistant' },
+  { id: 'auth',      label: 'Accounts & Security' },
   { id: 'stats',     label: 'Area Statistics' },
   { id: 'crs',       label: 'Coordinate System' },
   { id: 'oss',       label: 'Open Source' },
@@ -289,13 +290,32 @@ function DocumentationPage({ onBack }) {
               ['Model',           'Meta Llama 3.1 8B Instant (llama-3.1-8b-instant) — an 8-billion parameter instruction-tuned model optimised for low-latency responses.'],
               ['Context injection','Each request includes the active module, selected year, sensor, and region so the model can ground its answers in the current map state.'],
               ['Max tokens',      '1 024 tokens per response.'],
-              ['Logging',         'User queries are logged to MongoDB Atlas for research and quality-improvement purposes.'],
+              ['Logging & History','User queries and AI responses are securely saved to MongoDB Atlas, allowing authenticated users to review past analyses via "My AI Chats".'],
             ]} />
           </div>
 
           <hr className="infopage-divider" />
 
-          {/* ── 8. Area Statistics ── */}
+          {/* ── 8. Accounts & Security ── */}
+          <div id="auth" ref={s('auth')} className="infopage-section">
+            <h2>User Accounts &amp; Platform Security</h2>
+            <p>
+              ForestTrace integrates role-based access control, secure authentication, and administrative
+              oversight to facilitate research collaborations while maintaining system security.
+            </p>
+            <DefTable rows={[
+              ['Authentication',   'Email registration with 6-digit confirmation codes, passwordless login tokens, or standard email/password authentication.'],
+              ['Role hierarchy',   'Admin (full user administration, role assignment, and platform statistics), Analyst (extended analytical tools and layer access), and Standard User (interactive maps and AI assistant).'],
+              ['Admin bootstrap',  'When connecting to an empty database (such as a new deployment or dev instance), the platform provides a guided first-run setup wizard to initialize the first Administrator account.'],
+              ['Session tokens',   'Signed JSON Web Tokens (JWT) with secure expiration policies, stored client-side for authenticated API requests.'],
+              ['Issue reporting',  'Integrated bug and feedback reporter captures interactive map context (active layers, year, FMU coordinates, and browser details) for rapid diagnostic triage.'],
+              ['Email service',    'Powered by Resend for transactional delivery, with automatic terminal console fallback during local development when API credentials are omitted.'],
+            ]} />
+          </div>
+
+          <hr className="infopage-divider" />
+
+          {/* ── 9. Area Statistics ── */}
           <div id="stats" ref={s('stats')} className="infopage-section">
             <h2>Area Statistics</h2>
             <DefTable rows={[
@@ -314,7 +334,7 @@ function DocumentationPage({ onBack }) {
 
           <hr className="infopage-divider" />
 
-          {/* ── 9. Coordinate System ── */}
+          {/* ── 10. Coordinate System ── */}
           <div id="crs" ref={s('crs')} className="infopage-section">
             <h2>Coordinate Reference System</h2>
             <p>
@@ -325,7 +345,7 @@ function DocumentationPage({ onBack }) {
             </p>
           </div>
 
-          {/* ── 10. Open Source ── */}
+          {/* ── 11. Open Source ── */}
           <div id="oss" ref={s('oss')} className="infopage-section">
             <h2>Open Source</h2>
             <div className="infopage-callout">

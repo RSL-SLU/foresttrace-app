@@ -26,6 +26,11 @@ import BiomassModule from './modules/BiomassModule';
 import WildfireModule from './modules/WildfireModule';
 import CaribouHabitatModule from './modules/CaribouHabitatModule';
 import RasterTileLayer from './components/RasterTileLayer';
+import { useAuth } from './context/AuthContext';
+import AuthModal from './components/AuthModal';
+import AdminDashboard from './components/AdminDashboard';
+import UserChatHistoryModal from './components/UserChatHistoryModal';
+import BugReportModal from './components/BugReportModal';
 import { handleLocateUser } from './utils/mapUtils';
 import { CLEARCUT_SENSOR_SUBFOLDER_YEARS, DEFAULT_CLEARCUT_SENSOR, getRegionsWithClearcutData } from './utils/clearcutAreaStats';
 import { createEmptyBiomassHistogram } from './utils/biomassHistogram';
@@ -34,7 +39,7 @@ import { WILDFIRE_CLASSES, WILDFIRE_CLASS_ID, WILDFIRE_VISIBLE_CLASSES } from '.
 import { CARIBOU_CLASSES, CARIBOU_VISIBLE_CLASSES } from './utils/caribouClasses';
 import { getFmusForRanges, rangeColor, CARIBOU_RANGES } from './utils/caribouStats';
 import {
-  TILES_BASE_URL, DATA_BASE_URL,
+  TILES_BASE_URL, DATA_BASE_URL, COG_BASE_URL,
   cogPrefixForLayer, coveragePrefixForLayer, cogUrlForPrefix,
 } from './config';
 import useRegionBoundaries from './hooks/useRegionBoundaries';
@@ -213,7 +218,7 @@ const MODULES = [
       {
         id: 'clearcut-harvest-year-ari',
         name: 'Inspect harvest year',
-        vectorUrl: `${TILES_BASE_URL}/mvt/wabigoon.pmtiles`,
+        vectorUrl: `${COG_BASE_URL || TILES_BASE_URL}/mvt/wabigoon.pmtiles`,
         vectorSourceLayer: 'harvest',
         color: '#FF1493',
         parentLayerId: 'clearcut-accumulated',
@@ -227,6 +232,25 @@ const MODULES = [
         // a real entry in `layers` so the existing activeLayers/vectorLayers
         // construction and parent-cascade logic need no special-casing.
         hideFromLayerList: true,
+      },
+      // Satellite Deep Learning Detections (HLS ML model) for side-by-side comparison
+      {
+        id: 'clearcut-ml-accumulated',
+        name: 'AI Model: Accumulated Cuts',
+        tileUrl: `${TILES_BASE_URL}/tiles/clearcut/{region}_{year}/{z}/{x}/{y}.png`,
+        color: '#00e5ff',
+        mode: 'accumulated',
+        tms: false,
+        cogAuthoritative: true,
+      },
+      {
+        id: 'clearcut-ml-annual',
+        name: 'AI Model: Annual Cuts',
+        tileUrl: `${TILES_BASE_URL}/tiles/clearcut-annual/{region}_{year}/{z}/{x}/{y}.png`,
+        color: '#ff007f',
+        mode: 'annual',
+        tms: false,
+        cogAuthoritative: true,
       },
     ],
   },
@@ -599,6 +623,11 @@ function MaxZoomController({ maxZoom }) {
 }
 
 function App() {
+  const { isAuthenticated, isInitialized, loading, openAuthModal, token } = useAuth();
+  const [adminDashboardOpen, setAdminDashboardOpen] = useState(false);
+  const [chatHistoryOpen, setChatHistoryOpen] = useState(false);
+  const [bugReportOpen, setBugReportOpen] = useState(false);
+
   const [showApp, setShowApp] = useState(false);
   const [activePage, setActivePage] = useState(null);
   const mapRef = useRef(null);
@@ -607,6 +636,31 @@ function App() {
   const [tilesLoading, setTilesLoading] = useState(false);
   const hidingTimerRef = useRef(null);
   const showingTimerRef = useRef(null);
+
+  // If platform has no admin configured, automatically prompt for initial admin setup on first launch
+  const initialPromptDoneRef = useRef(false);
+  useEffect(() => {
+    if (!loading && isInitialized === false && !isAuthenticated && !initialPromptDoneRef.current) {
+      initialPromptDoneRef.current = true;
+      openAuthModal('bootstrap');
+    }
+  }, [loading, isInitialized, isAuthenticated, openAuthModal]);
+
+  // Automatically transition into the map when the user completes authentication
+  const prevAuthRef = useRef(isAuthenticated);
+  useEffect(() => {
+    if (!prevAuthRef.current && isAuthenticated && !showApp) {
+      setShowApp(true);
+    }
+    prevAuthRef.current = isAuthenticated;
+  }, [isAuthenticated, showApp]);
+
+  // If user signs out while on map workspace, return to landing page
+  useEffect(() => {
+    if (!isAuthenticated && showApp) {
+      setShowApp(false);
+    }
+  }, [isAuthenticated, showApp]);
   // Shown only if the load is still running after a beat. Most tile loads finish
   // faster than that, and an indicator that flashes on every pan reads as the
   // map fighting you rather than as information.
@@ -652,6 +706,33 @@ function App() {
   const [selectedFMUs, setSelectedFMUs] = useState(['wabigoon']);
   const [allowHeavyRaster, setAllowHeavyRaster] = useState(false);
   const [basemapMode, setBasemapMode] = useState('light'); // 'light' | 'satellite'
+
+  // Track module activation analytics
+  useEffect(() => {
+    if (!selectedModuleId) return;
+    fetch('/api/reports?action=track-module', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ moduleId: selectedModuleId }),
+    }).catch((err) => console.warn('[Analytics tracking]', err));
+  }, [selectedModuleId, token]);
+
+  const handleEnterApp = useCallback(() => {
+    if (!isAuthenticated) {
+      openAuthModal(isInitialized ? 'login' : 'bootstrap');
+    } else {
+      setShowApp(true);
+    }
+  }, [isAuthenticated, isInitialized, openAuthModal]);
+
+  const currentContext = useMemo(() => ({
+    module: selectedModule?.id || 'clearcut',
+    year: selectedYear,
+    fmus: selectedFMUs,
+  }), [selectedModule?.id, selectedYear, selectedFMUs]);
 
   // Disable overview mode for now because the current simplified overview geometry
   // introduces visible boundary artifacts at Ontario-wide scale.
@@ -1333,21 +1414,53 @@ function App() {
 
   if (!showApp) {
     return (
-      <LandingPage
-        onEnter={() => setShowApp(true)}
-        onOpenAbout={() => {
-          setShowApp(true);
-          setActivePage('about');
-        }}
-        onOpenNews={() => {
-          setShowApp(true);
-          setActivePage('news');
-        }}
-        onOpenDocumentation={() => {
-          setShowApp(true);
-          setActivePage('documentation');
-        }}
-      />
+      <div className="app-wrapper">
+        <MobileWarning />
+        <TopMenu
+          isLanding={true}
+          onNavigate={(page) => {
+            setShowApp(true);
+            setActivePage(page);
+          }}
+          onHome={() => {
+            setShowApp(false);
+            setActivePage(null);
+          }}
+          activePage={null}
+          onOpenAdminDashboard={() => setAdminDashboardOpen(true)}
+          onOpenChatHistory={() => setChatHistoryOpen(true)}
+          onOpenBugReport={() => setBugReportOpen(true)}
+        />
+        <LandingPage
+          onEnter={handleEnterApp}
+          onOpenAbout={() => {
+            setShowApp(true);
+            setActivePage('about');
+          }}
+          onOpenNews={() => {
+            setShowApp(true);
+            setActivePage('news');
+          }}
+          onOpenDocumentation={() => {
+            setShowApp(true);
+            setActivePage('documentation');
+          }}
+        />
+        <AuthModal />
+        <AdminDashboard
+          isOpen={adminDashboardOpen}
+          onClose={() => setAdminDashboardOpen(false)}
+        />
+        <UserChatHistoryModal
+          isOpen={chatHistoryOpen}
+          onClose={() => setChatHistoryOpen(false)}
+        />
+        <BugReportModal
+          isOpen={bugReportOpen}
+          onClose={() => setBugReportOpen(false)}
+          currentContext={currentContext}
+        />
+      </div>
     );
   }
 
@@ -1360,16 +1473,33 @@ function App() {
           onNavigate={setActivePage}
           onHome={() => setActivePage(null)}
           activePage={activePage}
+          onOpenAdminDashboard={() => setAdminDashboardOpen(true)}
+          onOpenChatHistory={() => setChatHistoryOpen(true)}
+          onOpenBugReport={() => setBugReportOpen(true)}
         />
         {PageComponent && <PageComponent onBack={() => setActivePage(null)} />}
+        <AuthModal />
+        <AdminDashboard
+          isOpen={adminDashboardOpen}
+          onClose={() => setAdminDashboardOpen(false)}
+        />
+        <UserChatHistoryModal
+          isOpen={chatHistoryOpen}
+          onClose={() => setChatHistoryOpen(false)}
+        />
+        <BugReportModal
+          isOpen={bugReportOpen}
+          onClose={() => setBugReportOpen(false)}
+          currentContext={currentContext}
+        />
       </div>
     );
   }
 
   return (
     <div className="app-wrapper">
-      <SpeedInsights />
-      <Analytics />
+      <SpeedInsights scriptSrc="https://va.vercel-scripts.com/v1/speed-insights/script.js" />
+      <Analytics scriptSrc="https://va.vercel-scripts.com/v1/script.js" />
       <MobileWarning />
       <TopMenu
         onNavigate={setActivePage}
@@ -1378,6 +1508,9 @@ function App() {
           setActivePage(null);
         }}
         activePage={activePage}
+        onOpenAdminDashboard={() => setAdminDashboardOpen(true)}
+        onOpenChatHistory={() => setChatHistoryOpen(true)}
+        onOpenBugReport={() => setBugReportOpen(true)}
       />
       <div className="layout-container">
         <ModuleSelector
@@ -1670,6 +1803,21 @@ function App() {
           </div>
         </div>
       </div>
+
+      <AuthModal />
+      <AdminDashboard
+        isOpen={adminDashboardOpen}
+        onClose={() => setAdminDashboardOpen(false)}
+      />
+      <UserChatHistoryModal
+        isOpen={chatHistoryOpen}
+        onClose={() => setChatHistoryOpen(false)}
+      />
+      <BugReportModal
+        isOpen={bugReportOpen}
+        onClose={() => setBugReportOpen(false)}
+        currentContext={currentContext}
+      />
     </div>
   );
 }

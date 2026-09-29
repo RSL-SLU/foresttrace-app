@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { extractMapAction, actionToFeatures, availableRegionIds } from '../utils/mapActions';
 
 function renderContent(text) {
@@ -50,6 +51,7 @@ function ForestryAIAgent({
   moduleData, selectedModule, selectedYear, selectedFMUs, selectedSensor,
   drawingContext, pendingPrompt, onPromptConsumed, onProposeFeatures, regionsData,
 }) {
+  const { token } = useAuth();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -101,9 +103,14 @@ function ForestryAIAgent({
     setLoading(true);
 
     try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const res = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ messages: outgoing, context }),
       });
 

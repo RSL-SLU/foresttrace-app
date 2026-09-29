@@ -2,10 +2,15 @@
 // Backend setup (NodeJS with Express) and frontend (React)
 
 // === Backend: index.js ===
-require('dotenv').config({ path: require('path').join(__dirname, 'client', '.env') });
-const express = require('express');
 const path = require('path');
+try { require('dotenv').config({ path: path.join(__dirname, '.env') }); } catch (_) {}
+try { require('dotenv').config({ path: path.join(__dirname, '.env.vercel') }); } catch (_) {}
+try { require('dotenv').config({ path: path.join(__dirname, 'client', '.env') }); } catch (_) {}
+const express = require('express');
 const chatHandler = require('./api/chat');
+const authHandler = require('./api/auth');
+const adminHandler = require('./api/admin');
+const reportsHandler = require('./api/reports');
 const app = express();
 // Use PORT 3001 for local dev so CRA dev server can run on 3000 simultaneously
 const PORT = process.env.PORT || 3001;
@@ -33,8 +38,11 @@ app.use((req, _res, next) => {
 });
 app.use(express.static(path.join(__dirname, 'client', 'build')));
 
-// AI chat proxy — keeps ANTHROPIC_API_KEY server-side
-app.post('/api/chat', chatHandler);
+// API routes
+app.all('/api/auth', authHandler);
+app.all('/api/admin', adminHandler);
+app.all('/api/reports', reportsHandler);
+app.all('/api/chat', chatHandler);
 
 app.get('/{*any}', (_req, res) => {
   res.sendFile(path.join(__dirname, 'client', 'build', 'index.html'));

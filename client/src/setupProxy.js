@@ -3,6 +3,7 @@ const express = require('express');
 const https = require('https');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
+try { require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env') }); } catch (_) {}
 require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env.r2') });
 try { require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env.vercel') }); } catch (_) {}
 try { require('dotenv').config({ path: path.join(__dirname, '..', '.env') }); } catch (_) {}

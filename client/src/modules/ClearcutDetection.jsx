@@ -481,16 +481,26 @@ function ClearcutDetection({ data }) {
       </div>
 
       <div className="module-section">
-        <h3>Legend</h3>
+        <h3>Legend &amp; Color Guide</h3>
+        <p className="stat-sub" style={{ marginBottom: 6 }}><strong>Official Inventory (ARI Ground Truth):</strong></p>
         <div className="legend-item">
-          <span className="legend-color yellow" />
-          <span>Accumulated Clearcut Area</span>
+          <span className="legend-color" style={{ background: '#ffeb3b' }} />
+          <span>ARI Accumulated Clearcuts</span>
         </div>
         <div className="legend-item">
-          <span className="legend-color red" />
-          <span>New Clearcut Area (error bars from precision/recall)</span>
+          <span className="legend-color" style={{ background: '#ff0000' }} />
+          <span>ARI Annual Clearcuts</span>
+        </div>
+        <p className="stat-sub" style={{ marginTop: 8, marginBottom: 6 }}><strong>Satellite AI Detections (HLS ML Model):</strong></p>
+        <div className="legend-item">
+          <span className="legend-color" style={{ background: '#00e5ff' }} />
+          <span>AI Model: Accumulated Cuts</span>
         </div>
         <div className="legend-item">
+          <span className="legend-color" style={{ background: '#ff007f' }} />
+          <span>AI Model: Annual Cuts</span>
+        </div>
+        <div className="legend-item" style={{ marginTop: 8 }}>
           <span style={{ display: 'inline-block', width: 16, height: 0, borderTop: '2px dashed #888', marginRight: 6, verticalAlign: 'middle' }} />
           <span>Annual clearcut trend (red = increasing · green = decreasing)</span>
         </div>

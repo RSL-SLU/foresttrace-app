@@ -10,40 +10,105 @@ foresttrace-app/
 │   │   └── data/
 │   │       └── clearcut_stats.json  # Precomputed area statistics
 │   └── src/
-│       ├── App.js                   # MODULES array — central registry
-│       ├── config.js                # TILES_BASE_URL / DATA_BASE_URL / COG_BASE_URL
+│       ├── App.js                   # Main application layout & MODULES array registry
+│       ├── config.js                # TILES_BASE_URL / DATA_BASE_URL / COG_BASE_URL routing
+│       ├── context/
+│       │   └── AuthContext.js       # Auth provider, user session & role state
+│       ├── components/
+│       │   ├── TopMenu.jsx          # Contextual header (landing anchor vs. app nav)
+│       │   ├── LandingPage.jsx      # Landing page with section anchor IDs
+│       │   ├── AdminDashboard.jsx   # Admin user management & metrics modal
+│       │   ├── AuthModal.jsx        # Login, registration, code verification & bootstrap
+│       │   ├── BugReportModal.jsx   # Context-aware user feedback & issue reporting
+│       │   ├── UserChatHistoryModal.jsx # User AI chat session history
+│       │   ├── RasterTileLayer.jsx  # Leaflet path: canvas-based PNG tile renderer
+│       │   └── MapLibreMap.jsx      # MapLibre path: WebGL renderer, draws COGs directly
 │       ├── modules/                 # One JSX file per analysis module
 │       │   ├── ModuleTemplate.jsx   # Start here when adding a module
 │       │   ├── ClearcutDetection.jsx
-│       │   └── BiomassModule.jsx
-│       ├── components/
-│       │   ├── RasterTileLayer.jsx  # Leaflet path: canvas-based PNG tile renderer
-│       │   └── MapLibreMap.jsx      # MapLibre path: WebGL renderer, draws COGs directly
+│       │   ├── BiomassModule.jsx
+│       │   ├── WildfireModule.jsx
+│       │   └── CaribouHabitatModule.jsx
+│       ├── pages/                   # Static and technical docs pages
+│       │   └── DocumentationPage.jsx
 │       └── utils/
 │           └── clearcutAreaStats.js # Stats helpers (reads clearcut_stats.json)
-├── api/                             # Vercel serverless functions
+├── api/                             # Serverless backend functions & Express handlers
+│   ├── _db.js                       # MongoDB connection pooling & database selector
+│   ├── _mailer.js                   # Resend email handler with dev console fallback
+│   ├── auth.js                      # User registration, verification & sessions
+│   ├── admin.js                     # Admin dashboard API & role management
+│   ├── reports.js                   # Bug reports & map state snapshots
+│   └── chat.js                      # Forestry AI Assistant Groq proxy
+├── index.js                         # Express server for dev API & production bundle serving
 ├── package.json                     # Root: Express dev server + tile & COG scripts
+├── .env.example                     # Template for backend & environment configuration
+├── client/.env.example              # Template for client-side API keys and flags
 ├── .env.r2.example                  # Template for R2 credentials (tiles & dev alternative)
 └── .env.vercel.example              # Template for Vercel Blob credentials (production COGs)
 ```
 
 ## Development setup
 
+### 1. Install dependencies
+
 ```bash
-# 1. Install dependencies
-npm install          # root (Express + tile-processing scripts)
+npm install          # root (Express server, MongoDB, Resend, scripts)
 cd client && npm install
-
-# 2. Create client/.env with your client-side API key (never commit this file)
-REACT_APP_GOOGLE_MAPS_API_KEY=...
-
-# 3. Create a root .env for the server-side AI assistant proxy (never commit this file)
-GROQ_API_KEY=...        # powers the ForestryAI /api/chat proxy
-MONGODB_URI=...         # optional — enables chat message logging
-
-# 4. Start the dev server
-cd client && npm start   # React app at http://localhost:3000
+cd ..
 ```
+
+### 2. Configure environment variables
+
+Create the root `.env` from the template:
+
+```bash
+cp .env.example .env
+```
+
+Key variables in the root `.env`:
+- `APP_MODE=development`: Enforces local development behavior and routes MongoDB operations to the `foresttrace_dev` database.
+- `GROQ_API_KEY`: Required for the Forestry AI Assistant (`/api/chat`).
+- `MONGODB_URI`: Connection string to MongoDB Atlas.
+- `MONGODB_DB_NAME=foresttrace_dev`: Explicitly specifies the database name (default: `foresttrace_dev` in development).
+- `RESEND_API_KEY`: (Optional in local development). If omitted or empty, verification codes are logged directly to the server terminal.
+- `EMAIL_FROM`: Sender address for verification emails (default: `ForestTrace <rsl@slu.edu>`).
+
+Create `client/.env` from the template:
+
+```bash
+cp client/.env.example client/.env
+```
+
+Key variables in `client/.env`:
+- `REACT_APP_GOOGLE_MAPS_API_KEY`: Required for Google Places search in the map.
+- `REACT_APP_USE_MAPLIBRE=true`: Enables the MapLibre GL WebGL renderer.
+- `REACT_APP_USE_COG_CLEARCUT=true`: Decodes COGs directly in-browser.
+- `BROWSER=none`: Prevents Create React App from opening a new browser window on startup.
+
+### 3. Start the application
+
+Run both the Express backend API (port 3001) and Create React App (port 3000) simultaneously:
+
+```bash
+npm run dev
+```
+
+The React app will be available at `http://localhost:3000`. API requests to `/api/*` are automatically proxied to the Express backend running on port 3001.
+
+### 4. First-run Admin setup & authentication
+
+When launching with an empty database or fresh clone:
+1. ForestTrace checks user count. If zero, it sets `isInitialized: false`.
+2. The navigation badge displays **Setup Admin**.
+3. Clicking it opens the bootstrap modal where the first user creates their admin account.
+4. When testing registration or email code login without a `RESEND_API_KEY`, the 6-digit confirmation code will print directly in your terminal console.
+
+### 5. Managing background processes (Windows)
+
+If you ever need to stop lingering Node dev processes running in the background:
+- **PowerShell**: `Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force`
+- **Command Prompt**: `taskkill /F /IM node.exe`
 
 In development, `REACT_APP_TILES_BASE_URL` is empty so tiles are read from
 `client/public/tiles/` via the CRA dev server. In production (Vercel), the
@@ -407,6 +472,10 @@ Environment variables required in Vercel project settings:
 | `REACT_APP_DATA_BASE_URL` | Production (Vercel) | R2 public CDN URL for data files (or local fallback) |
 | `REACT_APP_GOOGLE_MAPS_API_KEY` | Client (Browser) | Google Places search |
 | `GROQ_API_KEY` | Serverless (`api/chat.js`) | ForestryAI assistant — read server-side only |
-| `VERCEL_MONGODB_URI` | Serverless (`api/chat.js`) | Optional chat message logging (falls back to `MONGODB_URI` if unset) |
+| `VERCEL_MONGODB_URI` / `MONGODB_URI` | Serverless | MongoDB Atlas URI for user authentication, bug reports, and chat logs |
+| `MONGODB_DB_NAME` | Serverless (Optional) | Database name override (defaults to `foresttrace` in prod, `foresttrace_preview` on preview, `foresttrace_dev` locally) |
+| `RESEND_API_KEY` | Serverless (Production) | Transactional email delivery for signup and login verification codes |
+| `EMAIL_FROM` | Serverless (Optional) | Sender address for verification emails (default: `ForestTrace <rsl@slu.edu>`) |
+| `AUTH_SECRET` | Serverless (Optional) | JWT signing secret for user authentication sessions |
 
-`GROQ_API_KEY`, `VERCEL_MONGODB_URI`, and `BLOB_READ_WRITE_TOKEN` must **not** use the `REACT_APP_` prefix — that prefix causes Create React App to bundle the value into the client JavaScript, exposing it in the browser. None of these go in a committed `.env` file.
+`GROQ_API_KEY`, `VERCEL_MONGODB_URI`, `MONGODB_URI`, `RESEND_API_KEY`, `AUTH_SECRET`, and `BLOB_READ_WRITE_TOKEN` must **not** use the `REACT_APP_` prefix — that prefix causes Create React App to bundle the value into the client JavaScript, exposing it in the browser. None of these go in a committed `.env` file.
