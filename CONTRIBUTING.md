@@ -35,8 +35,7 @@ foresttrace-app/
 │           └── clearcutAreaStats.js # Stats helpers (reads clearcut_stats.json)
 ├── api/                             # Serverless backend functions & Express handlers
 │   ├── _db.js                       # MongoDB connection pooling & database selector
-│   ├── _mailer.js                   # Resend email handler with dev console fallback
-│   ├── auth.js                      # User registration, verification & sessions
+│   ├── auth.js                      # User registration, login & sessions
 │   ├── admin.js                     # Admin dashboard API & role management
 │   ├── reports.js                   # Bug reports & map state snapshots
 │   └── chat.js                      # Forestry AI Assistant Groq proxy
@@ -53,7 +52,7 @@ foresttrace-app/
 ### 1. Install dependencies
 
 ```bash
-npm install          # root (Express server, MongoDB, Resend, scripts)
+npm install          # root (Express server, MongoDB, scripts)
 cd client && npm install
 cd ..
 ```
@@ -71,8 +70,6 @@ Key variables in the root `.env`:
 - `GROQ_API_KEY`: Required for the Forestry AI Assistant (`/api/chat`).
 - `MONGODB_URI`: Connection string to MongoDB Atlas.
 - `MONGODB_DB_NAME=foresttrace_dev`: Explicitly specifies the database name (default: `foresttrace_dev` in development).
-- `RESEND_API_KEY`: (Optional in local development). If omitted or empty, verification codes are logged directly to the server terminal.
-- `EMAIL_FROM`: Sender address for verification emails (default: `ForestTrace <rsl@slu.edu>`).
 
 Create `client/.env` from the template:
 
@@ -102,7 +99,7 @@ When launching with an empty database or fresh clone:
 1. ForestTrace checks user count. If zero, it sets `isInitialized: false`.
 2. The navigation badge displays **Setup Admin**.
 3. Clicking it opens the bootstrap modal where the first user creates their admin account.
-4. When testing registration or email code login without a `RESEND_API_KEY`, the 6-digit confirmation code will print directly in your terminal console.
+4. Accounts sign in with email + password. To reset any account's password, including the admin's, run `node reset-password.js <email> --db <foresttrace|foresttrace_preview|foresttrace_dev>` -- it prompts for the new password and uses the API's own hashing.
 
 ### 5. Managing background processes (Windows)
 
@@ -474,8 +471,6 @@ Environment variables required in Vercel project settings:
 | `GROQ_API_KEY` | Serverless (`api/chat.js`) | ForestryAI assistant — read server-side only |
 | `VERCEL_MONGODB_URI` / `MONGODB_URI` | Serverless | MongoDB Atlas URI for user authentication, bug reports, and chat logs |
 | `MONGODB_DB_NAME` | Serverless (Optional) | Database name override (defaults to `foresttrace` in prod, `foresttrace_preview` on preview, `foresttrace_dev` locally) |
-| `RESEND_API_KEY` | Serverless (Production) | Transactional email delivery for signup and login verification codes |
-| `EMAIL_FROM` | Serverless (Optional) | Sender address for verification emails (default: `ForestTrace <rsl@slu.edu>`) |
 | `AUTH_SECRET` | Serverless (Optional) | JWT signing secret for user authentication sessions |
 
-`GROQ_API_KEY`, `VERCEL_MONGODB_URI`, `MONGODB_URI`, `RESEND_API_KEY`, `AUTH_SECRET`, and `BLOB_READ_WRITE_TOKEN` must **not** use the `REACT_APP_` prefix — that prefix causes Create React App to bundle the value into the client JavaScript, exposing it in the browser. None of these go in a committed `.env` file.
+`GROQ_API_KEY`, `VERCEL_MONGODB_URI`, `MONGODB_URI`, `AUTH_SECRET`, and `BLOB_READ_WRITE_TOKEN` must **not** use the `REACT_APP_` prefix — that prefix causes Create React App to bundle the value into the client JavaScript, exposing it in the browser. None of these go in a committed `.env` file.

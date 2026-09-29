@@ -70,72 +70,6 @@ export function AuthProvider({ children }) {
     checkAuthStatus();
   }, [checkAuthStatus]);
 
-  // Send verification code for registration
-  const sendSignupCode = async (email, name, password) => {
-    const res = await fetch('/api/auth?action=send-signup-code', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, name, password }),
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'Failed to send verification code');
-    }
-    return data;
-  };
-
-  // Verify registration code and complete sign-up
-  const verifySignupCode = async (email, code) => {
-    const res = await fetch('/api/auth?action=verify-signup-code', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, code }),
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'Failed to verify code');
-    }
-
-    saveSession(data.token, data.user);
-    setAuthModalOpen(false);
-    return data.user;
-  };
-
-  // Send passwordless login code to user's email
-  const sendLoginCode = async (email) => {
-    const res = await fetch('/api/auth?action=send-login-code', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'Failed to send login code');
-    }
-    return data;
-  };
-
-  // Verify login code and authenticate
-  const verifyLoginCode = async (email, code) => {
-    const res = await fetch('/api/auth?action=verify-login-code', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, code }),
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'Failed to verify login code');
-    }
-
-    saveSession(data.token, data.user);
-    setAuthModalOpen(false);
-    return data.user;
-  };
-
   // Password-based login handler
   const login = async (email, password) => {
     const res = await fetch('/api/auth?action=login', {
@@ -154,7 +88,7 @@ export function AuthProvider({ children }) {
     return data.user;
   };
 
-  // Direct register handler (standard user)
+  // Register handler (standard user)
   const register = async (email, password, name) => {
     const res = await fetch('/api/auth?action=register', {
       method: 'POST',
@@ -220,10 +154,6 @@ export function AuthProvider({ children }) {
     setAuthModalMode,
     login,
     register,
-    sendSignupCode,
-    verifySignupCode,
-    sendLoginCode,
-    verifyLoginCode,
     bootstrapAdmin,
     logout,
     checkAuthStatus,

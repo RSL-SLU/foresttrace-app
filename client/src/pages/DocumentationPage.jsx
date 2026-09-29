@@ -304,12 +304,11 @@ function DocumentationPage({ onBack }) {
               oversight to facilitate research collaborations while maintaining system security.
             </p>
             <DefTable rows={[
-              ['Authentication',   'Email registration with 6-digit confirmation codes, passwordless login tokens, or standard email/password authentication.'],
+              ['Authentication',   'Email and password registration and sign-in.'],
               ['Role hierarchy',   'Admin (full user administration, role assignment, and platform statistics), Analyst (extended analytical tools and layer access), and Standard User (interactive maps and AI assistant).'],
               ['Admin bootstrap',  'When connecting to an empty database (such as a new deployment or dev instance), the platform provides a guided first-run setup wizard to initialize the first Administrator account.'],
               ['Session tokens',   'Signed JSON Web Tokens (JWT) with secure expiration policies, stored client-side for authenticated API requests.'],
               ['Issue reporting',  'Integrated bug and feedback reporter captures interactive map context (active layers, year, FMU coordinates, and browser details) for rapid diagnostic triage.'],
-              ['Email service',    'Powered by Resend for transactional delivery, with automatic terminal console fallback during local development when API credentials are omitted.'],
             ]} />
           </div>
 

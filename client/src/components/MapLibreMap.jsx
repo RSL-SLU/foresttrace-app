@@ -35,23 +35,19 @@ function bitmapPixels(bitmap) {
   return ctx.getImageData(0, 0, canvas.width, canvas.height);
 }
 
-async function outlineCogTile(params) {
+/** Renders one COG tile to pixels, with the outline pass for outline layers. */
+async function renderCogTile(params) {
+  const current = await cogProtocol(params);
+  const imageData = bitmapPixels(current.data);
+
   // Same shape cogProtocol parses: cog://<cog url>[#hash]/z/x/y
-  const match = params.type === 'image'
-    && params.url.match(/^cog:\/\/(.+)\/(\d+)\/(\d+)\/(\d+)$/);
+  const match = params.url.match(/^cog:\/\/(.+)\/(\d+)\/(\d+)\/(\d+)$/);
   const entry = match && cogOutlineLayers.get(match[1]);
-  if (!entry) return cogProtocol(params);
+  if (!entry) return imageData;
 
   const [z, x, y] = [match[2], match[3], match[4]];
-  const [current, previous] = await Promise.all([
-    cogProtocol(params),
-    entry.subtractUrl
-      ? cogProtocol({ ...params, url: `cog://${entry.subtractUrl}/${z}/${x}/${y}` })
-      : null,
-  ]);
-
-  const imageData = bitmapPixels(current.data);
-  if (previous) {
+  if (entry.subtractUrl) {
+    const previous = await cogProtocol({ ...params, url: `cog://${entry.subtractUrl}/${z}/${x}/${y}` });
     const before = bitmapPixels(previous.data).data;
     const px = imageData.data;
     for (let i = 3; i < px.length; i += 4) {
@@ -62,12 +58,50 @@ async function outlineCogTile(params) {
   const { imageData: outlined } = await processTile(
     entry.layerId, imageData, { z: +z, x: +x, y: +y },
   );
-  return { data: await createImageBitmap(outlined) };
+  return outlined;
+}
+
+// Rendered tiles, keyed by the full cog:// tile URL -- COG, layer (the #hash)
+// and z/x/y, i.e. exactly the pixels. Overlay sources are year-scoped (see
+// rasterLayers' id), so MapLibre drops its own cache on every year change; and
+// the COG library keeps only 16 open files, fewer than a playback loop cycles
+// through, so revisiting a year re-downloaded its byte ranges. Serving from
+// here skips the range reads, the decode and the outline pass.
+//
+// ImageData, not ImageBitmap: MapLibre takes ownership of the bitmap it is
+// handed, so each hit wraps the cached pixels in a fresh one. Same approach as
+// the tint cache in tintedTileProtocol.js.
+const MAX_CACHED_COG_TILES = 800;   // ~210 MB worst case at 256x256 RGBA
+const cogTileCache = new window.Map();
+const cogTilesInFlight = new window.Map();
+
+async function cogTile(params) {
+  if (params.type !== 'image') return cogProtocol(params);
+
+  const key = params.url;
+  let pixels = cogTileCache.get(key);
+  if (pixels) {
+    // Re-insert so eviction order is least-recently-used.
+    cogTileCache.delete(key);
+    cogTileCache.set(key, pixels);
+  } else {
+    let work = cogTilesInFlight.get(key);
+    if (!work) {
+      work = renderCogTile(params).finally(() => cogTilesInFlight.delete(key));
+      cogTilesInFlight.set(key, work);
+    }
+    pixels = await work;
+    cogTileCache.set(key, pixels);
+    if (cogTileCache.size > MAX_CACHED_COG_TILES) {
+      cogTileCache.delete(cogTileCache.keys().next().value);
+    }
+  }
+  return { data: await createImageBitmap(pixels) };
 }
 
 function ensureCogProtocol() {
   if (cogProtocolRegistered) return;
-  maplibregl.addProtocol('cog', outlineCogTile);
+  maplibregl.addProtocol('cog', cogTile);
   cogProtocolRegistered = true;
 }
 
@@ -444,49 +478,80 @@ const RASTER_PAINT = (opacity) => ({
 });
 
 /**
- * Retunes the satellite basemap in place when the year changes.
+ * Shows the satellite imagery for the current year, one source per year.
  *
  * The satellite URL is per-year (EOX publishes one s2cloudless layer per
- * season), so it used to flow into the style object -- and a changed style makes
- * react-map-gl call map.setStyle(), which tears down and rebuilds *every* source
- * and layer. That is why changing the year re-fetched the FMU boundaries, reset
- * the tile-loading indicator mid-load, and dropped whatever terra-draw had
- * registered.
+ * season). Putting it in the style object made react-map-gl call setStyle(),
+ * tearing down every source and layer; swapping it with setTiles avoided that
+ * but emptied the source's tile cache, so every year change -- and every step
+ * of playback -- redrew the whole basemap from scratch.
  *
- * setTiles swaps just the basemap's URLs, leaving everything above it alone.
+ * Each year's imagery now gets its own source and layer, added on first use
+ * and then only shown or hidden. MapLibre keeps a hidden source's tiles in its
+ * out-of-view cache, so returning to a year is instant. The style's own
+ * satellite source is simply whichever year the map was created with.
+ *
+ * `prefetchUrls` are shown at zero opacity so their tiles load for the current
+ * view before playback reaches them -- the same buffering the overlays do.
  */
-function BasemapUrlSync({ url, enabled }) {
+function satelliteIds(url) {
+  const key = url.replace(/[^a-z0-9]+/gi, '-');
+  return { sourceId: `${BASEMAP_SAT_SOURCE_ID}--${key}`, layerId: `${BASEMAP_SAT_LAYER_ID}--${key}` };
+}
+
+function SatelliteYearSync({ url, attribution, prefetchUrls, enabled }) {
   const { current: mapRef } = useMap();
+  const prefetchKey = prefetchUrls.join('|');
 
   useEffect(() => {
     const map = mapRef?.getMap?.();
-    if (!map || !enabled || !url) return undefined;
+    if (!map || !url) return undefined;
 
     const apply = () => {
-      const source = map.getSource(BASEMAP_SAT_SOURCE_ID);
-      // setTiles exists on raster sources only, and the source is absent for a
-      // beat after a genuine style change (basemap mode toggle).
-      if (source?.setTiles) source.setTiles([url]);
+      const base = map.getSource(BASEMAP_SAT_SOURCE_ID);
+      if (!base) return;
+
+      // Layer id for a year's imagery, creating it (hidden, under the light
+      // basemap and so under every overlay) the first time it's needed.
+      const layerFor = (tilesUrl) => {
+        if (base.tiles?.[0] === tilesUrl) return BASEMAP_SAT_LAYER_ID;
+        const { sourceId, layerId } = satelliteIds(tilesUrl);
+        if (!map.getSource(sourceId)) {
+          map.addSource(sourceId, { type: 'raster', tiles: [tilesUrl], tileSize: 256, attribution });
+        }
+        if (!map.getLayer(layerId)) {
+          map.addLayer({
+            id: layerId,
+            type: 'raster',
+            source: sourceId,
+            paint: BASEMAP_PAINT,
+            layout: { visibility: 'none' },
+          }, BASEMAP_LIGHT_LAYER_ID);
+        }
+        return layerId;
+      };
+
+      const current = layerFor(url);
+      const buffered = new Set(enabled ? prefetchUrls.map(layerFor) : []);
+      buffered.delete(current);
+
+      map.getLayersOrder()
+        .filter((id) => id.startsWith(BASEMAP_SAT_LAYER_ID))
+        .forEach((id) => {
+          const shown = enabled && (id === current || buffered.has(id));
+          map.setLayoutProperty(id, 'visibility', shown ? 'visible' : 'none');
+          if (shown) map.setPaintProperty(id, 'raster-opacity', id === current ? 1 : 0);
+        });
     };
 
-    // Deferred to an idle frame. setTiles reloads the source, and doing that
-    // while tiles are mid-draw is what leaves a renderable tile whose texture
-    // has already been pooled -- the crash the overlay sources avoid by being
-    // replaced rather than retuned. The basemap cannot use that trick: it is
-    // declared inside the style object, so a new id would mean a new style and
-    // the full teardown this was written to avoid.
-    const run = () => {
-      if (map.isStyleLoaded()) apply();
-      else map.once('styledata', apply);
-    };
-
-    if (map.loaded()) run();
-    else map.once('idle', run);
+    if (map.isStyleLoaded()) apply();
+    else map.once('styledata', apply);
     return () => {
-      map.off('idle', run);
       map.off('styledata', apply);
     };
-  }, [mapRef, url, enabled]);
+    // prefetchKey stands in for prefetchUrls, whose identity changes every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapRef, url, attribution, prefetchKey, enabled]);
 
   return null;
 }
@@ -506,7 +571,7 @@ function BasemapModeSync({ basemapMode }) {
         if (!map.getLayer(layerId)) return;
         map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none');
       };
-      setVis(BASEMAP_SAT_LAYER_ID, satelliteVisible);
+      // Satellite layers (one per year) are shown by <SatelliteYearSync>.
       setVis(BASEMAP_LIGHT_LAYER_ID, !satelliteVisible);
       setVis(BASEMAP_LIGHT_REF_LAYER_ID, !satelliteVisible);
     };
@@ -629,6 +694,7 @@ function MapLibreMap({
   basemapMode,
   satelliteUrl,
   satelliteAttribution,
+  satellitePrefetchUrls = [],
   lightBasemap,
   regionsData = null,
   rangeBoundaries = null,
@@ -794,7 +860,12 @@ function MapLibreMap({
 
       <LoadingReporter onLoadingChange={onLoadingChange} sourceIds={overlaySourceIds} />
       <BasemapModeSync basemapMode={basemapMode} />
-      <BasemapUrlSync url={satelliteUrl} enabled={basemapMode === 'satellite'} />
+      <SatelliteYearSync
+        url={satelliteUrl}
+        attribution={satelliteAttribution}
+        prefetchUrls={satellitePrefetchUrls}
+        enabled={basemapMode === 'satellite'}
+      />
 
       {regionsData && (
         <Source id="regions" type="geojson" data={regionsData}>
@@ -840,7 +911,7 @@ function MapLibreMap({
           key={layer.id}
           id={`cog-${layer.id}`}
           type="raster"
-          // Outline layers carry their id as the hash so outlineCogTile can
+          // Outline layers carry their id as the hash so renderCogTile can
           // tell them apart; the protocol strips it before reading the COG.
           url={layer.outline ? `cog://${layer.url}#${layer.outline}` : `cog://${layer.url}`}
           tileSize={256}

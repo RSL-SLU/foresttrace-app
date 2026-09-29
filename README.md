@@ -16,8 +16,7 @@ The platform provides:
 - **Dual Map Rendering Engines**: Seamless support for standard Leaflet XYZ raster tiles and WebGL MapLibre GL rendering Cloud-Optimized GeoTIFFs (COGs) directly in the browser.
 - **Domain-Specific Forestry AI Agent**: Natural language assistant powered by Meta Llama 3.1 8B via Groq inference, grounded with the user's active map viewport, FMUs, layers, and drawn polygons.
 - **User Accounts & Role-Based Access Control**:
-  - Secure email-based registration with 6-digit confirmation codes.
-  - Passwordless / code-based email authentication.
+  - Email + password registration and sign-in (password reset via `reset-password.js`).
   - Role hierarchy: **Admin**, **Analyst**, and **Standard User**.
   - First-run administrative setup wizard automatically activates when setting up on an uninitialized database.
 - **Administrative Dashboard & System Monitoring**:
@@ -39,7 +38,7 @@ The platform provides:
 - **Backend & APIs**:
   - **Node.js + Express** (`index.js`): Local development API server and production static bundle host
   - **Vercel Serverless Functions** (`api/`):
-    - `api/auth.js`: User registration, email verification, passwordless login, and JWT sessions
+    - `api/auth.js`: User registration, password login, and JWT sessions
     - `api/admin.js`: Administrative dashboard APIs, user management, and platform telemetry
     - `api/reports.js`: Issue and bug report submissions with attached map context
     - `api/chat.js`: AI agent streaming and Groq API proxy
@@ -50,8 +49,6 @@ The platform provides:
     - `foresttrace_dev`: Local development database
   - **Vercel Pro Storage (Vercel Blob)**: Production host for Cloud-Optimized GeoTIFFs (COGs) and availability manifests
   - **Cloudflare R2**: Public CDN for raster tile pyramids and geospatial data assets
-- **Email Delivery**:
-  - **Resend**: Transactional email delivery for 6-digit verification codes (with automatic dev console fallback when testing locally without an API key)
 
 ---
 
@@ -79,8 +76,7 @@ foresttrace-app/
 │       └── styles/                  # Clean CSS modules (map, layout, auth, admin)
 ├── api/                             # Serverless backend functions
 │   ├── _db.js                       # MongoDB connection pooling & database routing
-│   ├── _mailer.js                   # Resend email handler with dev console fallback
-│   ├── auth.js                      # Authentication, registration & verification
+│   ├── auth.js                      # Authentication & registration
 │   ├── admin.js                     # Admin dashboard endpoints & user role updates
 │   ├── reports.js                   # Bug and issue reporting
 │   └── chat.js                      # Forestry AI Assistant Groq proxy
@@ -128,7 +124,6 @@ Create your local `.env` files using the provided templates:
    GROQ_API_KEY=your_groq_api_key_here
    MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net
    MONGODB_DB_NAME=foresttrace_dev
-   # Optional: RESEND_API_KEY=re_... (If omitted, verification codes print in terminal)
    ```
 
 2. **Client `.env`** (`client/.env`):

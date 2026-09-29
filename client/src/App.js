@@ -1704,6 +1704,13 @@ function App() {
           {USE_MAPLIBRE ? (() => {
             const basemapYear = moduleYears[selectedModule?.id] || selectedYear;
             const { url, attribution } = getBasemapConfig(basemapYear);
+            // Imagery for the next years on the timeline, loaded ahead while
+            // playing -- same buffer the overlays use (PREFETCH_YEARS).
+            const upcomingIdx = timelineYears.indexOf(basemapYear) + 1;
+            const satellitePrefetchUrls = playing
+              ? timelineYears.slice(upcomingIdx, upcomingIdx + PREFETCH_YEARS)
+                .map((y) => getBasemapConfig(y).url)
+              : [];
             return (
               <React.Suspense fallback={(
                 <div className="loading-indicator" style={{ display: 'flex' }}>
@@ -1718,6 +1725,7 @@ function App() {
                 basemapMode={basemapMode}
                 satelliteUrl={url}
                 satelliteAttribution={attribution}
+                satellitePrefetchUrls={satellitePrefetchUrls}
                 lightBasemap={LIGHT_BASEMAP}
                 regionsData={maplibreRegions}
                 rangeBoundaries={caribouRangeGeoJson}
