@@ -4,14 +4,13 @@ const https = require('https');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 try { require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env') }); } catch (_) {}
-require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env.r2') });
 try { require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env.vercel') }); } catch (_) {}
 try { require('dotenv').config({ path: path.join(__dirname, '..', '.env') }); } catch (_) {}
 
 // A map view fans out into dozens of parallel tile requests, and without a
 // keep-alive agent each one opens a fresh TLS connection and a fresh DNS
-// lookup. That is what produces the intermittent ENOTFOUND against R2: the
-// bucket is reachable, the resolver is just being asked hundreds of times a
+// lookup. That is what produced the intermittent ENOTFOUND against the bucket:
+// it was reachable, the resolver was just being asked hundreds of times a
 // second. Pooling connections collapses that to a handful of lookups and makes
 // the tiles arrive faster besides.
 const keepAliveAgent = new https.Agent({
@@ -20,14 +19,14 @@ const keepAliveAgent = new https.Agent({
   timeout: 30000,
 });
 
-// Public R2 bucket -- the origin the dev proxy and production tile fallback reads.
-const R2_PUBLIC = process.env.R2_PUBLIC;
-
-// COG remote target: Vercel Blob store (production requirement) or Cloudflare R2 (local dev alternative).
-const COG_TARGET = process.env.REACT_APP_COG_BASE_URL
+// Vercel Blob store -- the remote origin for everything not on local disk
+// (COGs, and any data or tile file missing from client/public/). R2 is retired.
+const BLOB_TARGET = process.env.REACT_APP_COG_BASE_URL
   || process.env.VERCEL_BLOB_BASE_URL
-  || process.env.VERCEL_BLOB_PUBLIC
-  || R2_PUBLIC;
+  || process.env.VERCEL_BLOB_PUBLIC;
+
+// client/public/, served first for the routes that also have a Blob fallback.
+const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 
 // Port the Express API (index.js) listens on. Its own default is 3001 -- chosen
 // so CRA can hold 3000 -- and this proxy used to point at 5001, so /api/chat got
@@ -38,14 +37,14 @@ const COG_TARGET = process.env.REACT_APP_COG_BASE_URL
 // the dev server and loop back into itself.
 const API_PORT = process.env.API_PORT || 3001;
 
-// Layers that can be served off disk instead of R2, for fast iteration on a
-// freshly generated pyramid. Set these in client/.env (gitignored) to a
+// Layers that can be served off disk from outside the repo, for fast iteration
+// on a freshly generated pyramid. Set these in client/.env (gitignored) to a
 // directory OUTSIDE the repo: 22k+ tiles under client/public/ make the CRA dev
 // server crawl at startup, since it scans and watches everything there.
 //
-// Leave one unset and that layer falls through to the /tiles R2 proxy instead,
-// i.e. exactly what production serves. That keeps this file free of
-// machine-specific paths, so a fresh clone works with no configuration at all.
+// Leave one unset and that layer falls through to client/public/tiles/, then
+// the /tiles Blob proxy -- i.e. what production serves. That keeps this file
+// free of machine-specific paths, so a fresh clone works with no configuration.
 const LOCAL_TILE_DIRS = {
   '/tiles/wildfire': process.env.WILDFIRE_TILES_DIR,
   '/tiles/wildlife/caribou': process.env.CARIBOU_TILES_DIR,
@@ -61,10 +60,10 @@ const LOCAL_TILE_DIRS = {
 };
 
 // Same idea as LOCAL_TILE_DIRS, but for COGs: ARI ground-truth clearcut rasters
-// (boreal-canada-mapping's utils/generate_ari_harvest_cogs.py) aren't on R2 yet,
-// so these two prefixes are served straight off disk instead. Mounted before the
-// /cogs R2 proxy below, so express falls through to R2 for every other prefix
-// unchanged -- this only intercepts the two ARI-specific ones.
+// (boreal-canada-mapping's utils/generate_ari_harvest_cogs.py) can be served
+// straight off disk. Mounted before the /cogs Blob proxy below, so express
+// falls through to Blob for every other prefix unchanged -- this only
+// intercepts the two ARI-specific ones.
 const LOCAL_COG_DIRS = {
   '/cogs/clearcut-annual-ari': process.env.ARI_CLEARCUT_ANNUAL_COG_DIR,
   '/cogs/clearcut-accumulated-ari': process.env.ARI_CLEARCUT_ACCUMULATED_COG_DIR,
@@ -73,15 +72,20 @@ const LOCAL_COG_DIRS = {
 // ARI harvest-year PMTiles archive (boreal-canada-mapping's
 // utils/generate_ari_harvest_mvt.py). One static file, not a prefix of many --
 // mounted the same way so it's reachable at /mvt/wabigoon.pmtiles without a
-// bucket round trip while it's still local-only.
+// bucket round trip.
 const ARI_MVT_DIR = process.env.ARI_MVT_DIR;
 
-// Shared config for remote passthroughs (R2 or Vercel Blob).
-function r2Proxy(prefix, target = R2_PUBLIC) {
+// Shared config for the Vercel Blob passthroughs.
+function blobProxy(prefix) {
   return {
-    target,
+    target: BLOB_TARGET,
     changeOrigin: true,
     agent: keepAliveAgent,
+    // Abort an upstream request that stalls. The agent's own `timeout` only
+    // flags the socket; without this a hung request keeps its socket forever,
+    // and once maxSockets are held that way every proxied route queues behind
+    // them indefinitely.
+    proxyTimeout: 30000,
     pathRewrite: { [`^${prefix}`]: prefix },
     // A missing tile is normal -- pyramids are sparse -- and a transient DNS
     // failure is not worth a stack trace per tile. Answer the browser and log
@@ -94,10 +98,9 @@ function r2Proxy(prefix, target = R2_PUBLIC) {
 }
 
 module.exports = function (app) {
-  // Disk-backed layers first, and outside the R2_PUBLIC guard below: they need
-  // no bucket, so a dev working from local pyramids stays unblocked even with
-  // .env.r2 unconfigured. express.static calls next() on a miss, so a local
-  // directory covering only part of a pyramid still falls through to R2.
+  // Disk-backed layers first: they need no bucket. express.static calls next()
+  // on a miss, so a local directory covering only part of a pyramid still
+  // falls through to Blob.
   Object.entries(LOCAL_TILE_DIRS).forEach(([route, dir]) => {
     if (dir) {
       app.use(route, express.static(path.normalize(dir)));
@@ -122,28 +125,18 @@ module.exports = function (app) {
     })
   );
 
-  if (!R2_PUBLIC) {
-    // Warn rather than throw: /api and any disk-backed layer still work, so a
-    // dev who isn't touching remote tiles should still get a usable server.
+  // Per-FMU boundary GeoJSON is NOT proxied: client/public/data/regions/ holds
+  // every FMU, and the dev server serves it as a static file.
+
+  if (!BLOB_TARGET) {
+    // Warn rather than throw: /api and everything under client/public still work.
     console.warn(
-      '[setupProxy] R2_PUBLIC is not set in .env.r2 -- skipping the /tiles, '
-        + '/data/regions and /cogs proxies. Remote layers will not load locally '
-        + 'until it is set (see .env.r2.example).'
+      '[setupProxy] VERCEL_BLOB_BASE_URL is not set in .env.vercel -- skipping the '
+        + '/cogs, /data/patches and /tiles proxies. COG layers will not load '
+        + 'locally until it is set (see .env.vercel.example).'
     );
     return;
   }
-
-  // Per-FMU boundary GeoJSON lives on R2 too. The committed
-  // public/data/regions-simplified.json only carries wabigoon and troutlake,
-  // so without this every other FMU renders no outline.
-  // Scoped to /data/regions so /data/clearcut_stats.json keeps being served
-  // from public/data, where it is committed.
-  app.use('/data/regions', createProxyMiddleware(r2Proxy('/data/regions')));
-
-  // Clearcut patch vectors used for drawn-area intersection checks. They are
-  // not committed under client/public/data in local checkouts, so proxy them
-  // from the same R2 origin as production.
-  app.use('/data/patches', createProxyMiddleware(r2Proxy('/data/patches')));
 
   // COGs are range-read by the browser, and a Range header isn't CORS-safelisted,
   // so every read triggers a preflight the bucket must answer. Proxying them
@@ -154,20 +147,16 @@ module.exports = function (app) {
   // production build, where the app reads the bucket directly and the CORS policy
   // is load-bearing. Verifying a COG works locally therefore proves nothing about
   // whether it will work in production.
-  if (COG_TARGET) {
-    app.use('/cogs', createProxyMiddleware(r2Proxy('/cogs', COG_TARGET)));
-  }
+  app.use('/cogs', createProxyMiddleware(blobProxy('/cogs')));
 
-  // PNG tiles, for the same two reasons as the COGs above.
+  // Clearcut patch vectors (drawn-area checks) and PNG tiles (biomass): local
+  // copy first, Blob for anything missing from it.
   //
-  // client/public/tiles/ holds only a placeholder set -- there are no wildfire
-  // or wildlife tiles locally at all -- so with REACT_APP_TILES_BASE_URL empty
-  // those layers 404 against the dev server and silently render nothing. And
-  // the layers that get tinted are fetch()ed rather than <img>-loaded so their
-  // pixels can be read, which makes them CORS-gated like the COGs.
-  //
-  // A single catch-all rather than a per-layer list: the LOCAL_TILE_DIRS mounts
-  // above and client/public/tiles/ are both consulted first, so a locally
-  // generated tile set still wins over the bucket.
-  app.use('/tiles', createProxyMiddleware(r2Proxy('/tiles')));
+  // The explicit express.static matters. CRA runs this file BEFORE it serves
+  // client/public/, so a bare proxy here shadows the local files entirely --
+  // which is how local boundaries and biomass tiles ended up fetched remotely.
+  ['/data/patches', '/tiles'].forEach((route) => {
+    app.use(route, express.static(path.join(PUBLIC_DIR, route)));
+    app.use(route, createProxyMiddleware(blobProxy(route)));
+  });
 };

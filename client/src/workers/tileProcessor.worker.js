@@ -45,10 +45,79 @@ function getTilePixelAreaHa(z, y) {
 // stats each layer needs (red-pixel ratio for clearcut/wildfire, an AGB
 // histogram for biomass). Returns null redCount/totalCount/histogram fields
 // for layer types that don't apply.
-function processPixels(layerId, pixels, coords) {
+function processPixels(layerId, pixels, coords, width = 256, height = 256) {
   let redCount = 0;
   let totalCount = 0;
   let histogram = null;
+
+  // ML estimates: extract 2px outline and make interior transparent
+  if (layerId === 'clearcut-ml-accumulated' || layerId === 'clearcut-ml-annual') {
+    const numPixels = width * height;
+    const mask = new Uint8Array(numPixels);
+
+    for (let p = 0; p < numPixels; p++) {
+      const idx = p * 4;
+      const r = pixels[idx];
+      const g = pixels[idx + 1];
+      const b = pixels[idx + 2];
+      const a = pixels[idx + 3];
+      totalCount += 1;
+      // Mark disturbance pixels
+      if (a > 30 && (r > 30 || g > 30 || b > 30)) {
+        mask[p] = 1;
+        redCount += 1;
+      }
+    }
+
+    const isAccumulated = layerId === 'clearcut-ml-accumulated';
+    // Same colors as the ARI fills -- amber (#d97706) accumulated, red
+    // (#dc2626) annual; the source is told apart by outline vs fill.
+    const edgeR = isAccumulated ? 217 : 220;
+    const edgeG = isAccumulated ? 119 : 38;
+    const edgeB = isAccumulated ? 6 : 38;
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const p = y * width + x;
+        const idx = p * 4;
+
+        if (mask[p] === 0) {
+          pixels[idx + 3] = 0;
+          continue;
+        }
+
+        // Check if on boundary within 2px neighborhood
+        // Out-of-bounds neighbors treated as 1 so tile edges don't get artificial borders
+        let isEdge = false;
+        for (let dy = -2; dy <= 2; dy++) {
+          const ny = y + dy;
+          if (ny < 0 || ny >= height) continue;
+          for (let dx = -2; dx <= 2; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            const nx = x + dx;
+            if (nx < 0 || nx >= width) continue;
+            if (mask[ny * width + nx] === 0) {
+              isEdge = true;
+              break;
+            }
+          }
+          if (isEdge) break;
+        }
+
+        if (isEdge) {
+          pixels[idx] = edgeR;
+          pixels[idx + 1] = edgeG;
+          pixels[idx + 2] = edgeB;
+          pixels[idx + 3] = 230;
+        } else {
+          // Transparent interior
+          pixels[idx + 3] = 0;
+        }
+      }
+    }
+
+    return { redCount, totalCount, histogram };
+  }
 
   const isBiomass = layerId === 'biomass-density';
   const pixelAreaHa = isBiomass ? getTilePixelAreaHa(coords.z, coords.y) : 0;
@@ -59,7 +128,6 @@ function processPixels(layerId, pixels, coords) {
   for (let i = 0; i < pixels.length; i += 4) {
     const r = pixels[i];
     const g = pixels[i + 1];
-    const b = pixels[i + 2];
     const a = pixels[i + 3];
     totalCount += 1;
 
@@ -68,15 +136,15 @@ function processPixels(layerId, pixels, coords) {
       if (a === 0) continue;
       const intensity = r / 255;
       if (layerId === 'clearcut-annual') {
-        // Yellow tint (#FFD700)
-        pixels[i]     = Math.round((r * 0.35) + (255 * intensity * 0.65));
-        pixels[i + 1] = Math.round(215 * intensity);
-        pixels[i + 2] = Math.round(b * 0.05);
+        // Red tint (#dc2626)
+        pixels[i]     = Math.round((r * 0.35) + (220 * intensity * 0.65));
+        pixels[i + 1] = Math.round(38 * intensity);
+        pixels[i + 2] = Math.round(38 * intensity);
       } else {
-        // Red tint for accumulated
-        pixels[i]     = Math.round((r * 0.35) + (255 * intensity * 0.65));
-        pixels[i + 1] = Math.round(g * 0.18);
-        pixels[i + 2] = Math.round(b * 0.18);
+        // Amber tint (#d97706) for accumulated ARI
+        pixels[i]     = Math.round((r * 0.35) + (217 * intensity * 0.65));
+        pixels[i + 1] = Math.round(119 * intensity);
+        pixels[i + 2] = Math.round(6 * intensity);
       }
       continue;
     }
@@ -116,10 +184,11 @@ function processPixels(layerId, pixels, coords) {
 self.onmessage = (event) => {
   const { id, layerId, width, height, buffer, coords } = event.data;
   const pixels = new Uint8ClampedArray(buffer);
-  const { redCount, totalCount, histogram } = processPixels(layerId, pixels, coords);
+  const { redCount, totalCount, histogram } = processPixels(layerId, pixels, coords, width, height);
 
   self.postMessage(
     { id, buffer: pixels.buffer, width, height, redCount, totalCount, histogram },
     [pixels.buffer],
   );
 };
+

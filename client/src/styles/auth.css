@@ -436,8 +436,8 @@ body.dark-mode .user-profile-badge:hover {
 
 .dark-mode .user-dropdown-menu,
 body.dark-mode .user-dropdown-menu {
-  background-color: #1e2530 !important;
-  border-color: #334155 !important;
+  background-color: #1b3328 !important;  /* dark green, matching the user badge */
+  border-color: #2f5a44 !important;
   color: #ffffff !important;
   box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -4px rgba(0, 0, 0, 0.4) !important;
 }
@@ -450,7 +450,7 @@ body.dark-mode .user-dropdown-menu {
 
 .dark-mode .user-dropdown-header,
 body.dark-mode .user-dropdown-header {
-  border-bottom-color: #334155 !important;
+  border-bottom-color: #2f5a44 !important;
 }
 
 .user-dropdown-header strong {
@@ -510,7 +510,7 @@ body.dark-mode .user-dropdown-item span {
 
 .dark-mode .user-dropdown-item:hover,
 body.dark-mode .user-dropdown-item:hover {
-  background: rgba(255, 255, 255, 0.12) !important;
+  background: rgba(74, 222, 128, 0.18) !important;
   color: #ffffff !important;
 }
 
@@ -522,5 +522,5 @@ body.dark-mode .user-dropdown-item:hover {
 
 .dark-mode .user-dropdown-divider,
 body.dark-mode .user-dropdown-divider {
-  background: #334155 !important;
+  background: #2f5a44 !important;
 }

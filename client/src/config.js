@@ -2,8 +2,10 @@
  * Runtime configuration derived from environment variables.
  *
  * In development (local):   .env  →  REACT_APP_TILES_BASE_URL is empty → relative paths
- * In production (Vercel):   set REACT_APP_TILES_BASE_URL in the Vercel project settings
- *                           e.g. https://pub-<id>.r2.dev
+ * In production (Vercel):   set REACT_APP_TILES_BASE_URL, REACT_APP_DATA_BASE_URL and
+ *                           REACT_APP_COG_BASE_URL in the Vercel project settings to
+ *                           the Blob store, e.g. https://<id>.public.blob.vercel-storage.com
+ *                           (upload-data-vercel.js / upload-cogs-vercel.js populate it)
  */
 
 const appMode = (process.env.REACT_APP_MODE || process.env.REACT_APP_APP_MODE || '').toLowerCase();
@@ -54,16 +56,20 @@ export const COG_BASE_URL = isForcedLocal ? '' : (process.env.REACT_APP_COG_BASE
 // you asked for that FMU and wrong when you asked for Berens.
 // clearcut-annual/clearcut-accumulated point at the ARI ground-truth product
 // (utils/generate_ari_harvest_cogs.py), not the ML model's inferred output,
-// for now -- see the clearcut module's comment in App.js. The ML prefixes are
-// kept below, commented, rather than deleted: swapping the two active lines
-// back is the entire revert once inference is back in the picture.
+// for now -- see the clearcut module's comment in App.js. The ML model's
+// output has its own layer ids, drawn as outlines over the ARI fill.
 const COG_PREFIX_BY_LAYER = {
   // Official Provincial Inventory (ARI ground-truth harvest)
   'clearcut-accumulated': 'clearcut-accumulated-ari',
   'clearcut-annual': 'clearcut-annual-ari',
   // Satellite Deep-Learning Detections (HLS ML v4 / v5 Beta)
   'clearcut-ml-accumulated': 'clearcut-accumulated-v4',
-  'clearcut-ml-annual': 'clearcut-annual',
+  // Not the raw `clearcut-annual` classification: that repeats every stand
+  // still standing from earlier years. Annual is drawn as newly standing
+  // clearcut -- accumulated(Y) minus accumulated(previous year) -- the same
+  // `entering` rule clearcut_stats.json uses, so it reads this prefix twice
+  // (see App.js cogNewSincePrevious).
+  'clearcut-ml-annual': 'clearcut-accumulated-v4',
   'wildfire-burned': 'wildfire-v3',
   'caribou-habitat': 'caribou-v1',
   'caribou-habitat-fmu': 'caribou-fmu-v1',

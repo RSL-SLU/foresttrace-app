@@ -100,6 +100,21 @@ function tileDirOf(tileUrl) {
   return tileUrl?.match(/\/tiles\/([^/]+)\//)?.[1] ?? null;
 }
 
+// COG url of the latest year before `year` that the product has for `region`,
+// or undefined when `year` is the first. "Previous" means previous in the
+// series, not year - 1: wabigoon jumps 2010 -> 2015, and the stats pipeline's
+// entering(2015) is taken against 2010. A first year has nothing before it,
+// so everything in it counts as new -- again matching the stats.
+function previousCogUrl(prefix, coverage, region, year) {
+  let prev = -Infinity;
+  coverage?.forEach((key) => {
+    if (!key.startsWith(`${region}_`)) return;
+    const y = Number(key.slice(region.length + 1));
+    if (y < year && y > prev) prev = y;
+  });
+  return Number.isFinite(prev) ? cogUrlForPrefix(prefix, region, prev) : undefined;
+}
+
 const center = [49.80318325874751, -92.8087780822145];
 
 // Renders the MapLibre map instead of the Leaflet one. Off by default: the
@@ -187,10 +202,10 @@ const MODULES = [
         id: 'clearcut-accumulated',
         name: 'Accumulated Clearcuts',
         tileUrl: `${TILES_BASE_URL}/tiles/clearcut-accumulated-ari/{region}_{year}/{z}/{x}/{y}.png`,
-        // Inverted from the ML layer's original red/yellow (red=accumulated,
-        // yellow=annual) -- same palette family, swapped, so the two schemes
-        // read as related but never get mistaken for one another.
-        color: '#ffeb3b',
+        // Amber rather than the original #ffeb3b yellow, which washed out
+        // against the light basemap. Color encodes accumulated vs annual
+        // only; the ML layers below reuse these colors as outlines.
+        color: '#d97706',
         mode: 'accumulated',
         tms: false,
         cogAuthoritative: true,
@@ -199,7 +214,7 @@ const MODULES = [
         id: 'clearcut-annual',
         name: 'Annual Clearcuts',
         tileUrl: `${TILES_BASE_URL}/tiles/clearcut-annual-ari/{region}_{year}/{z}/{x}/{y}.png`,
-        color: '#ff0000',
+        color: '#dc2626',
         mode: 'annual',
         tms: false,
         cogAuthoritative: true,
@@ -233,24 +248,36 @@ const MODULES = [
         // construction and parent-cascade logic need no special-casing.
         hideFromLayerList: true,
       },
-      // Satellite Deep Learning Detections (HLS ML model) for side-by-side comparison
+      // Satellite Deep Learning Detections (HLS ML model), drawn as outlines
+      // over the filled ARI layers for side-by-side comparison. Not picked
+      // from the left-hand list: the left panel chooses the disturbance type
+      // (accumulated/annual) and ClearcutDetection's source selector chooses
+      // ARI and/or ML -- effectiveActiveLayers maps the pair onto these ids.
+      // COG only, never the PNG pyramid: cogAuthoritative skips the fallback,
+      // and cogOutline has MapLibreMap trace the rendered class-2 pixels into
+      // a border (see its cog:// protocol wrapper). No tileUrl, so there is no
+      // PNG to fall back to even with COGs switched off.
       {
         id: 'clearcut-ml-accumulated',
         name: 'AI Model: Accumulated Cuts',
-        tileUrl: `${TILES_BASE_URL}/tiles/clearcut/{region}_{year}/{z}/{x}/{y}.png`,
-        color: '#00e5ff',
+        color: '#d97706',
         mode: 'accumulated',
-        tms: false,
         cogAuthoritative: true,
+        cogOutline: true,
+        hideFromLayerList: true,
       },
       {
         id: 'clearcut-ml-annual',
         name: 'AI Model: Annual Cuts',
-        tileUrl: `${TILES_BASE_URL}/tiles/clearcut-annual/{region}_{year}/{z}/{x}/{y}.png`,
-        color: '#ff007f',
+        color: '#dc2626',
         mode: 'annual',
-        tms: false,
         cogAuthoritative: true,
+        cogOutline: true,
+        // Only what entered the accumulated window this year: a stand already
+        // standing in the previous year's accumulated raster is masked out,
+        // so a cut shown in 2024 doesn't reappear as annual in 2025.
+        cogNewSincePrevious: true,
+        hideFromLayerList: true,
       },
     ],
   },
@@ -842,6 +869,41 @@ function App() {
     });
   };
 
+  // Which clearcut data sources are drawn: 'ari' (official inventory) and/or
+  // 'ml' (model estimates). Chosen in ClearcutDetection's panel, independently
+  // of the disturbance type picked in the left-hand layer list.
+  const [clearcutSources, setClearcutSources] = useState(['ari']);
+
+  const handleToggleClearcutSource = useCallback((source, on) => {
+    setClearcutSources((prev) => (
+      on ? [...new Set([...prev, source])] : prev.filter((s) => s !== source)
+    ));
+  }, []);
+
+  // activeLayers with the clearcut entry translated from (disturbance type x
+  // source) into the layer ids the map actually draws. Everything that renders
+  // or describes the map reads this; the left-hand list keeps reading
+  // activeLayers, since that's the state its checkboxes toggle.
+  const effectiveActiveLayers = useMemo(() => {
+    const selected = activeLayers.clearcut || [];
+    const ari = clearcutSources.includes('ari');
+    const ml = clearcutSources.includes('ml');
+    const clearcut = [];
+    [
+      ['clearcut-accumulated', 'clearcut-ml-accumulated'],
+      ['clearcut-annual', 'clearcut-ml-annual'],
+    ].forEach(([ariId, mlId]) => {
+      if (!selected.includes(ariId)) return;
+      if (ari) clearcut.push(ariId);
+      if (ml) clearcut.push(mlId);
+    });
+    // The harvest-year polygons are ARI data, so they go with the ARI source.
+    if (ari && selected.includes('clearcut-harvest-year-ari')) {
+      clearcut.push('clearcut-harvest-year-ari');
+    }
+    return { ...activeLayers, clearcut };
+  }, [activeLayers, clearcutSources]);
+
   // Safety net: if a layer unmounts mid-load (year change, layer toggle)
   // without firing its `load` event, the spinner would stay forever.
   // Auto-dismiss after 12 s as a fallback.
@@ -904,7 +966,7 @@ function App() {
 
     const years = new Set();
     MODULES.forEach((module) => {
-      if (!(activeLayers[module.id] || []).length) return;
+      if (!(effectiveActiveLayers[module.id] || []).length) return;
       expand(module).forEach((y) => years.add(y));
     });
 
@@ -913,7 +975,7 @@ function App() {
     if (years.size === 0 && selectedModule) expand(selectedModule).forEach((y) => years.add(y));
 
     return [...years].sort((a, b) => a - b);
-  }, [activeLayers, wildfireYearOptions, selectedModule]);
+  }, [effectiveActiveLayers, wildfireYearOptions, selectedModule]);
 
   // Changing FMU can drop the year currently being viewed out of the list.
   // Snap to the nearest available year, otherwise the slider handle and the
@@ -960,7 +1022,7 @@ function App() {
       const hasDrawnArea = drawnFeatures.some((f) => (
         f?.geometry?.type === 'Polygon' || f?.geometry?.type === 'MultiPolygon'
       ));
-      const hasClearcutLayer = (activeLayers.clearcut || []).some(
+      const hasClearcutLayer = (effectiveActiveLayers.clearcut || []).some(
         (id) => id === 'clearcut-accumulated' || id === 'clearcut-annual',
       );
       const clearcutYear = moduleYears.clearcut || selectedYear;
@@ -1001,7 +1063,7 @@ function App() {
 
     run();
     return () => { cancelled = true; };
-  }, [drawnFeatures, drawingContext, activeLayers.clearcut, moduleYears.clearcut, selectedYear, selectedFMUs]);
+  }, [drawnFeatures, drawingContext, effectiveActiveLayers.clearcut, moduleYears.clearcut, selectedYear, selectedFMUs]);
 
   // Which panel tab is showing. Lifted out of <ModuleSelector> so the map's
   // "Ask AI" button can bring the agent forward.
@@ -1080,7 +1142,7 @@ function App() {
     // nothing. (Moot once the manifest is published -- this is the fallback.)
     const wanted = [];
     MODULES.forEach((module) => {
-      (activeLayers[module.id] || []).forEach((layerId) => {
+      (effectiveActiveLayers[module.id] || []).forEach((layerId) => {
         const caribouRangeMode = layerId === 'caribou-habitat' && selectedRanges.length > 0;
         const prefix = coveragePrefixForLayer(layerId, { caribouRangeMode });
         if (!prefix || wanted.some((w) => w.prefix === prefix)) return;
@@ -1104,7 +1166,7 @@ function App() {
     });
 
     return () => { cancelled = true; };
-  }, [rasterRegions, selectedRanges, activeLayers, moduleYears, selectedYear]);
+  }, [rasterRegions, selectedRanges, effectiveActiveLayers, moduleYears, selectedYear]);
 
   // Source id -> "Module / Layer". Ids are built below as
   // `<prefix>-<layerId>-<region>`, and layer ids themselves contain hyphens, so
@@ -1147,7 +1209,7 @@ function App() {
     const vectorLayers = [];
 
     MODULES.forEach((module) => {
-      const moduleActiveLayerIds = activeLayers[module.id] || [];
+      const moduleActiveLayerIds = effectiveActiveLayers[module.id] || [];
       // Iterates module.layers (fixed definition order) rather than
       // activeLayers[module.id] (toggle order) -- draw order otherwise
       // depended on which layer got switched on first, so accumulated could
@@ -1285,9 +1347,18 @@ function App() {
               palette: layer.cogPalette,
               visibleClasses: layer.cogClasses,
               colorClass: layer.cogColorClass,
+              // Layer id for the outline pass, which paints in that layer's
+              // color; undefined draws the plain fill.
+              outline: layer.cogOutline ? layer.id : undefined,
+              subtractUrl: layer.cogNewSincePrevious
+                ? previousCogUrl(cogPrefix, coverage, region, renderYear)
+                : undefined,
             });
             return;
           }
+
+          // COG-only layers (the ML outlines) have no PNG pyramid at all.
+          if (!layer.tileUrl) return;
 
           // Per region AND year: troutlake has clearcut tiles for 2020 and 2024
           // only, so a region-level check still asked for 2025.
@@ -1337,7 +1408,7 @@ function App() {
     });
 
     return { rasterLayers, cogLayers, vectorLayers };
-  }, [activeLayers, rasterRegions, caribouRasterRegions, selectedRanges,
+  }, [effectiveActiveLayers, rasterRegions, caribouRasterRegions, selectedRanges,
       moduleYears, selectedYear, cogCoverageByPrefix,
       clearcutRegions, tileCoverage, playing, timelineYears]);
 
@@ -1345,12 +1416,12 @@ function App() {
   // user has switched on, not just the module currently in front. Names rather
   // than ids, since these go into a prompt.
   const activeLayerSummary = useMemo(() => (
-    MODULES.flatMap((module) => (activeLayers[module.id] || []).map((layerId) => ({
+    MODULES.flatMap((module) => (effectiveActiveLayers[module.id] || []).map((layerId) => ({
       module: module.name,
       layer: module.layers?.find((l) => l.id === layerId)?.name || layerId,
       year: moduleYears[module.id] || selectedYear,
     })))
-  ), [activeLayers, moduleYears, selectedYear]);
+  ), [effectiveActiveLayers, moduleYears, selectedYear]);
 
   const moduleData = {
     percentage: clearcutPercent,
@@ -1367,6 +1438,8 @@ function App() {
     // Lets the clearcut module narrow its chart to regions the map can draw.
     useCogClearcut: USE_COG,
     drawingStats,
+    clearcutSources,
+    onToggleClearcutSource: handleToggleClearcutSource,
   };
 
   // "Inspect harvest year" reads as an option OF Accumulated Clearcuts, not a
@@ -1375,7 +1448,9 @@ function App() {
   // Still backed by the same activeLayers/handleLayerToggle state (including
   // the parent-off-turns-child-off cascade) rather than a parallel toggle.
   const inspectHarvestActive = (activeLayers.clearcut || []).includes('clearcut-harvest-year-ari');
-  const accumulatedActive = (activeLayers.clearcut || []).includes('clearcut-accumulated');
+  // Needs the ARI source on too: the harvest polygons are ARI data.
+  const accumulatedActive = (activeLayers.clearcut || []).includes('clearcut-accumulated')
+    && clearcutSources.includes('ari');
 
   const handleModuleSelect = useCallback((module) => {
     setSelectedModuleId(module.id);
@@ -1573,7 +1648,7 @@ function App() {
                   <input
                     id="inspect-harvest-toggle"
                     type="checkbox"
-                    checked={inspectHarvestActive}
+                    checked={inspectHarvestActive && accumulatedActive}
                     disabled={!accumulatedActive}
                     onChange={() => handleLayerToggle('clearcut', 'clearcut-harvest-year-ari')}
                   />
@@ -1705,7 +1780,7 @@ function App() {
             )}
 
             {MODULES.flatMap((module) => {
-              const moduleActiveLayers = activeLayers[module.id] || [];
+              const moduleActiveLayers = effectiveActiveLayers[module.id] || [];
               // module.layers order, not moduleActiveLayers (toggle) order --
               // same reasoning as the MapLibre branch above: draw order must
               // not depend on which layer was switched on first.
@@ -1714,7 +1789,9 @@ function App() {
                 // Vector (PMTiles) layers only exist on the MapLibre path --
                 // this Leaflet branch has no PMTiles rendering, and layer.tileUrl
                 // is undefined for them, so skip rather than crash on it below.
-                if (layer.vectorUrl) return null;
+                // Same for COG-only layers (the ML outlines): Leaflet has no
+                // COG renderer and they have no PNG pyramid to fall back to.
+                if (layer.vectorUrl || !layer.tileUrl) return null;
 
                 // Range mode addresses tiles by range rather than by FMU, so the
                 // region list and the URL template have to change together.

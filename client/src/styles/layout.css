@@ -1,4 +1,4 @@
-﻿/* 3-Column Layout Styles */
+/* 3-Column Layout Styles */
 
 .layout-container {
   display: flex;
@@ -534,12 +534,29 @@ body.dark-mode .resize-handle--active::after {
   flex-shrink: 0;
 }
 
+/* Clearcut — must track the layer colors in App.js MODULES and
+   tileProcessor.worker.js */
 .legend-color.red {
-  background: #ff0000;
+  background: #dc2626;
 }
 
-.legend-color.yellow {
-  background: #ffeb3b;
+.legend-color.yellow,
+.legend-color.amber {
+  background: #d97706;
+}
+
+/* AI model layers: same colors as the ARI fills above, drawn as outlines, so
+   their swatches are hollow to match. */
+.legend-color.outline-amber {
+  background: transparent;
+  border: 2px solid #d97706;
+  box-sizing: border-box;
+}
+
+.legend-color.outline-red {
+  background: transparent;
+  border: 2px solid #dc2626;
+  box-sizing: border-box;
 }
 
 .legend-color.satellite {
@@ -1465,4 +1482,16 @@ body.dark-mode .range-switch-all { border-bottom-color: #333; }
 body.dark-mode .range-swatch {
   background: var(--swatch-dark);
   border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Outline-only sources (clearcut AI model): the swatch shows the drawing
+   style, not a color -- color there encodes accumulated vs annual. */
+.range-swatch--hollow,
+body.dark-mode .range-swatch--hollow {
+  background: transparent;
+  border: 2px solid var(--swatch);
+}
+
+body.dark-mode .range-swatch--hollow {
+  border-color: var(--swatch-dark);
 }

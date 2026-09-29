@@ -7,6 +7,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { buildClassColorFunction } from '../utils/rasterClasses';
 import { CLEARCUT_CLASSES, DEFAULT_VISIBLE_CLASSES, CLEARCUT_CLASS_ID } from '../utils/clearcutClasses';
 import { ensureTintedProtocol, onTintActivity } from '../utils/tintedTileProtocol';
+import { processTile } from '../utils/tileWorkerClient';
 
 // COG support is a URL protocol handler, not a layer type: once registered,
 // any source whose url starts with cog:// is range-read straight from R2 with
@@ -14,9 +15,59 @@ import { ensureTintedProtocol, onTintActivity } from '../utils/tintedTileProtoco
 // one global protocol registry -- doing it per-mount would re-register on every
 // remount and throw.
 let cogProtocolRegistered = false;
+
+// COG url -> { layerId, subtractUrl }, for layers drawn as outlines rather than
+// fills (the ML clearcut estimates, laid over the filled ARI layers).
+// setColorFunction sees one pixel at a time, and an edge needs its neighbours,
+// so the outline is a pass over the finished tile instead -- the same one the
+// tile worker runs.
+//
+// subtractUrl is another COG whose painted pixels are removed first: the ML
+// annual layer draws accumulated(Y) minus accumulated(previous year), so a
+// stand only appears in the year it entered the window.
+const cogOutlineLayers = new window.Map();  // `Map` here is react-map-gl's
+
+function bitmapPixels(bitmap) {
+  const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(bitmap, 0, 0);
+  bitmap.close();
+  return ctx.getImageData(0, 0, canvas.width, canvas.height);
+}
+
+async function outlineCogTile(params) {
+  // Same shape cogProtocol parses: cog://<cog url>[#hash]/z/x/y
+  const match = params.type === 'image'
+    && params.url.match(/^cog:\/\/(.+)\/(\d+)\/(\d+)\/(\d+)$/);
+  const entry = match && cogOutlineLayers.get(match[1]);
+  if (!entry) return cogProtocol(params);
+
+  const [z, x, y] = [match[2], match[3], match[4]];
+  const [current, previous] = await Promise.all([
+    cogProtocol(params),
+    entry.subtractUrl
+      ? cogProtocol({ ...params, url: `cog://${entry.subtractUrl}/${z}/${x}/${y}` })
+      : null,
+  ]);
+
+  const imageData = bitmapPixels(current.data);
+  if (previous) {
+    const before = bitmapPixels(previous.data).data;
+    const px = imageData.data;
+    for (let i = 3; i < px.length; i += 4) {
+      if (before[i] > 0) px[i] = 0;
+    }
+  }
+
+  const { imageData: outlined } = await processTile(
+    entry.layerId, imageData, { z: +z, x: +x, y: +y },
+  );
+  return { data: await createImageBitmap(outlined) };
+}
+
 function ensureCogProtocol() {
   if (cogProtocolRegistered) return;
-  maplibregl.addProtocol('cog', cogProtocol);
+  maplibregl.addProtocol('cog', outlineCogTile);
   cogProtocolRegistered = true;
 }
 
@@ -516,6 +567,10 @@ function LoadingReporter({ onLoadingChange, sourceIds }) {
       timer = null;
       const ids = sourceIds.filter((id) => {
         if (tinting.some((layerId) => id.startsWith(`raster-${layerId}-`))) return true;
+        // Not added yet (or just removed): pending. Checked up front because
+        // isSourceLoaded doesn't throw for an unknown id -- it fires an error
+        // event, which MapLibre logs, so the catch below never sees it.
+        if (!map.getSource(id)) return true;
         try {
           return !map.isSourceLoaded(id);
         } catch {
@@ -613,6 +668,17 @@ function MapLibreMap({
     setClickedFeature({ lngLat: e.lngLat, properties: feature.properties });
   }, []);
 
+  // The popup belongs to the layer it was read from. Once that layer is gone
+  // (Inspect switched off, Accumulated off, ARI source off) or its year window
+  // moves, the popup describes something no longer on the map -- close it
+  // rather than leave a stale harvest year behind.
+  const vectorLayerSignature = vectorLayers
+    .map((l) => `${l.id}:${JSON.stringify(l.filter ?? null)}`)
+    .join('|');
+  useEffect(() => {
+    setClickedFeature(null);
+  }, [vectorLayerSignature]);
+
   // Held in a ref so a year change does not rebuild the style.
   const satelliteRef = useRef({ url: satelliteUrl, attribution: satelliteAttribution });
   satelliteRef.current = { url: satelliteUrl, attribution: satelliteAttribution };
@@ -641,9 +707,19 @@ function MapLibreMap({
   // taxonomy color alone would paint both the same and make the two layers
   // indistinguishable when stacked. Falls back to the palette when a layer
   // declares no color.
-  const cogSignature = cogLayers.map((l) => `${l.url}:${l.color || ''}`).join('|');
+  const cogSignature = cogLayers
+    .map((l) => `${l.url}:${l.color || ''}:${l.outline || ''}:${l.subtractUrl || ''}`)
+    .join('|');
   useMemo(() => {
     cogLayers.forEach((layer) => {
+      if (layer.outline) {
+        // Keyed by url#layer, matching the Source url below: ML accumulated and ML
+        // annual read the same accumulated COG for a year, differently.
+        cogOutlineLayers.set(`${layer.url}#${layer.outline}`, {
+          layerId: layer.outline,
+          subtractUrl: layer.subtractUrl,
+        });
+      }
       // Each layer brings its own class table. Clearcut's 6-class U-Net labels and
       // wildfire's single burned class are unrelated vocabularies that happen to
       // share this renderer, so defaulting to one of them would let a layer paint
@@ -662,15 +738,18 @@ function MapLibreMap({
       const overrides = (layer.color && colorClass !== null)
         ? { [colorClass]: layer.color }
         : {};
-      setColorFunction(
-        layer.url,
-        buildClassColorFunction({
-          palette,
-          visibleClasses,
-          alpha: 255,
-          colorOverrides: overrides,
-        }),
-      );
+      const colorFunction = buildClassColorFunction({
+        palette,
+        visibleClasses,
+        alpha: 255,
+        colorOverrides: overrides,
+      });
+      setColorFunction(layer.url, colorFunction);
+      // The subtracted year needs one too, or the protocol renders it as a
+      // photo and every pixel reads as painted. Only its alpha is used, so
+      // sharing this layer's function is fine even if that year is also on
+      // the map in another color -- outlines are recolored by the worker.
+      if (layer.subtractUrl) setColorFunction(layer.subtractUrl, colorFunction);
     });
     // cogSignature stands in for the layer list: the array identity changes on
     // every render, but the registration only needs redoing when a URL or color does.
@@ -761,7 +840,9 @@ function MapLibreMap({
           key={layer.id}
           id={`cog-${layer.id}`}
           type="raster"
-          url={`cog://${layer.url}`}
+          // Outline layers carry their id as the hash so outlineCogTile can
+          // tell them apart; the protocol strips it before reading the COG.
+          url={layer.outline ? `cog://${layer.url}#${layer.outline}` : `cog://${layer.url}`}
           tileSize={256}
         >
           <Layer

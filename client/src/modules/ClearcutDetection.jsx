@@ -111,6 +111,16 @@ function ClearcutDetection({ data }) {
   const selectedYear   = data?.selectedYear;
   // When the map renders COGs, the chart counts only what the map can draw.
   const useCogClearcut = data?.useCogClearcut ?? false;
+  const clearcutSources = data?.clearcutSources ?? ['ari'];
+  const onToggleClearcutSource = data?.onToggleClearcutSource;
+
+  const sourcesSummary = clearcutSources.length === 0
+    ? 'None'
+    : clearcutSources.length === 2
+      ? 'All (2)'
+      : clearcutSources.includes('ari')
+        ? 'Official Inventory'
+        : 'AI Model';
 
   // Sum GeoJSON areas for all selected regions.
   useEffect(() => {
@@ -140,18 +150,12 @@ function ClearcutDetection({ data }) {
           getAnnualYearsWithData(r, selectedSensor),
           getClearcutAccuracy(r, selectedSensor),
           getClearcutWindowMeta(r, selectedSensor),
-          // Appended, not inserted: every destructuring below indexes this
-          // tuple positionally, so a new entry belongs at the end.
           computeEnteringClearcutAreaPerYear(r, CLEARCUT_YEARS, selectedSensor),
           computeCarriedClearcutAreaPerYear(r, CLEARCUT_YEARS, selectedSensor),
         ])
       )
     )
       .then(async results => {
-        // On the COG path the chart is narrowed to region/years the map can
-        // actually draw, so the two never disagree about which regions exist.
-        // Only regions that already have stats are probed -- everything else
-        // contributes zero regardless.
         let covered = null;
         if (useCogClearcut) {
           const withStats = results
@@ -164,22 +168,10 @@ function ClearcutDetection({ data }) {
         }
         const counts = (i, y) => !covered || covered.has(`${regions[i]}_${y}`);
 
-        // Sum accumulated and per-year ha across all regions.
-        //
-        // The stacked bars want `entering` (newly standing) under `carried`
-        // (standing already), because those two partition accumulated exactly.
-        // The `annual` raw classification does not: it counts every pixel that
-        // looked cut in Y, most of which were standing from earlier years, so
-        // accumulated-minus-annual is a residue rather than "previously cut" and
-        // the genuinely new area never gets drawn. Regions whose stats predate
-        // the entering/carried fields fall back to the old split.
         const accumulated = {};
         const annual = {};
         const entering = {};
         const carried = {};
-        // Only regions that actually contribute can veto the entering/carried
-        // split -- a region excluded by the COG gate, or with no data at all,
-        // shouldn't force every other region back to the old fallback.
         const contributes = (i) => CLEARCUT_YEARS.some(y => counts(i, y) && (results[i][0][y] ?? 0) > 0);
         const haveEntering = results.every((r, i) => !contributes(i) || r[5]);
         CLEARCUT_YEARS.forEach(y => {
@@ -192,26 +184,12 @@ function ClearcutDetection({ data }) {
           }
         });
 
-        // A year is only comparable if it's comparable for EVERY region that
-        // contributes area to it: summing a mature window in one region with a
-        // still-filling one in another produces a total that is neither.
-        //
-        // A contributing region with no window metadata makes the year NOT
-        // comparable rather than being skipped. Skipping it would let one
-        // documented region vouch for a total that is mostly undocumented --
-        // selecting all FMUs today puts troutlake (no _window block) above
-        // wabigoon and the sum would still be drawn as comparable.
-        //
-        // Regions contributing zero hectares are ignored, so selecting 39 FMUs
-        // where 37 have no data doesn't shade the whole chart for no reason.
         const mergedWindow = {};
         CLEARCUT_YEARS.forEach(y => {
           const contributing = results.filter(([acc], i) => counts(i, y) && (acc[y] ?? 0) > 0);
           if (contributing.length === 0) return;
 
           const metas = contributing.map(([,,,, w]) => w?.[y]).filter(Boolean);
-          // Nothing documents this year: annotate nothing rather than claiming
-          // it's bad -- regions whose stats predate the field land here.
           if (metas.length === 0) return;
 
           const undocumented = contributing.length - metas.length;
@@ -222,14 +200,7 @@ function ClearcutDetection({ data }) {
             isBaseline: metas.some(m => m.isBaseline),
             observationYears: Math.min(...metas.map(m => m.observationYears)),
             expectedYears: Math.max(...metas.map(m => m.expectedYears)),
-            // Which qualification rule produced these numbers. Mixed rules
-            // across regions can't be described by either, so the merged year
-            // reports no rule and the UI falls back to the generic wording.
             rule: metas.every(m => m.rule === metas[0].rule) ? metas[0].rule : null,
-            // Worst case across regions on whichever rule applies: the weakest
-            // corroboration any region managed, against the strictest standard
-            // any region applies -- so the caption describes the weakest
-            // evidence in the total rather than the best.
             minDetections: Math.min(...metas.map(m => m.minDetections ?? Infinity)),
             requiredDetections: Math.max(...metas.map(m => m.requiredDetections ?? 0)),
             adjacentPairs: Math.min(...metas.map(m => m.adjacentPairs ?? Infinity)),
@@ -238,10 +209,6 @@ function ClearcutDetection({ data }) {
         });
         setWindowMeta(mergedWindow);
 
-        // Intersection of annual data years — trend only covers years where
-        // ALL contributing regions have comparable annual detection data.
-        // Regions the map can't draw are left out of the intersection too;
-        // otherwise an excluded region would still narrow the trend's span.
         const trendYearSets = results
           .map(([,, years], i) => ({ years, i }))
           .filter(({ years, i }) => [...years].some(y => counts(i, y)))
@@ -251,7 +218,6 @@ function ClearcutDetection({ data }) {
           : new Set();
         setAnnualDataYears(dataYears);
 
-        // Average accuracy metrics across regions that have validation data.
         const mergedAccuracy = {};
         CLEARCUT_YEARS.forEach(y => {
           const yearAccs = results.map(([,,, acc]) => acc[String(y)]).filter(Boolean);
@@ -281,9 +247,6 @@ function ClearcutDetection({ data }) {
       .finally(() => setLoading(false));
   }, [regionsKey, selectedSensor, useCogClearcut]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Contiguous run of leading years whose accumulated window hasn't filled.
-  // Shaded rather than hidden: they are real measurements, just not readable as
-  // a trend against later years.
   const fillingSpan = useMemo(() => {
     const years = CLEARCUT_YEARS.filter(y => windowMeta[y]);
     if (years.length === 0) return null;
@@ -292,7 +255,6 @@ function ClearcutDetection({ data }) {
     return { from: String(Math.min(...partial)), to: String(Math.max(...partial)) };
   }, [windowMeta]);
 
-  // Linear regression over annual clearcut values (non-zero years only).
   const trend = useMemo(() => {
     if (!yearlyStats || annualDataYears.size < 2) return null;
     const pts = yearlyStats
@@ -309,10 +271,6 @@ function ClearcutDetection({ data }) {
     return base.map(d => {
       const yr  = parseInt(d.year);
       const acc = accuracy[String(yr)];
-      // Asymmetric error bars derived from per-year precision/recall:
-      //   lower error = annualHa × (1 − precision)  — false positives inflate the count
-      //   upper error = annualHa × (1/recall − 1)   — missed pixels deflate the count
-      // Falls back to ±FALLBACK_UNCERTAINTY when no validation data exists for the year.
       const lowerErr = acc
         ? parseFloat((d.annual * (1 - acc.precision)).toFixed(1))
         : parseFloat((d.annual * FALLBACK_UNCERTAINTY).toFixed(1));
@@ -345,6 +303,63 @@ function ClearcutDetection({ data }) {
 
   return (
     <div className="clearcut-module">
+      <div className="module-section">
+        <details className="range-dropdown" open>
+          <summary>
+            <span>Clearcut Sources</span>
+            <span className="range-summary-count">
+              {sourcesSummary}
+            </span>
+          </summary>
+
+          <div className="range-panel">
+            <label className="switch range-switch" htmlFor="clearcut-source-ari">
+              <i
+                className="range-swatch"
+                style={{ '--swatch': '#64748b', '--swatch-dark': '#94a3b8' }}
+                aria-hidden="true"
+              />
+              <span className="range-name">Official Inventory (ARI Ground Truth)</span>
+              <input
+                id="clearcut-source-ari"
+                type="checkbox"
+                role="switch"
+                checked={clearcutSources.includes('ari')}
+                onChange={(e) => onToggleClearcutSource?.('ari', e.target.checked)}
+              />
+              <span className="switch-track" aria-hidden="true" />
+            </label>
+
+            <label className="switch range-switch" htmlFor="clearcut-source-ml">
+              <i
+                className="range-swatch range-swatch--hollow"
+                style={{ '--swatch': '#64748b', '--swatch-dark': '#94a3b8' }}
+                aria-hidden="true"
+              />
+              <span className="range-name">AI Model Estimates (HLS Deep Learning)</span>
+              <input
+                id="clearcut-source-ml"
+                type="checkbox"
+                role="switch"
+                checked={clearcutSources.includes('ml')}
+                onChange={(e) => onToggleClearcutSource?.('ml', e.target.checked)}
+              />
+              <span className="switch-track" aria-hidden="true" />
+            </label>
+
+            <p className="stat-sub range-mode-note">
+              {clearcutSources.length === 2
+                ? 'Showing Official Inventory (filled) and AI Model Estimates (outlines) for visual comparison.'
+                : clearcutSources.includes('ari')
+                  ? 'Showing Official Inventory (ARI ground truth harvest data).'
+                  : clearcutSources.includes('ml')
+                    ? 'Showing AI Model Estimates (deep learning satellite detections as outlines).'
+                    : 'No clearcut source selected — select at least one source to display clearcuts on the map.'}
+            </p>
+          </div>
+        </details>
+      </div>
+
       <div className="module-section">
         <h3>Detection Results ({selectedYear})</h3>
         {clearcutPercent !== null ? (
@@ -402,9 +417,6 @@ function ClearcutDetection({ data }) {
                   if (!m) return `Year ${label}`;
                   if (m.isBaseline) return `Year ${label} — baseline`;
                   if (!m.comparable) {
-                    // Two different reasons a year isn't comparable, and the
-                    // undocumented-region one has to be named -- otherwise it
-                    // reads as a window-filling problem the user could wait out.
                     if (m.undocumentedRegions > 0) {
                       return `Year ${label} — ${m.undocumentedRegions}/${m.contributingRegions} regions undocumented`;
                     }
@@ -430,18 +442,17 @@ function ClearcutDetection({ data }) {
                   label={{ value: 'window filling', position: 'insideTop', fontSize: 10, fill: '#64748b' }}
                 />
               )}
-              {/* Colors inverted from the ML layer's original red=historical,
-                  gold=annual -- matches the map layers and legend below. */}
-              <Bar dataKey="historical" stackId="a" fill="#FFD700" name="historical">
+              {/* Amber for historical/accumulated clearcuts (#d97706) for high contrast on light basemap */}
+              <Bar dataKey="historical" stackId="a" fill="#d97706" name="historical">
                 {chartData.map(d => (
                   <Cell key={d.year} fillOpacity={windowMeta[d.year]?.comparable === false ? 0.45 : 1} />
                 ))}
               </Bar>
-              <Bar dataKey="annual" stackId="a" fill="#ff4444" name="annual" radius={[2, 2, 0, 0]}>
+              <Bar dataKey="annual" stackId="a" fill="#dc2626" name="annual" radius={[2, 2, 0, 0]}>
                 {chartData.map(d => (
                   <Cell key={d.year} fillOpacity={windowMeta[d.year]?.comparable === false ? 0.45 : 1} />
                 ))}
-                <ErrorBar dataKey="annualError" width={3} strokeWidth={1.5} stroke="#a07800" direction="y" />
+                <ErrorBar dataKey="annualError" width={3} strokeWidth={1.5} stroke="#92400e" direction="y" />
               </Bar>
               {trend && (
                 <Line
@@ -482,26 +493,52 @@ function ClearcutDetection({ data }) {
 
       <div className="module-section">
         <h3>Legend &amp; Color Guide</h3>
-        <p className="stat-sub" style={{ marginBottom: 6 }}><strong>Official Inventory (ARI Ground Truth):</strong></p>
-        <div className="legend-item">
-          <span className="legend-color" style={{ background: '#ffeb3b' }} />
-          <span>ARI Accumulated Clearcuts</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-color" style={{ background: '#ff0000' }} />
-          <span>ARI Annual Clearcuts</span>
-        </div>
-        <p className="stat-sub" style={{ marginTop: 8, marginBottom: 6 }}><strong>Satellite AI Detections (HLS ML Model):</strong></p>
-        <div className="legend-item">
-          <span className="legend-color" style={{ background: '#00e5ff' }} />
-          <span>AI Model: Accumulated Cuts</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-color" style={{ background: '#ff007f' }} />
-          <span>AI Model: Annual Cuts</span>
-        </div>
+        {clearcutSources.includes('ari') && (
+          <>
+            <p className="stat-sub" style={{ marginBottom: 6 }}>
+              <strong>Official Inventory (ARI Ground Truth):</strong>
+            </p>
+            <div className="legend-item">
+              <span className="legend-color amber" />
+              <span>ARI Accumulated Clearcuts (5-year window)</span>
+            </div>
+            <div className="legend-item">
+              <span className="legend-color red" />
+              <span>ARI Annual Clearcuts (harvested this year)</span>
+            </div>
+          </>
+        )}
+        {clearcutSources.includes('ml') && (
+          <>
+            <p className="stat-sub" style={{ marginTop: clearcutSources.includes('ari') ? 8 : 0, marginBottom: 6 }}>
+              <strong>AI Model Estimates (HLS Deep Learning):</strong>
+            </p>
+            <div className="legend-item">
+              <span className="legend-color outline-amber" />
+              <span>AI Model: Accumulated Cuts (outline)</span>
+            </div>
+            <div className="legend-item">
+              <span className="legend-color outline-red" />
+              <span>AI Model: Annual Cuts (newly detected this year, outline)</span>
+            </div>
+          </>
+        )}
+        {clearcutSources.length === 0 && (
+          <p className="stat-sub" style={{ fontStyle: 'italic', color: '#888' }}>
+            No clearcut source selected.
+          </p>
+        )}
         <div className="legend-item" style={{ marginTop: 8 }}>
-          <span style={{ display: 'inline-block', width: 16, height: 0, borderTop: '2px dashed #888', marginRight: 6, verticalAlign: 'middle' }} />
+          <span
+            style={{
+              display: 'inline-block',
+              width: 16,
+              height: 0,
+              borderTop: '2px dashed #888',
+              marginRight: 6,
+              verticalAlign: 'middle',
+            }}
+          />
           <span>Annual clearcut trend (red = increasing · green = decreasing)</span>
         </div>
       </div>
@@ -510,3 +547,4 @@ function ClearcutDetection({ data }) {
 }
 
 export default ClearcutDetection;
+
