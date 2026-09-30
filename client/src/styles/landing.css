@@ -371,6 +371,22 @@
   color: #74bd78;
 }
 
+.landing-news-more {
+  margin-top: 14px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: #74bd78;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.landing-news-more:hover {
+  text-decoration: underline;
+}
+
 .landing-section-button {
   margin-top: 28px;
   padding: 11px 18px;

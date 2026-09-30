@@ -30,6 +30,9 @@ function TopMenu({
   const { user, isAuthenticated, isInitialized, openAuthModal, logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+  // Mobile (<= 768px) collapses the nav links into a hamburger panel.
+  const [navOpen, setNavOpen] = useState(false);
+  const headerRef = useRef(null);
 
   const [darkMode, setDarkMode] = useState(() => {
     const storedPreference = localStorage.getItem('darkMode');
@@ -53,6 +56,29 @@ function TopMenu({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Close the mobile nav panel on a click outside the header or on Escape
+  useEffect(() => {
+    if (!navOpen) return undefined;
+    function handlePointer(e) {
+      if (headerRef.current && !headerRef.current.contains(e.target)) setNavOpen(false);
+    }
+    function handleKey(e) {
+      if (e.key === 'Escape') setNavOpen(false);
+    }
+    document.addEventListener('mousedown', handlePointer);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handlePointer);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [navOpen]);
+
+  // Runs a nav action and closes the mobile panel behind it
+  const navAction = (fn) => () => {
+    setNavOpen(false);
+    fn();
+  };
+
   const handleLandingScroll = (id) => {
     if (id === 'overview') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -73,7 +99,7 @@ function TopMenu({
   };
 
   return (
-    <header className="top-menu">
+    <header className="top-menu" ref={headerRef}>
       <div className="menu-left">
         <div className="brand-group">
           <h1 className="app-title" onClick={handleBrandClick} style={{ cursor: 'pointer' }}>ForestTrace</h1>
@@ -93,14 +119,14 @@ function TopMenu({
             </div>
           )}
         </div>
-        <nav className="nav-links">
+        <nav id="top-menu-nav" className={`nav-links${navOpen ? ' nav-links--open' : ''}`}>
           {isLanding ? (
             LANDING_NAV_ITEMS.map(({ id, label }) => (
               <button
                 key={id}
                 type="button"
                 className="nav-link-btn"
-                onClick={() => handleLandingScroll(id)}
+                onClick={navAction(() => handleLandingScroll(id))}
               >
                 {label}
               </button>
@@ -109,7 +135,7 @@ function TopMenu({
             <>
               <button
                 className={`nav-link-btn${!activePage ? ' nav-link-btn--active' : ''}`}
-                onClick={onHome}
+                onClick={navAction(() => onHome && onHome())}
               >
                 Home
               </button>
@@ -117,13 +143,22 @@ function TopMenu({
                 <button
                   key={id}
                   className={`nav-link-btn${activePage === id ? ' nav-link-btn--active' : ''}`}
-                  onClick={() => onNavigate && onNavigate(id)}
+                  onClick={navAction(() => onNavigate && onNavigate(id))}
                 >
                   {label}
                 </button>
               ))}
             </>
           )}
+          {/* Mobile only: the header has no room for it next to Sign In */}
+          <button
+            type="button"
+            className="nav-link-btn nav-dark-toggle"
+            onClick={() => setDarkMode((prev) => !prev)}
+            aria-pressed={darkMode}
+          >
+            {darkMode ? 'Light Mode' : 'Dark Mode'}
+          </button>
         </nav>
       </div>
 
@@ -220,6 +255,19 @@ function TopMenu({
             <span>👤</span> {isInitialized ? 'Sign In' : 'Setup Admin'}
           </button>
         )}
+
+        <button
+          type="button"
+          className="nav-toggle"
+          onClick={() => setNavOpen((prev) => !prev)}
+          aria-expanded={navOpen}
+          aria-controls="top-menu-nav"
+          aria-label={navOpen ? 'Close menu' : 'Open menu'}
+        >
+          <span className="nav-toggle-bar" aria-hidden="true" />
+          <span className="nav-toggle-bar" aria-hidden="true" />
+          <span className="nav-toggle-bar" aria-hidden="true" />
+        </button>
       </div>
     </header>
   );

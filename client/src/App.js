@@ -657,6 +657,14 @@ function App() {
 
   const [showApp, setShowApp] = useState(false);
   const [activePage, setActivePage] = useState(null);
+  // Post the News page opens straight into (from a landing-page card); null = list
+  const [newsSlug, setNewsSlug] = useState(null);
+  // Top-menu navigation: a page opened from the menu starts at its top level,
+  // so News shows the list rather than whichever post was last open.
+  const navigateToPage = useCallback((page) => {
+    setNewsSlug(null);
+    setActivePage(page);
+  }, []);
   const mapRef = useRef(null);
   const [mapReady, setMapReady] = useState(false);
   const [clearcutPercent, setClearcutPercent] = useState(null);
@@ -682,12 +690,15 @@ function App() {
     prevAuthRef.current = isAuthenticated;
   }, [isAuthenticated, showApp]);
 
-  // If user signs out while on map workspace, return to landing page
+  // If user signs out while on map workspace, return to landing page. The info
+  // pages (About, News, Documentation...) are public and render without the
+  // map, so they stay open -- bouncing them is what made the landing page's
+  // links to them flash open and closed for signed-out visitors.
   useEffect(() => {
-    if (!isAuthenticated && showApp) {
+    if (!isAuthenticated && showApp && !activePage) {
       setShowApp(false);
     }
-  }, [isAuthenticated, showApp]);
+  }, [isAuthenticated, showApp, activePage]);
   // Shown only if the load is still running after a beat. Most tile loads finish
   // faster than that, and an indicator that flashes on every pan reads as the
   // map fighting you rather than as information.
@@ -1490,12 +1501,11 @@ function App() {
   if (!showApp) {
     return (
       <div className="app-wrapper">
-        <MobileWarning />
         <TopMenu
           isLanding={true}
           onNavigate={(page) => {
             setShowApp(true);
-            setActivePage(page);
+            navigateToPage(page);
           }}
           onHome={() => {
             setShowApp(false);
@@ -1512,8 +1522,9 @@ function App() {
             setShowApp(true);
             setActivePage('about');
           }}
-          onOpenNews={() => {
+          onOpenNews={(slug = null) => {
             setShowApp(true);
+            setNewsSlug(slug);
             setActivePage('news');
           }}
           onOpenDocumentation={() => {
@@ -1543,16 +1554,20 @@ function App() {
     const PageComponent = PAGE_MAP[activePage];
     return (
       <div className="app-wrapper">
-        <MobileWarning />
         <TopMenu
-          onNavigate={setActivePage}
+          onNavigate={navigateToPage}
           onHome={() => setActivePage(null)}
           activePage={activePage}
           onOpenAdminDashboard={() => setAdminDashboardOpen(true)}
           onOpenChatHistory={() => setChatHistoryOpen(true)}
           onOpenBugReport={() => setBugReportOpen(true)}
         />
-        {PageComponent && <PageComponent onBack={() => setActivePage(null)} />}
+        {PageComponent && (
+          <PageComponent
+            onBack={() => setActivePage(null)}
+            {...(activePage === 'news' ? { initialSlug: newsSlug } : {})}
+          />
+        )}
         <AuthModal />
         <AdminDashboard
           isOpen={adminDashboardOpen}
@@ -1575,9 +1590,10 @@ function App() {
     <div className="app-wrapper">
       <SpeedInsights scriptSrc="https://va.vercel-scripts.com/v1/speed-insights/script.js" />
       <Analytics scriptSrc="https://va.vercel-scripts.com/v1/script.js" />
+      {/* Map workspace only: the landing and info pages have mobile layouts */}
       <MobileWarning />
       <TopMenu
-        onNavigate={setActivePage}
+        onNavigate={navigateToPage}
         onHome={() => {
           setShowApp(false);
           setActivePage(null);

@@ -1,4 +1,5 @@
 import '../styles/landing.css';
+import { useNews } from '../utils/news';
 
 const METHODS = [
   {
@@ -55,34 +56,12 @@ const PARTNERS = [
   },
 ];
 
-const NEWS_ITEMS = [
-  {
-    date: 'June 2026',
-    badge: 'New Feature',
-    title: 'Forestry AI Assistant Powered by Groq',
-    body: 'ForestTrace now integrates a domain-specific AI assistant powered by Groq inference and Meta Llama 3.1 8B. Users can query satellite-derived datasets, clearcut statistics, and biomass estimates in natural language — grounded in the active map context.',
-  },
-  {
-    date: 'April 2025',
-    badge: 'Platform Update',
-    title: 'Planet Imagery Integration',
-    body: 'High-resolution Planet imagery is now available for the 2025 dataset, providing sub-10 m clearcut detection alongside the existing HLS time series.',
-  },
-  {
-    date: 'December 2025',
-    badge: 'Presentation',
-    title: 'ForestTrace at AGU 2025',
-    body: 'Our paper "Boreal Forest Regrowth Stage Classification Using Multi-Sensor Remote Sensing and Machine Learning" was presented at AGU Fall Meeting 2025, highlighting recent methods for post-clearcut regrowth characterization.',
-  },
-  {
-    date: 'November 2025',
-    badge: 'Platform Launch',
-    title: 'ForestTrace Public Release',
-    body: 'The ForestTrace web platform was officially launched, making boreal forest monitoring data accessible through an interactive map interface.',
-  },
-];
+// News posts come from src/content/news/*.md (see utils/news.js).
+const LANDING_NEWS_COUNT = 4;
 
 function LandingPage({ onEnter, onOpenAbout, onOpenNews, onOpenDocumentation }) {
+  const latestNews = useNews().slice(0, LANDING_NEWS_COUNT);
+
   return (
     <div className="landing">
 
@@ -109,7 +88,10 @@ function LandingPage({ onEnter, onOpenAbout, onOpenNews, onOpenDocumentation }) 
             <button className="landing-cta" onClick={onEnter}>
               Launch Application
             </button>
-            <button className="landing-cta-secondary" onClick={onOpenDocumentation}>
+            <button
+              className="landing-cta-secondary"
+              onClick={() => document.getElementById('methodology')?.scrollIntoView({ behavior: 'smooth' })}
+            >
               Explore Methods
             </button>
           </div>
@@ -215,15 +197,18 @@ function LandingPage({ onEnter, onOpenAbout, onOpenNews, onOpenDocumentation }) 
         <p className="landing-section-title">News</p>
         <h2 className="landing-section-heading">Latest Updates</h2>
         <div className="landing-cards">
-          {NEWS_ITEMS.map(({ date, badge, title, body }) => (
-            <article className="landing-card" key={title}>
-              <p className="landing-news-meta">{badge} · {date}</p>
+          {latestNews.map(({ slug, tag, dateLabel, title, summary }) => (
+            <article className="landing-card" key={slug}>
+              <p className="landing-news-meta">{tag} · {dateLabel}</p>
               <h3 className="landing-card-title">{title}</h3>
-              <p className="landing-card-text">{body}</p>
+              <p className="landing-card-text">{summary}</p>
+              <button className="landing-news-more" onClick={() => onOpenNews(slug)}>
+                Read more →
+              </button>
             </article>
           ))}
         </div>
-        <button className="landing-section-button" onClick={onOpenNews}>
+        <button className="landing-section-button" onClick={() => onOpenNews()}>
           View All News
         </button>
       </section>

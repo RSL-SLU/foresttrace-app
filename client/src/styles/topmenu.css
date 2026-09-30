@@ -186,3 +186,111 @@
   body.dark-mode .select-arrow {
     color: #bdbdbd;
   }
+
+  /* Hamburger toggle and the mobile-only dark-mode entry: hidden on desktop */
+  .nav-toggle,
+  .nav-dark-toggle {
+    display: none;
+  }
+
+  .nav-toggle {
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    width: 36px;
+    height: 36px;
+    padding: 0 8px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    background: #ffffff;
+    cursor: pointer;
+  }
+
+  .nav-toggle-bar {
+    display: block;
+    height: 2px;
+    border-radius: 1px;
+    background: #333;
+  }
+
+  body.dark-mode .nav-toggle {
+    background: #2b2b2b;
+    border-color: #3a3a3a;
+  }
+
+  body.dark-mode .nav-toggle-bar {
+    background: #ffffff;
+  }
+
+  /* Mobile: links collapse into a panel under the header */
+  @media (max-width: 768px) {
+    .top-menu {
+      padding: 0 12px;
+    }
+
+    .menu-left {
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .menu-right {
+      gap: 8px;
+    }
+
+    .nav-toggle {
+      display: flex;
+    }
+
+    /* Moved into the panel; the header keeps the title, sign-in and toggle */
+    .menu-right .dark-toggle {
+      display: none;
+    }
+
+    .nav-links {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      flex-direction: column;
+      padding: 6px 0;
+      background: #ffffff;
+      border-bottom: 1px solid #e0e0e0;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12);
+    }
+
+    .nav-links--open {
+      display: flex;
+    }
+
+    .nav-link-btn {
+      margin: 0;
+      padding: 12px 20px;
+      width: 100%;
+      text-align: left;
+      font-size: 15px;
+    }
+
+    .nav-dark-toggle {
+      display: block;
+      border-top: 1px solid #e0e0e0;
+    }
+
+    /* Long names would push the toggle off-screen */
+    .user-profile-badge span:nth-child(2) {
+      max-width: 110px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    body.dark-mode .nav-links {
+      background: #1e1e1e;
+      border-bottom-color: #2b2b2b;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    body.dark-mode .nav-dark-toggle {
+      border-top-color: #2b2b2b;
+    }
+  }
