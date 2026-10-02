@@ -18,14 +18,16 @@
  * has to be supplied — there is no default.
  *
  * Usage:
- *   node generate-wildfire-stats.js <planCsv>
- *   WILDFIRE_PLAN_CSV=<planCsv> node generate-wildfire-stats.js
+ *   node scripts/stats/generate-wildfire-stats.js <planCsv>
+ *   WILDFIRE_PLAN_CSV=<planCsv> node scripts/stats/generate-wildfire-stats.js
  */
 
 const fs = require('fs');
 const path = require('path');
+// Repo root: this file lives in scripts/<group>/.
+const ROOT = path.resolve(__dirname, '..', '..');
 
-const OUT_FILE = path.join(__dirname, 'client', 'public', 'data', 'wildfire_stats.json');
+const OUT_FILE = path.join(ROOT, 'client', 'public', 'data', 'wildfire_stats.json');
 
 // Regions that were merged when the tile folders were renamed. Areas and fire
 // counts are summed for the target FMU.
@@ -65,8 +67,8 @@ const planCsv = process.argv[2] || process.env.WILDFIRE_PLAN_CSV;
 if (!planCsv) {
   console.error('Error: no tiling plan CSV given.\n');
   console.error('Usage:');
-  console.error('  node generate-wildfire-stats.js <planCsv>');
-  console.error('  WILDFIRE_PLAN_CSV=<planCsv> node generate-wildfire-stats.js\n');
+  console.error('  node scripts/stats/generate-wildfire-stats.js <planCsv>');
+  console.error('  WILDFIRE_PLAN_CSV=<planCsv> node scripts/stats/generate-wildfire-stats.js\n');
   console.error('  <planCsv>  tiler output with columns: region, year, n_fires, area_ha');
   process.exit(1);
 }

@@ -21,22 +21,24 @@
  * region-year missing from it is simply unreachable in the year slider.
  *
  * Usage:
- *   node generate-wildfire-years.js <dir>
- *   WILDFIRE_TILES_DIR=<dir> node generate-wildfire-years.js
+ *   node scripts/stats/generate-wildfire-years.js <dir>
+ *   WILDFIRE_TILES_DIR=<dir> node scripts/stats/generate-wildfire-years.js
  */
 
 const fs = require('fs');
 const path = require('path');
+// Repo root: this file lives in scripts/<group>/.
+const ROOT = path.resolve(__dirname, '..', '..');
 
-const OUT_FILE = path.join(__dirname, 'client', 'public', 'data', 'wildfire_years.json');
+const OUT_FILE = path.join(ROOT, 'client', 'public', 'data', 'wildfire_years.json');
 
 const tilesDir = process.argv[2] || process.env.WILDFIRE_TILES_DIR;
 
 if (!tilesDir) {
   console.error('Error: no wildfire tiles directory given.\n');
   console.error('Usage:');
-  console.error('  node generate-wildfire-years.js <tilesDir>');
-  console.error('  WILDFIRE_TILES_DIR=<tilesDir> node generate-wildfire-years.js\n');
+  console.error('  node scripts/stats/generate-wildfire-years.js <tilesDir>');
+  console.error('  WILDFIRE_TILES_DIR=<tilesDir> node scripts/stats/generate-wildfire-years.js\n');
   console.error('  <dir>  folder of <region>_<year>.tif COGs,');
   console.error('         or of <region>_<year>/{z}/{x}/{y}.png tile pyramids');
   process.exit(1);

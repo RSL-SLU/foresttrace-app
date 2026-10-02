@@ -5,7 +5,7 @@
  * In production (Vercel):   set REACT_APP_TILES_BASE_URL, REACT_APP_DATA_BASE_URL and
  *                           REACT_APP_COG_BASE_URL in the Vercel project settings to
  *                           the Blob store, e.g. https://<id>.public.blob.vercel-storage.com
- *                           (upload-data-vercel.js / upload-cogs-vercel.js populate it)
+ *                           (scripts/storage/upload-data-vercel.js / scripts/storage/upload-cogs-vercel.js populate it)
  */
 
 const appMode = (process.env.REACT_APP_MODE || process.env.REACT_APP_APP_MODE || '').toLowerCase();

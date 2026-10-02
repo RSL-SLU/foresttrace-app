@@ -9,10 +9,10 @@
 //   annual      → {region}_hls_annual   (reads tiles/clearcut-annual/)
 //
 // Usage:
-//   node compute-clearcut-stats.js --local [--accumulated] [--annual] [region] [year]
+//   node scripts/legacy/compute-clearcut-stats.js --local [--accumulated] [--annual] [region] [year]
 //       reads from client/public/tiles/ (no credentials needed)
 //
-//   node compute-clearcut-stats.js --production [--accumulated] [--annual] [region] [year]
+//   node scripts/legacy/compute-clearcut-stats.js --production [--accumulated] [--annual] [region] [year]
 //       reads from Cloudflare R2 (requires .env.r2)
 //
 //   Default (no --accumulated / --annual flag): computes both.
@@ -32,11 +32,13 @@ if (!isLocal && !isProduction) {
   process.exit(1);
 }
 
-if (isProduction) require('dotenv').config({ path: '.env.r2' });
+if (isProduction) require('dotenv').config({ path: require('path').join(__dirname, '..', '..', '.env.r2') });
 
 const { PNG } = require('pngjs');
 const fs   = require('fs');
 const path = require('path');
+// Repo root: this file lives in scripts/<group>/.
+const ROOT = path.resolve(__dirname, '..', '..');
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
@@ -55,7 +57,7 @@ const ALL_YEARS       = [2010, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2
 const ANNUAL_YEARS    = [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025];
 const CONCURRENCY     = 16;
 const EARTH_CIRCUMFERENCE = 40075016.686;
-const LOCAL_TILES     = path.join(__dirname, 'client', 'public');
+const LOCAL_TILES     = path.join(ROOT, 'client', 'public');
 
 // ── Area formula ──────────────────────────────────────────────────────────────
 
@@ -218,7 +220,7 @@ async function main() {
   console.log(`  Layers: ${layers.map(l => l.folder).join(', ')}`);
   console.log(`  Regions: ${regions.length}\n`);
 
-  const statsPath = path.join(__dirname, 'client', 'public', 'data', 'clearcut_stats.json');
+  const statsPath = path.join(ROOT, 'client', 'public', 'data', 'clearcut_stats.json');
   const stats = JSON.parse(fs.readFileSync(statsPath, 'utf8'));
 
   for (const { folder, statKey, years } of layers) {

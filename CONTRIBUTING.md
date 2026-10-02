@@ -40,7 +40,13 @@ foresttrace-app/
 │   ├── reports.js                   # Bug reports & map state snapshots
 │   └── chat.js                      # Forestry AI Assistant Groq proxy
 ├── index.js                         # Express server for dev API & production bundle serving
-├── package.json                     # Root: Express dev server + tile & COG scripts
+├── scripts/                         # Offline tools (see scripts/README.md)
+│   ├── storage/                     # Vercel Blob uploads & COG manifest
+│   ├── stats/                       # Chart stats (refresh-stats.js)
+│   ├── data/                        # FMU boundary download & simplification
+│   ├── admin/                       # reset-password.js
+│   └── legacy/                      # R2 / PNG-tile era, reference only
+├── package.json                     # Root: Express dev server dependencies
 ├── .env.example                     # Template for backend & environment configuration
 ├── client/.env.example              # Template for client-side API keys and flags
 ├── .env.r2.example                  # Template for R2 credentials (tiles & dev alternative)
@@ -99,7 +105,7 @@ When launching with an empty database or fresh clone:
 1. ForestTrace checks user count. If zero, it sets `isInitialized: false`.
 2. The navigation badge displays **Setup Admin**.
 3. Clicking it opens the bootstrap modal where the first user creates their admin account.
-4. Accounts sign in with email + password. To reset any account's password, including the admin's, run `node reset-password.js <email> --db <foresttrace|foresttrace_preview|foresttrace_dev>` -- it prompts for the new password and uses the API's own hashing.
+4. Accounts sign in with email + password. To reset any account's password, including the admin's, run `node scripts/admin/reset-password.js <email> --db <foresttrace|foresttrace_preview|foresttrace_dev>` -- it prompts for the new password and uses the API's own hashing.
 
 ### 5. Managing background processes (Windows)
 
@@ -232,6 +238,11 @@ following the same `loadStats()` singleton pattern).
 
 ## Tile pipeline
 
+> **Legacy.** This section describes the PNG-tile / Cloudflare R2 workflow.
+> Clearcut, wildfire and caribou now draw from COGs on Vercel Blob; only
+> biomass still uses PNG tiles. The scripts below live in `scripts/legacy/`.
+> For the current workflow see [scripts/README.md](scripts/README.md).
+
 Tiles follow the standard XYZ/TMS pyramid structure:
 
 ```
@@ -240,7 +251,7 @@ tiles/<layer>/<region>_<year>/<z>/<x>/<y>.png
 
 ### Generating tiles locally
 
-The processing scripts shown below are committed to the repo root. Other
+The processing scripts shown below are committed under `scripts/legacy/`. Other
 one-off/local tooling scripts (data exploration, cleanup one-shots, etc.) stay
 **gitignored** — no reason to version those. Committed scripts accept
 `--local` (read/write `client/public/tiles/`) or `--production` (read/write
@@ -248,10 +259,10 @@ Cloudflare R2).
 
 ```bash
 # Generate annual clearcut tiles from accumulated tiles (2-year lookback filter)
-node generate-annual-clearcut-tiles.js --local wabigoon 2023
+node scripts/legacy/generate-annual-clearcut-tiles.js --local wabigoon 2023
 
 # Compute area statistics and write to clearcut_stats.json
-node compute-clearcut-stats.js --local --annual wabigoon
+node scripts/legacy/compute-clearcut-stats.js --local --annual wabigoon
 ```
 
 Local tiles are placed under `client/public/tiles/` and served by the CRA dev
@@ -277,7 +288,7 @@ R2_BUCKET_NAME=          # Exact bucket name, e.g. foresttrace-tiles
 
 ### Uploading tiles to Cloudflare R2
 
-`upload-tiles.js` is committed to the repo. It reads from
+`scripts/legacy/upload-tiles.js` is committed to the repo. It reads from
 `client/public/tiles/` and mirrors the directory tree to R2. You'll need R2
 credentials to run it — ask a maintainer for the token values and fill them
 into your own local `.env.r2` (see
@@ -285,15 +296,15 @@ into your own local `.env.r2` (see
 gitignored and must never be committed).
 
 ```bash
-node upload-tiles.js --region wabigoon --layer clearcut-annual --year 2023
+node scripts/legacy/upload-tiles.js --region wabigoon --layer clearcut-annual --year 2023
 ```
 
 You can also use the `--production` flag on the processing scripts directly,
 which reads from and writes to R2 without generating local copies:
 
 ```bash
-node generate-annual-clearcut-tiles.js --production wabigoon 2023
-node compute-clearcut-stats.js --production --annual wabigoon
+node scripts/legacy/generate-annual-clearcut-tiles.js --production wabigoon 2023
+node scripts/legacy/compute-clearcut-stats.js --production --annual wabigoon
 ```
 
 ### Tile URL routing
@@ -310,18 +321,23 @@ committed `.env` file).
 
 ## Area statistics
 
-`client/public/data/clearcut_stats.json` is a committed file that holds
-precomputed hectare values. It is checked in so the app works without running
-any scripts at startup.
-
-After generating new tiles or updating a region, recompute and commit the JSON:
+The charts read precomputed, committed JSON in `client/public/data/`
+(`clearcut_stats.json`, `wildfire_stats.json`, ...), not the rasters. Whenever
+a module's COGs are regenerated or gain a region or year, refresh its stats and
+commit them. `scripts/storage/upload-cogs-vercel.js` does the refresh
+automatically after each upload; to run it by hand:
 
 ```bash
-node compute-clearcut-stats.js --local --accumulated wabigoon
-node compute-clearcut-stats.js --local --annual wabigoon
+node scripts/stats/refresh-stats.js clearcut --region wabigoon
 git add client/public/data/clearcut_stats.json
-git commit -m "chore: update clearcut_stats for wabigoon 2024"
+git commit -m "chore: update clearcut_stats for wabigoon 2025"
 ```
+
+Clearcut stats come from `compute_clearcut_stats_cog.py` in the
+boreal-canada-mapping repo (set `PYTHON` to an environment with rasterio). See
+[scripts/README.md](scripts/README.md) for every module's generator and inputs.
+Do not use `scripts/legacy/compute-clearcut-stats.js`: it counts pixels in the
+old PNG tiles and would overwrite the chart's numbers.
 
 Accuracy metrics (precision / recall / F1 per year) are stored alongside the
 area values under `<region>_<sensor>_accuracy` and are populated manually from
@@ -368,10 +384,10 @@ the same accumulated masks the map draws, so a rule change makes them stale.
 ### Publishing them
 
 ```bash
-node upload-cogs.js client/public/data/patches data/patches
+node scripts/legacy/upload-cogs.js client/public/data/patches data/patches
 ```
 
-`upload-cogs.js` sets a short revalidating cache header on `.json` (unlike the
+`scripts/legacy/upload-cogs.js` sets a short revalidating cache header on `.json` (unlike the
 immutable one it uses for COGs, which live under versioned prefixes) precisely
 because these are regenerated in place under the same filenames.
 
@@ -401,10 +417,10 @@ VERCEL_BLOB_BASE_URL=https://<id>.public.blob.vercel-storage.com
 
 ### 2. Uploading COGs to Vercel Blob
 
-Use `upload-cogs-vercel.js` to upload local `.tif`, `.tiff`, and sidecar `.json` files directly to Vercel Blob:
+Use `scripts/storage/upload-cogs-vercel.js` to upload local `.tif`, `.tiff`, and sidecar `.json` files directly to Vercel Blob:
 
 ```bash
-node upload-cogs-vercel.js ./cogs cogs/clearcut-accumulated-ari
+node scripts/storage/upload-cogs-vercel.js ./cogs cogs/clearcut-accumulated-ari
 ```
 
 This script:
@@ -414,18 +430,18 @@ This script:
 
 ### 3. Migrating existing files from Cloudflare R2 to Vercel
 
-If you already have COGs or assets on Cloudflare R2, use `migrate-r2-to-vercel.js` to stream them directly to Vercel Blob without downloading to disk:
+If you already have COGs or assets on Cloudflare R2, use `scripts/storage/migrate-r2-to-vercel.js` to stream them directly to Vercel Blob without downloading to disk:
 
 ```bash
 # Preview what will be migrated without transferring
-node migrate-r2-to-vercel.js --dry-run
+node scripts/storage/migrate-r2-to-vercel.js --dry-run
 
 # Migrate all files under cogs/ (default) and rebuild the manifest
-node migrate-r2-to-vercel.js
+node scripts/storage/migrate-r2-to-vercel.js
 
 # Migrate another prefix or all bucket contents
-node migrate-r2-to-vercel.js --prefix data/patches/
-node migrate-r2-to-vercel.js --all
+node scripts/storage/migrate-r2-to-vercel.js --prefix data/patches/
+node scripts/storage/migrate-r2-to-vercel.js --all
 ```
 
 Requirements for migration:
@@ -441,16 +457,16 @@ Requirements for migration:
 It is **generated, never committed** — it describes the storage bucket/store rather than the source tree, so a checked-in copy goes stale the moment anyone uploads.
 
 - **For Vercel Blob (Production)**:
-  `upload-cogs-vercel.js` and `migrate-r2-to-vercel.js` rebuild it automatically. You can also re-index manually:
+  `scripts/storage/upload-cogs-vercel.js` and `scripts/storage/migrate-r2-to-vercel.js` rebuild it automatically. You can also re-index manually:
   ```bash
-  node generate-cog-manifest-vercel.js --dry-run   # preview manifest
-  node generate-cog-manifest-vercel.js             # rebuild and publish to Vercel Blob
+  node scripts/storage/generate-cog-manifest-vercel.js --dry-run   # preview manifest
+  node scripts/storage/generate-cog-manifest-vercel.js             # rebuild and publish to Vercel Blob
   ```
 
 - **For Cloudflare R2 (Local dev fallback / alternative)**:
   ```bash
-  node generate-cog-manifest.js --dry-run
-  node generate-cog-manifest.js
+  node scripts/legacy/generate-cog-manifest.js --dry-run
+  node scripts/legacy/generate-cog-manifest.js
   ```
 
 ---

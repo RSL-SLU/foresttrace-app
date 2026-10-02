@@ -23,13 +23,15 @@
  * rather than running it over all 401k tiles at once.
  *
  * Usage:
- *   node set-cache-headers.js tiles/wildfire/ --dry-run
- *   node set-cache-headers.js tiles/wildfire/
- *   node set-cache-headers.js tiles/ --concurrency 64
+ *   node scripts/legacy/set-cache-headers.js tiles/wildfire/ --dry-run
+ *   node scripts/legacy/set-cache-headers.js tiles/wildfire/
+ *   node scripts/legacy/set-cache-headers.js tiles/ --concurrency 64
  */
 
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '.env.r2') });
+// Repo root: this file lives in scripts/<group>/.
+const ROOT = path.resolve(__dirname, '..', '..');
+require('dotenv').config({ path: path.join(ROOT, '.env.r2') });
 
 const { S3Client, ListObjectsV2Command, CopyObjectCommand } = require('@aws-sdk/client-s3');
 
@@ -46,8 +48,8 @@ const dryRun = args.includes('--dry-run');
 const concurrency = Number(args[args.indexOf('--concurrency') + 1]) || 32;
 
 if (!prefix) {
-  console.error('Usage: node set-cache-headers.js <prefix> [--dry-run] [--concurrency N]');
-  console.error('Example: node set-cache-headers.js tiles/wildfire/');
+  console.error('Usage: node scripts/legacy/set-cache-headers.js <prefix> [--dry-run] [--concurrency N]');
+  console.error('Example: node scripts/legacy/set-cache-headers.js tiles/wildfire/');
   process.exit(1);
 }
 

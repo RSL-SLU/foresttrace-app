@@ -22,12 +22,14 @@
  * to the PNG pyramid.
  *
  * Usage:
- *   node generate-cog-manifest.js            # rebuild and publish
- *   node generate-cog-manifest.js --dry-run  # print what it would publish
+ *   node scripts/legacy/generate-cog-manifest.js            # rebuild and publish
+ *   node scripts/legacy/generate-cog-manifest.js --dry-run  # print what it would publish
  */
 
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '.env.r2') });
+// Repo root: this file lives in scripts/<group>/.
+const ROOT = path.resolve(__dirname, '..', '..');
+require('dotenv').config({ path: path.join(ROOT, '.env.r2') });
 
 const { S3Client, ListObjectsV2Command, PutObjectCommand } = require('@aws-sdk/client-s3');
 

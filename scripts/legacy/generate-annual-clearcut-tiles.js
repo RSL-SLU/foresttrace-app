@@ -16,10 +16,10 @@
 // "everything is new", and know the output isn't an annual series.
 //
 // Usage:
-//   node generate-annual-clearcut-tiles.js --local [region] [year]
+//   node scripts/legacy/generate-annual-clearcut-tiles.js --local [region] [year]
 //       reads/writes client/public/tiles/ (no R2 credentials needed)
 //
-//   node generate-annual-clearcut-tiles.js --production [region] [year]
+//   node scripts/legacy/generate-annual-clearcut-tiles.js --production [region] [year]
 //       reads accumulated tiles from R2, writes annual tiles to R2
 //
 // Setup: npm install pngjs @aws-sdk/client-s3 dotenv   (repo root)
@@ -37,11 +37,13 @@ if (!isLocal && !isProduction) {
   process.exit(1);
 }
 
-if (isProduction) require('dotenv').config({ path: '.env.r2' });
+if (isProduction) require('dotenv').config({ path: require('path').join(__dirname, '..', '..', '.env.r2') });
 
 const { PNG } = require('pngjs');
 const fs   = require('fs');
 const path = require('path');
+// Repo root: this file lives in scripts/<group>/.
+const ROOT = path.resolve(__dirname, '..', '..');
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
@@ -59,7 +61,7 @@ const REGIONS = [
 ];
 
 const CONCURRENCY    = 8;
-const LOCAL_TILES    = path.join(__dirname, 'client', 'public');
+const LOCAL_TILES    = path.join(ROOT, 'client', 'public');
 
 // ── R2 client (production only) ───────────────────────────────────────────────
 

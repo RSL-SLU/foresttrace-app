@@ -3,10 +3,10 @@
  * Upload Cloud Optimized GeoTIFFs to Cloudflare R2.
  *
  * Usage:
- *   node upload-cogs.js <local-folder> <r2-destination-prefix>
+ *   node scripts/legacy/upload-cogs.js <local-folder> <r2-destination-prefix>
  *
  * Example:
- *   node upload-cogs.js ./cogs cogs/clearcut
+ *   node scripts/legacy/upload-cogs.js ./cogs cogs/clearcut
  *
  * Credentials are read from .env.r2 in the project root -- same file upload-tiles.js uses.
  *
@@ -22,7 +22,9 @@
  */
 
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '.env.r2') });
+// Repo root: this file lives in scripts/<group>/.
+const ROOT = path.resolve(__dirname, '..', '..');
+require('dotenv').config({ path: path.join(ROOT, '.env.r2') });
 
 const fs = require('fs');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
@@ -37,7 +39,7 @@ if (!CLOUDFLARE_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_
 
 const [localFolder, destPrefix] = process.argv.slice(2);
 if (!localFolder || !destPrefix) {
-  console.error('Usage: node upload-cogs.js <local-folder> <r2-destination-prefix>');
+  console.error('Usage: node scripts/legacy/upload-cogs.js <local-folder> <r2-destination-prefix>');
   process.exit(1);
 }
 
@@ -130,7 +132,7 @@ async function uploadFile(localPath, key) {
       // Never fail the upload over this: the files are already published, and
       // the fix is one command. Say so loudly instead.
       console.error(`  FAIL manifest: ${err.name} - ${err.message}`);
-      console.error('  Run `node generate-cog-manifest.js` before the new COGs will be used.');
+      console.error('  Run `node scripts/legacy/generate-cog-manifest.js` before the new COGs will be used.');
     }
   }
   console.log(

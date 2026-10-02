@@ -4,10 +4,10 @@
  * freshly generated tiles from the boreal-canada-mapping repo (sibling folder).
  *
  * Usage:
- *   node replace-tiles.js [year ...]     # defaults to 2017-2023
+ *   node scripts/legacy/replace-tiles.js [year ...]     # defaults to 2017-2023
  *
  * Example:
- *   node replace-tiles.js 2017 2018 2019
+ *   node scripts/legacy/replace-tiles.js 2017 2018 2019
  *
  * Source layout (boreal-canada-mapping):
  *   results/tiles/<year>_wabigoon_clearcut_unet_wabigoon_<year>_multiclass_v1/<z>/<x>/<y>.png
@@ -20,9 +20,11 @@
 
 const fs = require('fs');
 const path = require('path');
+// Repo root: this file lives in scripts/<group>/.
+const ROOT = path.resolve(__dirname, '..', '..');
 
-const BOREAL_REPO = path.resolve(__dirname, '..', 'boreal-canada-mapping');
-const DEST_ROOT = path.join(__dirname, 'client', 'public', 'tiles', 'clearcut');
+const BOREAL_REPO = path.resolve(ROOT, '..', 'boreal-canada-mapping');
+const DEST_ROOT = path.join(ROOT, 'client', 'public', 'tiles', 'clearcut');
 
 const argYears = process.argv.slice(2).map(Number).filter((n) => Number.isInteger(n));
 const YEARS = argYears.length > 0 ? argYears : [2017, 2018, 2019, 2020, 2021, 2022, 2023];

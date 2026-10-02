@@ -16,14 +16,16 @@
  * RUN THIS AFTER EVERY COG UPLOAD to Vercel Blob.
  *
  * Usage:
- *   node generate-cog-manifest-vercel.js            # rebuild and publish
- *   node generate-cog-manifest-vercel.js --dry-run  # print what it would publish
+ *   node scripts/storage/generate-cog-manifest-vercel.js            # rebuild and publish
+ *   node scripts/storage/generate-cog-manifest-vercel.js --dry-run  # print what it would publish
  */
 
 const path = require('path');
-try { require('dotenv').config({ path: path.join(__dirname, '.env.vercel') }); } catch (_) {}
-try { require('dotenv').config({ path: path.join(__dirname, '.env') }); } catch (_) {}
-try { require('dotenv').config({ path: path.join(__dirname, '.env.r2') }); } catch (_) {}
+// Repo root: this file lives in scripts/<group>/.
+const ROOT = path.resolve(__dirname, '..', '..');
+try { require('dotenv').config({ path: path.join(ROOT, '.env.vercel') }); } catch (_) {}
+try { require('dotenv').config({ path: path.join(ROOT, '.env') }); } catch (_) {}
+try { require('dotenv').config({ path: path.join(ROOT, '.env.r2') }); } catch (_) {}
 
 const { list, put } = require('@vercel/blob');
 

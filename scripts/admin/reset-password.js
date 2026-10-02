@@ -8,8 +8,8 @@
  * (role, name, history) changes.
  *
  * Usage:
- *   node reset-password.js <email> --db foresttrace        # production
- *   node reset-password.js <email> --db foresttrace_dev    # local development
+ *   node scripts/admin/reset-password.js <email> --db foresttrace        # production
+ *   node scripts/admin/reset-password.js <email> --db foresttrace_dev    # local development
  *
  * --db is required so a reset never lands in the wrong database by accident:
  * the API picks it from APP_MODE / VERCEL_ENV, and your local .env points at
@@ -26,13 +26,13 @@ const dbIdx = args.indexOf('--db');
 const dbName = dbIdx !== -1 ? args[dbIdx + 1] : null;
 
 if (!email || !dbName) {
-  console.error('Usage: node reset-password.js <email> --db <foresttrace|foresttrace_preview|foresttrace_dev>');
+  console.error('Usage: node scripts/admin/reset-password.js <email> --db <foresttrace|foresttrace_preview|foresttrace_dev>');
   process.exit(1);
 }
 
 // Must be set before _db is loaded: it resolves the database name from env.
 process.env.MONGODB_DB_NAME = dbName;
-const { getCollection, getMongoUri, hashPassword } = require('./api/_db');
+const { getCollection, getMongoUri, hashPassword } = require('../../api/_db');
 
 function promptHidden(question) {
   return new Promise((resolve) => {

@@ -8,9 +8,9 @@
  * REACT_APP_DATA_BASE_URL / REACT_APP_TILES_BASE_URL.
  *
  * Usage:
- *   node upload-data-vercel.js                 # everything in DEFAULT_PATHS
- *   node upload-data-vercel.js data/patches    # specific paths under client/public
- *   node upload-data-vercel.js --dry-run
+ *   node scripts/storage/upload-data-vercel.js                 # everything in DEFAULT_PATHS
+ *   node scripts/storage/upload-data-vercel.js data/patches    # specific paths under client/public
+ *   node scripts/storage/upload-data-vercel.js --dry-run
  *
  * Re-runnable: objects already on Blob with the same size are skipped, so an
  * interrupted run resumes where it stopped.
@@ -20,8 +20,10 @@
  */
 
 const path = require('path');
-try { require('dotenv').config({ path: path.join(__dirname, '.env.vercel') }); } catch (_) {}
-try { require('dotenv').config({ path: path.join(__dirname, '.env') }); } catch (_) {}
+// Repo root: this file lives in scripts/<group>/.
+const ROOT = path.resolve(__dirname, '..', '..');
+try { require('dotenv').config({ path: path.join(ROOT, '.env.vercel') }); } catch (_) {}
+try { require('dotenv').config({ path: path.join(ROOT, '.env') }); } catch (_) {}
 
 const fs = require('fs');
 const { put, list } = require('@vercel/blob');
@@ -32,7 +34,7 @@ if (!token) {
   process.exit(1);
 }
 
-const PUBLIC_DIR = path.join(__dirname, 'client', 'public');
+const PUBLIC_DIR = path.join(ROOT, 'client', 'public');
 
 // Everything the client fetches through DATA_BASE_URL or TILES_BASE_URL that
 // isn't a COG. Stats JSON is left out: it's read from PUBLIC_URL, i.e. the

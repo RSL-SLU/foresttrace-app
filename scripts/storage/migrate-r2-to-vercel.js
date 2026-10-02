@@ -3,10 +3,10 @@
  * Migrate files from Cloudflare R2 to Vercel Pro Storage (Vercel Blob).
  *
  * Usage:
- *   node migrate-r2-to-vercel.js                    # Migrates all objects under cogs/
- *   node migrate-r2-to-vercel.js --dry-run          # Preview files without transferring
- *   node migrate-r2-to-vercel.js --prefix data/     # Migrate specific prefix
- *   node migrate-r2-to-vercel.js --all              # Migrate all R2 bucket contents
+ *   node scripts/storage/migrate-r2-to-vercel.js                    # Migrates all objects under cogs/
+ *   node scripts/storage/migrate-r2-to-vercel.js --dry-run          # Preview files without transferring
+ *   node scripts/storage/migrate-r2-to-vercel.js --prefix data/     # Migrate specific prefix
+ *   node scripts/storage/migrate-r2-to-vercel.js --all              # Migrate all R2 bucket contents
  *
  * Credentials:
  *   - Source (R2): .env.r2 (CLOUDFLARE_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME)
@@ -14,9 +14,11 @@
  */
 
 const path = require('path');
-try { require('dotenv').config({ path: path.join(__dirname, '.env.r2') }); } catch (_) {}
-try { require('dotenv').config({ path: path.join(__dirname, '.env.vercel') }); } catch (_) {}
-try { require('dotenv').config({ path: path.join(__dirname, '.env') }); } catch (_) {}
+// Repo root: this file lives in scripts/<group>/.
+const ROOT = path.resolve(__dirname, '..', '..');
+try { require('dotenv').config({ path: path.join(ROOT, '.env.r2') }); } catch (_) {}
+try { require('dotenv').config({ path: path.join(ROOT, '.env.vercel') }); } catch (_) {}
+try { require('dotenv').config({ path: path.join(ROOT, '.env') }); } catch (_) {}
 
 const { S3Client, ListObjectsV2Command, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { put } = require('@vercel/blob');
@@ -195,7 +197,7 @@ async function transferObject(key, size) {
       console.log('  ok  cogs/manifest.json created and published on Vercel Blob.');
     } catch (err) {
       console.error(`  FAIL manifest re-indexing: ${err.message}`);
-      console.error('  Run `node generate-cog-manifest-vercel.js` to build it manually.');
+      console.error('  Run `node scripts/storage/generate-cog-manifest-vercel.js` to build it manually.');
     }
   }
 })();

@@ -16,7 +16,7 @@ The platform provides:
 - **Dual Map Rendering Engines**: Seamless support for standard Leaflet XYZ raster tiles and WebGL MapLibre GL rendering Cloud-Optimized GeoTIFFs (COGs) directly in the browser.
 - **Domain-Specific Forestry AI Agent**: Natural language assistant powered by Meta Llama 3.1 8B via Groq inference, grounded with the user's active map viewport, FMUs, layers, and drawn polygons.
 - **User Accounts & Role-Based Access Control**:
-  - Email + password registration and sign-in (password reset via `reset-password.js`).
+  - Email + password registration and sign-in (password reset via `scripts/admin/reset-password.js`).
   - Role hierarchy: **Admin**, **Analyst**, and **Standard User**.
   - First-run administrative setup wizard automatically activates when setting up on an uninitialized database.
 - **Administrative Dashboard & System Monitoring**:
@@ -81,6 +81,7 @@ foresttrace-app/
 │   ├── reports.js                   # Bug and issue reporting
 │   └── chat.js                      # Forestry AI Assistant Groq proxy
 ├── index.js                         # Express server for local backend & production serving
+├── scripts/                         # Offline data, storage, stats & admin tools (see scripts/README.md)
 ├── .env.example                     # Root environment variables template
 ├── client/.env.example              # Client environment variables template
 └── CONTRIBUTING.md                  # Comprehensive developer guide & pipeline docs
