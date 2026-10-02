@@ -20,7 +20,8 @@ function NewsPage({ onBack, initialSlug = null }) {
         <div className="infopage-inner">
           <button className="infopage-back" onClick={() => setOpenSlug(null)}>← All News</button>
 
-          <span className="infopage-badge">{openPost.tag}</span>
+          {/* Own line: the back button is inline, so a bare badge sat beside it */}
+          <div><span className="infopage-badge">{openPost.tag}</span></div>
           <h1 className="infopage-title">{openPost.title}</h1>
           <p className="news-date">{openPost.dateLabel}</p>
 
