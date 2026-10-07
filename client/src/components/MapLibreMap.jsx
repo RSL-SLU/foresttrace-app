@@ -558,6 +558,38 @@ function SatelliteYearSync({ url, attribution, prefetchUrls, enabled }) {
 
 // Basemap mode is switched by layer visibility, not by replacing mapStyle. This
 // keeps overlay and terra-draw sources alive across toggles.
+// Disturbance Alerts layers, bottom to top
+const ALERT_LAYER_IDS = ['alerts-fill', 'alerts-line-confirmed', 'alerts-line-provisional', 'alerts-selected', 'alerts-points'];
+const ALERT_INTERACTIVE_LAYERS = ['alerts-fill', 'alerts-points'];
+// Below this zoom alerts show as dots (see alertPoints)
+const ALERT_POINT_MAXZOOM = 10.5;
+
+/**
+ * Keeps the alert layers above every overlay. Declarative <Layer>s are
+ * appended when they mount, and the raster sources are remounted on every
+ * year change (their ids carry the year), so without this a year change
+ * would bury the alerts under the clearcut rasters.
+ */
+function AlertsOnTop({ enabled, signature }) {
+  const { current: mapRef } = useMap();
+
+  useEffect(() => {
+    const map = mapRef?.getMap?.();
+    if (!map || !enabled) return undefined;
+    const raise = () => {
+      ALERT_LAYER_IDS.forEach((id) => {
+        if (map.getLayer(id)) map.moveLayer(id);
+      });
+    };
+    raise();
+    // Layers added in this same commit may land after this effect runs
+    map.once('idle', raise);
+    return () => map.off('idle', raise);
+  }, [mapRef, enabled, signature]);
+
+  return null;
+}
+
 function BasemapModeSync({ basemapMode }) {
   const { current: mapRef } = useMap();
 
@@ -710,6 +742,11 @@ function MapLibreMap({
   drawingEnabled = false,
   onMapReady = null,
   mapRef = null,
+  // Disturbance Alerts: FeatureCollection whose features carry `id`, `status`
+  // and `ageColor` properties (App.js adds the color); null hides the layer.
+  alertsGeoJson = null,
+  selectedAlertId = null,
+  onAlertClick = null,
 }) {
   ensureCogProtocol();
   ensurePmtilesProtocol();
@@ -721,18 +758,47 @@ function MapLibreMap({
   const [clickedFeature, setClickedFeature] = useState(null);
 
   const vectorLayerIds = useMemo(
-    () => vectorLayers.map((l) => `vector-layer-${l.id}`),
-    [vectorLayers],
+    () => [
+      ...vectorLayers.map((l) => `vector-layer-${l.id}`),
+      ...(alertsGeoJson ? ALERT_INTERACTIVE_LAYERS : []),
+    ],
+    [vectorLayers, alertsGeoJson],
   );
+
+  // Ref so the memoised click handler always calls the current callback
+  const onAlertClickRef = useRef(onAlertClick);
+  onAlertClickRef.current = onAlertClick;
 
   const handleMapClick = useCallback((e) => {
     if (!e.features || e.features.length === 0) {
       setClickedFeature(null);
       return;
     }
+    // Alerts take precedence: they're the layer being read when it's on, and
+    // they open in the side panel rather than a popup.
+    const alert = e.features.find((f) => ALERT_INTERACTIVE_LAYERS.includes(f.layer?.id));
+    if (alert) {
+      setClickedFeature(null);
+      onAlertClickRef.current?.(alert.properties.id);
+      return;
+    }
     const feature = e.features[0];
     setClickedFeature({ lngLat: e.lngLat, properties: feature.properties });
   }, []);
+
+  // One point per alert, from its precomputed centroid: polygons a few hundred
+  // hectares across shrink to nothing at FMU zoom, so below ALERT_POINT_MAXZOOM
+  // alerts are drawn as dots instead.
+  const alertPoints = useMemo(() => alertsGeoJson && ({
+    type: 'FeatureCollection',
+    features: alertsGeoJson.features
+      .filter((f) => Array.isArray(f.properties.centroid))
+      .map((f) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: f.properties.centroid },
+        properties: { id: f.properties.id, ageColor: f.properties.ageColor, status: f.properties.status },
+      })),
+  }), [alertsGeoJson]);
 
   // The popup belongs to the layer it was read from. Once that layer is gone
   // (Inspect switched off, Accumulated off, ARI source off) or its year window
@@ -947,6 +1013,53 @@ function MapLibreMap({
           />
         </Source>
       ))}
+
+      {/* Disturbance Alerts. Colored by age; solid outline = confirmed,
+          dashed = provisional (line-dasharray can't be data-driven, hence two
+          line layers). <AlertsOnTop> keeps these above the rasters. */}
+      {alertsGeoJson && (
+        <Source id="disturbance-alerts" type="geojson" data={alertsGeoJson}>
+          <Layer
+            id="alerts-fill"
+            type="fill"
+            paint={{ 'fill-color': ['get', 'ageColor'], 'fill-opacity': 0.3 }}
+          />
+          <Layer
+            id="alerts-line-confirmed"
+            type="line"
+            filter={['==', ['get', 'status'], 'confirmed']}
+            paint={{ 'line-color': ['get', 'ageColor'], 'line-width': 2 }}
+          />
+          <Layer
+            id="alerts-line-provisional"
+            type="line"
+            filter={['!=', ['get', 'status'], 'confirmed']}
+            paint={{ 'line-color': ['get', 'ageColor'], 'line-width': 2, 'line-dasharray': [2, 1.5] }}
+          />
+          <Layer
+            id="alerts-selected"
+            type="line"
+            filter={['==', ['get', 'id'], selectedAlertId || '']}
+            paint={{ 'line-color': '#fde047', 'line-width': 4 }}
+          />
+        </Source>
+      )}
+      {alertPoints && (
+        <Source id="disturbance-alert-points" type="geojson" data={alertPoints}>
+          <Layer
+            id="alerts-points"
+            type="circle"
+            maxzoom={ALERT_POINT_MAXZOOM}
+            paint={{
+              'circle-radius': ['case', ['==', ['get', 'id'], selectedAlertId || ''], 8, 5],
+              'circle-color': ['get', 'ageColor'],
+              'circle-stroke-color': ['case', ['==', ['get', 'id'], selectedAlertId || ''], '#fde047', '#ffffff'],
+              'circle-stroke-width': 1.5,
+            }}
+          />
+        </Source>
+      )}
+      <AlertsOnTop enabled={Boolean(alertsGeoJson)} signature={overlaySourceIds.join('|')} />
 
       {clickedFeature && (
         <Popup

@@ -488,5 +488,6 @@ Environment variables required in Vercel project settings:
 | `VERCEL_MONGODB_URI` / `MONGODB_URI` | Serverless | MongoDB Atlas URI for user authentication, bug reports, and chat logs |
 | `MONGODB_DB_NAME` | Serverless (Optional) | Database name override (defaults to `foresttrace` in prod, `foresttrace_preview` on preview, `foresttrace_dev` locally) |
 | `AUTH_SECRET` | Serverless (Optional) | JWT signing secret for user authentication sessions |
+| `ANTHROPIC_API_KEY` | Serverless (`api/storymaps.js`) | Claude Sonnet 5 for story map generation — read server-side only |
 
-`GROQ_API_KEY`, `VERCEL_MONGODB_URI`, `MONGODB_URI`, `AUTH_SECRET`, and `BLOB_READ_WRITE_TOKEN` must **not** use the `REACT_APP_` prefix — that prefix causes Create React App to bundle the value into the client JavaScript, exposing it in the browser. None of these go in a committed `.env` file.
+`GROQ_API_KEY`, `ANTHROPIC_API_KEY`, `VERCEL_MONGODB_URI`, `MONGODB_URI`, `AUTH_SECRET`, and `BLOB_READ_WRITE_TOKEN` must **not** use the `REACT_APP_` prefix — that prefix causes Create React App to bundle the value into the client JavaScript, exposing it in the browser. None of these go in a committed `.env` file.

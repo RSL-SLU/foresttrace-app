@@ -40,6 +40,12 @@
   justify-content: space-between;
 }
 
+/* The shared close button is absolutely positioned for the auth modal; in
+   these headers it should sit in the flex row, or it lands at the page corner. */
+.admin-header .auth-close-btn {
+  position: static;
+}
+
 .admin-header h2 {
   font-size: 18px;
   font-weight: 700;

@@ -11,6 +11,8 @@ const chatHandler = require('./api/chat');
 const authHandler = require('./api/auth');
 const adminHandler = require('./api/admin');
 const reportsHandler = require('./api/reports');
+const alertsHandler = require('./api/alerts');
+const storyMapsHandler = require('./api/storymaps');
 const app = express();
 // Use PORT 3001 for local dev so CRA dev server can run on 3000 simultaneously
 const PORT = process.env.PORT || 3001;
@@ -42,6 +44,8 @@ app.use(express.static(path.join(__dirname, 'client', 'build')));
 app.all('/api/auth', authHandler);
 app.all('/api/admin', adminHandler);
 app.all('/api/reports', reportsHandler);
+app.all('/api/alerts', alertsHandler);
+app.all('/api/storymaps', storyMapsHandler);
 app.all('/api/chat', chatHandler);
 
 app.get('/{*any}', (_req, res) => {

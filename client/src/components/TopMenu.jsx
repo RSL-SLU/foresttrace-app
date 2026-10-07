@@ -25,6 +25,7 @@ function TopMenu({
   activePage,
   onOpenAdminDashboard,
   onOpenChatHistory,
+  onOpenStoryMaps,
   onOpenBugReport,
 }) {
   const { user, isAuthenticated, isInitialized, openAuthModal, logout } = useAuth();
@@ -205,6 +206,17 @@ function TopMenu({
                   }}
                 >
                   <span>💬</span> My AI Chats
+                </button>
+
+                <button
+                  type="button"
+                  className="user-dropdown-item"
+                  onClick={() => {
+                    setDropdownOpen(false);
+                    onOpenStoryMaps && onOpenStoryMaps();
+                  }}
+                >
+                  <span>📰</span> My Story Maps
                 </button>
 
                 <button

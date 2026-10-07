@@ -1,0 +1,299 @@
+/* Disturbance Alerts module (modules/DisturbanceAlerts.jsx).
+   Neutral tones are relative to the inherited text color so both themes work;
+   alert colors come from utils/alerts.js ALERT_AGE_BUCKETS. */
+
+.alert-source {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+
+/* Summary counts */
+.alert-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 8px;
+}
+
+.alert-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(127, 127, 127, 0.1);
+}
+
+.alert-stat--new {
+  background: rgba(255, 45, 149, 0.14);
+}
+
+.alert-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #c026d3;
+}
+
+body.dark-mode .alert-stat-value {
+  color: #f0abfc;
+}
+
+.alert-stat-label {
+  font-size: 11px;
+  opacity: 0.75;
+  line-height: 1.3;
+}
+
+/* Badges */
+.alert-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.alert-badge--confirmed { background: #7c3aed; color: #fff; }
+.alert-badge--provisional { background: transparent; color: inherit; border: 1px dashed currentColor; }
+.alert-badge--triage { background: rgba(47, 143, 91, 0.18); color: #2f8f5b; }
+.alert-badge--fire { background: rgba(255, 127, 0, 0.18); color: #c25e00; }
+.alert-badge--demo { background: #f59e0b; color: #1f1300; }
+
+body.dark-mode .alert-badge--triage { color: #9fdcb9; }
+body.dark-mode .alert-badge--fire { color: #ffb366; }
+
+/* Buttons */
+.alert-button {
+  margin-top: 10px;
+  padding: 7px 12px;
+  border: none;
+  border-radius: 6px;
+  background: #2f8f5b;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.alert-button:hover { background: #267a4d; }
+
+.alert-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: #2f8f5b;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.alert-link:hover { text-decoration: underline; }
+body.dark-mode .alert-link { color: #9fdcb9; }
+
+.alert-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.alert-chip-button {
+  padding: 4px 10px;
+  border: 1px solid rgba(127, 127, 127, 0.45);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.alert-chip-button:hover:not(:disabled) { border-color: #c026d3; }
+
+.alert-chip-button--active {
+  background: #c026d3;
+  border-color: #c026d3;
+  color: #fff;
+}
+
+.alert-chip-button:disabled { opacity: 0.6; cursor: wait; }
+
+.alert-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* List */
+.alert-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+
+.alert-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 6px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.alert-row:hover { background: rgba(127, 127, 127, 0.12); }
+.alert-row--selected { background: rgba(192, 38, 211, 0.16); }
+
+.alert-row-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin-top: 4px;
+  border-radius: 50%;
+}
+
+.alert-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.alert-row-title { font-size: 13px; font-weight: 600; }
+.alert-row-sub { font-size: 11px; opacity: 0.7; }
+
+/* Detail */
+.alert-detail-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.alert-detail-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.alert-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0 0 12px;
+  font-size: 12px;
+}
+
+.alert-facts dt { opacity: 0.7; }
+.alert-facts dd { margin: 0; font-weight: 500; }
+.alert-capitalize { text-transform: capitalize; }
+
+/* Before/after imagery (components/AlertImagery.jsx) */
+.alert-imagery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.alert-chip {
+  margin: 0;
+}
+
+.alert-chip-frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #1f2b24;
+}
+
+.alert-chip-frame img {
+  position: absolute;
+  width: 256px;
+  height: 256px;
+  max-width: none;
+  user-select: none;
+}
+
+.alert-chip-frame svg {
+  position: absolute;
+  inset: 0;
+}
+
+.alert-chip figcaption {
+  margin-top: 4px;
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+.alert-imagery-credit {
+  width: 100%;
+  margin: 0;
+  font-size: 10px;
+  opacity: 0.55;
+}
+
+/* Triage */
+.alert-triage {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(127, 127, 127, 0.4);
+}
+
+.alert-triage-title {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.alert-triage-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.alert-note {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border: 1px solid rgba(127, 127, 127, 0.45);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.alert-error {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #dc2626;
+}
+
+body.dark-mode .alert-error { color: #f87171; }
+
+/* Legend lines for confirmed / provisional */
+.alert-legend-line {
+  flex: none;
+  width: 16px;
+  height: 0;
+  border-top: 2px solid currentColor;
+}
+
+.alert-legend-line--dashed {
+  border-top-style: dashed;
+}

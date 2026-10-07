@@ -24,12 +24,14 @@ import MapDisplayOptions from './components/MapDisplayOptions';
 import ClearcutDetection from './modules/ClearcutDetection';
 import BiomassModule from './modules/BiomassModule';
 import WildfireModule from './modules/WildfireModule';
+import DisturbanceAlerts from './modules/DisturbanceAlerts';
 import CaribouHabitatModule from './modules/CaribouHabitatModule';
 import RasterTileLayer from './components/RasterTileLayer';
 import { useAuth } from './context/AuthContext';
 import AuthModal from './components/AuthModal';
 import AdminDashboard from './components/AdminDashboard';
 import UserChatHistoryModal from './components/UserChatHistoryModal';
+import StoryMapsModal from './components/StoryMapsModal';
 import BugReportModal from './components/BugReportModal';
 import { handleLocateUser } from './utils/mapUtils';
 import { CLEARCUT_SENSOR_SUBFOLDER_YEARS, DEFAULT_CLEARCUT_SENSOR, getRegionsWithClearcutData } from './utils/clearcutAreaStats';
@@ -46,6 +48,7 @@ import useRegionBoundaries from './hooks/useRegionBoundaries';
 import { TINTED_LAYER_IDS, tintedTileUrl } from './utils/tintedTileProtocol';
 import { summarizeDrawing } from './utils/drawnShapeContext';
 import { getCogCoverage, getTileCoverage } from './utils/clearcutCogCoverage';
+import { fetchAlerts, triageAlert, ageDays, ageColor, geometryBounds } from './utils/alerts';
 import { computeClearcutDrawingPresence } from './utils/clearcutDrawingStats';
 
 import './styles/map.css';
@@ -279,6 +282,21 @@ const MODULES = [
         cogNewSincePrevious: true,
         hideFromLayerList: true,
       },
+    ],
+  },
+  {
+    // Near real-time disturbance alerts (OPERA DIST-ALERT-HLS semantics; see
+    // api/alerts.js). Not year-based: alerts carry their own detection dates,
+    // so there are no temporalOptions and the timeline ignores this module.
+    // Its one layer is drawn from the alerts API as GeoJSON on the MapLibre
+    // map; it has no tile/COG source, so the raster loops skip it.
+    id: 'alerts',
+    name: 'Disturbance Alerts',
+    icon: '🚨',
+    description: 'Near real-time forest disturbance alerts',
+    component: DisturbanceAlerts,
+    layers: [
+      { id: 'disturbance-alerts', name: 'Alert Areas', color: '#ff2d95' },
     ],
   },
   {
@@ -653,6 +671,7 @@ function App() {
   const { isAuthenticated, isInitialized, loading, openAuthModal, token } = useAuth();
   const [adminDashboardOpen, setAdminDashboardOpen] = useState(false);
   const [chatHistoryOpen, setChatHistoryOpen] = useState(false);
+  const [storyMapsOpen, setStoryMapsOpen] = useState(false);
   const [bugReportOpen, setBugReportOpen] = useState(false);
 
   const [showApp, setShowApp] = useState(false);
@@ -914,6 +933,80 @@ function App() {
     }
     return { ...activeLayers, clearcut };
   }, [activeLayers, clearcutSources]);
+
+  // ---- Disturbance Alerts ----------------------------------------------
+  // Loaded from /api/alerts while the module is open or its layer is on, and
+  // reloaded when the session changes (staff get triage rights and notes).
+  const [alertsData, setAlertsData] = useState(null);
+  const [alertsLoading, setAlertsLoading] = useState(false);
+  const [alertsError, setAlertsError] = useState(null);
+  const [alertFilters, setAlertFilters] = useState({ days: 30, status: 'all', hideFire: false });
+  const [selectedAlertId, setSelectedAlertId] = useState(null);
+  const alertsLayerOn = (activeLayers.alerts || []).includes('disturbance-alerts');
+  const alertsWanted = alertsLayerOn || selectedModuleId === 'alerts';
+
+  const loadAlerts = useCallback(async () => {
+    setAlertsLoading(true);
+    setAlertsError(null);
+    try {
+      setAlertsData(await fetchAlerts(token));
+    } catch (err) {
+      setAlertsError(err.message);
+    } finally {
+      setAlertsLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (alertsWanted) loadAlerts();
+  }, [alertsWanted, loadAlerts]);
+
+  // Every alert in the selected FMUs, with its age and display color attached
+  // (the map styles by ageColor; MapLibre can't compute dates itself).
+  const alertsInArea = useMemo(() => {
+    if (!alertsData?.features) return [];
+    const now = Date.now();
+    return alertsData.features
+      .filter((f) => !selectedFMUs.length || selectedFMUs.includes(f.properties.region))
+      .map((f) => {
+        const days = ageDays(f.properties.firstDetected, now);
+        return { ...f, properties: { ...f.properties, ageDays: days, ageColor: ageColor(days) } };
+      });
+  }, [alertsData, selectedFMUs]);
+
+  const filteredAlerts = useMemo(() => alertsInArea.filter((f) => {
+    const p = f.properties;
+    if (p.ageDays > alertFilters.days) return false;
+    if (alertFilters.status !== 'all' && p.status !== alertFilters.status) return false;
+    if (alertFilters.hideFire && (p.inFirePerimeter || ['fire', 'false_positive'].includes(p.triageLabel))) return false;
+    return true;
+  }), [alertsInArea, alertFilters]);
+
+  const alertsGeoJson = useMemo(
+    () => (alertsLayerOn ? { type: 'FeatureCollection', features: filteredAlerts } : null),
+    [alertsLayerOn, filteredAlerts],
+  );
+
+  const zoomToAlert = useCallback((feature) => {
+    const map = mapRef.current;
+    if (!map?.fitBounds || !feature?.geometry) return;
+    const [w, s, e, n] = geometryBounds(feature.geometry);
+    map.fitBounds([[w, s], [e, n]], { padding: 80, maxZoom: 13.5, duration: 800 });
+  }, []);
+
+  const handleAlertTriage = useCallback(async (id, label, note) => {
+    const updated = await triageAlert(token, id, label, note);
+    setAlertsData((prev) => prev && ({
+      ...prev,
+      features: prev.features.map((f) => (f.properties.id === id ? updated : f)),
+    }));
+  }, [token]);
+
+  // Clicking an alert on the map opens it in the panel, whichever module was showing.
+  const handleAlertClick = useCallback((id) => {
+    setSelectedAlertId(id);
+    setSelectedModuleId('alerts');
+  }, []);
 
   // Safety net: if a layer unmounts mid-load (year change, layer toggle)
   // without firing its `load` event, the spinner would stay forever.
@@ -1451,6 +1544,23 @@ function App() {
     drawingStats,
     clearcutSources,
     onToggleClearcutSource: handleToggleClearcutSource,
+    alerts: {
+      all: alertsInArea,
+      features: filteredAlerts,
+      meta: alertsData?.meta,
+      loading: alertsLoading,
+      error: alertsError,
+      refresh: loadAlerts,
+      filters: alertFilters,
+      setFilters: setAlertFilters,
+      selectedId: selectedAlertId,
+      select: setSelectedAlertId,
+      zoomTo: zoomToAlert,
+      canTriage: Boolean(alertsData?.meta?.canTriage),
+      triage: handleAlertTriage,
+      layerOn: alertsLayerOn,
+      showLayer: () => handleLayerToggle('alerts', 'disturbance-alerts'),
+    },
   };
 
   // "Inspect harvest year" reads as an option OF Accumulated Clearcuts, not a
@@ -1465,6 +1575,13 @@ function App() {
 
   const handleModuleSelect = useCallback((module) => {
     setSelectedModuleId(module.id);
+    // Opening Disturbance Alerts shows them: the module is a single layer, and
+    // an alert list with nothing on the map reads as broken.
+    if (module.id === 'alerts') {
+      setActiveLayers((prev) => ((prev.alerts || []).includes('disturbance-alerts')
+        ? prev
+        : { ...prev, alerts: [...(prev.alerts || []), 'disturbance-alerts'] }));
+    }
     if (moduleYears[module.id] !== undefined) {
       setSelectedYear(moduleYears[module.id]);
     } else if (module.temporalOptions?.yearRange) {
@@ -1514,6 +1631,7 @@ function App() {
           activePage={null}
           onOpenAdminDashboard={() => setAdminDashboardOpen(true)}
           onOpenChatHistory={() => setChatHistoryOpen(true)}
+          onOpenStoryMaps={() => setStoryMapsOpen(true)}
           onOpenBugReport={() => setBugReportOpen(true)}
         />
         <LandingPage
@@ -1541,6 +1659,7 @@ function App() {
           isOpen={chatHistoryOpen}
           onClose={() => setChatHistoryOpen(false)}
         />
+        <StoryMapsModal isOpen={storyMapsOpen} onClose={() => setStoryMapsOpen(false)} />
         <BugReportModal
           isOpen={bugReportOpen}
           onClose={() => setBugReportOpen(false)}
@@ -1560,6 +1679,7 @@ function App() {
           activePage={activePage}
           onOpenAdminDashboard={() => setAdminDashboardOpen(true)}
           onOpenChatHistory={() => setChatHistoryOpen(true)}
+          onOpenStoryMaps={() => setStoryMapsOpen(true)}
           onOpenBugReport={() => setBugReportOpen(true)}
         />
         {PageComponent && (
@@ -1577,6 +1697,7 @@ function App() {
           isOpen={chatHistoryOpen}
           onClose={() => setChatHistoryOpen(false)}
         />
+        <StoryMapsModal isOpen={storyMapsOpen} onClose={() => setStoryMapsOpen(false)} />
         <BugReportModal
           isOpen={bugReportOpen}
           onClose={() => setBugReportOpen(false)}
@@ -1601,6 +1722,7 @@ function App() {
         activePage={activePage}
         onOpenAdminDashboard={() => setAdminDashboardOpen(true)}
         onOpenChatHistory={() => setChatHistoryOpen(true)}
+        onOpenStoryMaps={() => setStoryMapsOpen(true)}
         onOpenBugReport={() => setBugReportOpen(true)}
       />
       <div className="layout-container">
@@ -1620,6 +1742,7 @@ function App() {
           pendingPrompt={pendingPrompt}
           onPromptConsumed={() => setPendingPrompt(null)}
           onProposeFeatures={setProposedFeatures}
+          onOpenStoryMaps={() => setStoryMapsOpen(true)}
           regionsData={maplibreRegions}
         />
 
@@ -1756,6 +1879,9 @@ function App() {
                 onLoadingChange={handleLoadingChange}
                 proposedFeatures={proposedFeatures}
                 drawingEnabled
+                alertsGeoJson={alertsGeoJson}
+                selectedAlertId={selectedAlertId}
+                onAlertClick={handleAlertClick}
               />
               </React.Suspense>
             );
@@ -1892,7 +2018,11 @@ function App() {
             data={moduleData}
             activeLayers={activeLayers[selectedModule?.id] || []}
             selectedYear={selectedYear}
-            yearRange={selectedModule?.temporalOptions?.yearRange || [2010, 2024]}
+            // null for modules with no years (Disturbance Alerts), so the
+            // panel doesn't show the basemap-year caveat for them
+            yearRange={selectedModule?.temporalOptions
+              ? (selectedModule.temporalOptions.yearRange || [2010, 2024])
+              : null}
             basemapSynced={
               basemapMode !== 'satellite' ||
               isBasemapSynced(moduleYears[selectedModule?.id] || selectedYear)
@@ -1914,6 +2044,7 @@ function App() {
         isOpen={chatHistoryOpen}
         onClose={() => setChatHistoryOpen(false)}
       />
+      <StoryMapsModal isOpen={storyMapsOpen} onClose={() => setStoryMapsOpen(false)} />
       <BugReportModal
         isOpen={bugReportOpen}
         onClose={() => setBugReportOpen(false)}

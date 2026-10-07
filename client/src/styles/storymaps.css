@@ -1,0 +1,167 @@
+/* Story map generator + library (components/StoryMapGenerator.jsx,
+   components/StoryMapsModal.jsx). Builds on the admin modal styles. */
+
+.story-modal { max-width: 560px; }
+.story-modal--wide { max-width: 780px; }
+
+.story-intro { margin: 0 0 14px; font-size: 13px; line-height: 1.55; opacity: 0.85; }
+.story-muted { margin: 0; font-size: 12px; opacity: 0.7; }
+
+.story-context {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 14px;
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(127, 127, 127, 0.1);
+  font-size: 13px;
+}
+.story-context dt { opacity: 0.7; }
+.story-context dd { margin: 0; font-weight: 600; text-transform: capitalize; }
+
+.story-label { display: block; margin: 0 0 6px; font-size: 13px; font-weight: 600; }
+
+.story-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 14px;
+  padding: 8px 10px;
+  border: 1px solid rgba(127, 127, 127, 0.45);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.story-audiences { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.story-chip {
+  padding: 6px 12px;
+  border: 1px solid rgba(127, 127, 127, 0.45);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.story-chip--active { background: #2f8f5b; border-color: #2f8f5b; color: #fff; }
+
+.story-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.story-primary {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #2f8f5b;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.story-primary:hover:not(:disabled) { background: #267a4d; }
+.story-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.story-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: #2f8f5b;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.story-link:hover { text-decoration: underline; }
+.story-link--danger { color: #dc2626; }
+body.dark-mode .story-link { color: #9fdcb9; }
+body.dark-mode .story-link--danger { color: #f87171; }
+
+.story-progress { padding: 28px 0; text-align: center; }
+.story-progress p { margin: 6px 0; }
+.story-spinner {
+  width: 32px;
+  height: 32px;
+  margin: 0 auto 12px;
+  border: 3px solid rgba(127, 127, 127, 0.25);
+  border-top-color: #2f8f5b;
+  border-radius: 50%;
+  animation: story-spin 0.9s linear infinite;
+}
+@keyframes story-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .story-spinner { animation: none; } }
+
+.story-done h3 { margin: 10px 0 6px; font-size: 18px; }
+.story-done p { margin: 0 0 10px; font-size: 14px; line-height: 1.5; }
+
+.story-review {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.14);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.story-review--small { margin-top: 6px; padding: 6px 8px; }
+
+.story-empty { padding: 32px 16px; text-align: center; }
+.story-empty h3 { margin: 8px 0; font-size: 16px; }
+.story-empty p { margin: 0; font-size: 13px; opacity: 0.75; }
+
+.story-list { list-style: none; margin: 0; padding: 0; }
+
+.story-item {
+  display: flex;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(127, 127, 127, 0.25);
+}
+.story-item:last-child { border-bottom: none; }
+.story-item-main { flex: 1; min-width: 0; }
+.story-item-main h3 { margin: 0 0 4px; font-size: 15px; }
+.story-item-main p { margin: 0 0 4px; font-size: 13px; line-height: 1.45; }
+
+.story-item-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex: none;
+}
+
+.story-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; }
+
+@media (max-width: 600px) {
+  .story-item { flex-direction: column; }
+  .story-item-actions { flex-direction: row; flex-wrap: wrap; align-items: center; }
+}
+
+/* Button in the Forestry AI Agent panel */
+.ai-story-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: calc(100% - 20px);
+  margin: 10px 10px 0;
+  padding: 8px 12px;
+  border: 1px solid #2f8f5b;
+  border-radius: 8px;
+  background: rgba(47, 143, 91, 0.1);
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ai-story-btn:hover { background: rgba(47, 143, 91, 0.2); }

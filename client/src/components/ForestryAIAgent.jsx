@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { extractMapAction, actionToFeatures, availableRegionIds } from '../utils/mapActions';
+import StoryMapGenerator from './StoryMapGenerator';
 
 function renderContent(text) {
   return text.split(/\*\*(.*?)\*\*/gs).map((part, i) =>
@@ -50,8 +51,10 @@ function buildContext(moduleData, selectedModule, selectedYear, selectedFMUs, se
 function ForestryAIAgent({
   moduleData, selectedModule, selectedYear, selectedFMUs, selectedSensor,
   drawingContext, pendingPrompt, onPromptConsumed, onProposeFeatures, regionsData,
+  onOpenStoryMaps,
 }) {
   const { token } = useAuth();
+  const [storyOpen, setStoryOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -160,8 +163,27 @@ function ForestryAIAgent({
     }
   }
 
+  // What the story map is about: the map as it stands. The server looks up the
+  // numbers itself; this only says which FMUs, year, layers and drawn area.
+  const storyContext = {
+    regions: selectedFMUs || [],
+    year: selectedYear,
+    module: selectedModule?.name,
+    activeLayers: moduleData?.activeLayerSummary,
+    drawing: drawingContext || undefined,
+  };
+
   return (
     <div className="ai-panel">
+      <button type="button" className="ai-story-btn" onClick={() => setStoryOpen(true)}>
+        <span aria-hidden="true">📰</span> Create story map
+      </button>
+      <StoryMapGenerator
+        isOpen={storyOpen}
+        onClose={() => setStoryOpen(false)}
+        context={storyContext}
+        onOpenLibrary={() => { setStoryOpen(false); onOpenStoryMaps?.(); }}
+      />
       <div className="ai-messages">
         {messages.length === 0 && !loading && (
           <div className="ai-empty">

@@ -21,6 +21,7 @@ function ModuleSelector({
   onPromptConsumed,
   onProposeFeatures,
   regionsData,
+  onOpenStoryMaps,
 }) {
   // Controlled when the parent supplies a tab -- the map's "Ask AI" button has
   // to be able to bring this panel to the agent -- and self-managed otherwise,
@@ -173,6 +174,7 @@ function ModuleSelector({
           pendingPrompt={pendingPrompt}
           onPromptConsumed={onPromptConsumed}
           onProposeFeatures={onProposeFeatures}
+          onOpenStoryMaps={onOpenStoryMaps}
           regionsData={regionsData}
         />
       )}
