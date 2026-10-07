@@ -165,3 +165,11 @@ body.dark-mode .story-link--danger { color: #f87171; }
   cursor: pointer;
 }
 .ai-story-btn:hover { background: rgba(47, 143, 91, 0.2); }
+
+/* The AI panel doesn't pass a light text color down in dark mode, so set it */
+body.dark-mode .ai-story-btn {
+  color: #ffffff;
+  border-color: #4ade80;
+  background: rgba(74, 222, 128, 0.14);
+}
+body.dark-mode .ai-story-btn:hover { background: rgba(74, 222, 128, 0.24); }
