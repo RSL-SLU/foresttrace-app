@@ -7,6 +7,8 @@ const {
 } = require('./_db');
 const { buildStoryFacts } = require('./_storyFacts');
 const { renderStoryHtml } = require('./_storyRender');
+const { renderStoryThumbnail } = require('./_storyThumb');
+const { ensureUsername, slugBase } = require('./_usernames');
 
 /**
  * Story maps for journalists: Claude writes a story from the data on screen,
@@ -16,7 +18,11 @@ const { renderStoryHtml } = require('./_storyRender');
  *   POST /api/storymaps?action=generate { context, angle, audience }   signed in
  *   GET  /api/storymaps?action=list                                    signed in
  *   GET  /api/storymaps?action=html&id=...                             owner
- *   GET  /api/storymaps?action=view&slug=...                           public links
+ *   GET  /api/storymaps?action=view&username=...&slug=...             public page
+ *        (pretty URL /stories/<username>/<slug>, via vercel.json / index.js)
+ *   GET  /api/storymaps?action=og&username=...&slug=...               preview image
+ *        (/stories/<username>/<slug>/preview.jpg)
+ *   GET  /api/storymaps?action=view&slug=<random id>                  older links
  *   POST /api/storymaps?action=update { id, isPublic }                 owner
  *   POST /api/storymaps?action=delete { id }                           owner
  *
@@ -157,6 +163,53 @@ async function generateStory({ facts, angle, audience }) {
 
 const newSlug = () => crypto.randomBytes(9).toString('base64url');
 
+// "Clearcut and Wildfire Analysis on Wabigoon" -> "clearcut-and-wildfire-analysis-on-wabigoon",
+// unique among the user's stories (-2, -3, ... on a repeat title).
+async function uniqueUrlSlug(stories, userId, title) {
+  let base = slugBase(title) || 'story';
+  if (base.length > 80) base = base.slice(0, 80).replace(/-[^-]*$/, '') || base.slice(0, 80);
+  for (let i = 1; i < 100; i++) {
+    const candidate = i === 1 ? base : `${base}-${i}`;
+    if (!await stories.findOne({ userId, urlSlug: candidate }, { projection: { _id: 1 } })) return candidate;
+  }
+  return `${base}-${newSlug().toLowerCase()}`;
+}
+
+// The site's own origin as the visitor (or a social crawler) reached it.
+// Vercel sets x-forwarded-*; the dev proxy forwards them too (setupProxy xfwd).
+function requestOrigin(req) {
+  const h = req.headers || {};
+  const host = String(h['x-forwarded-host'] || h.host || 'localhost').split(',')[0].trim();
+  const proto = String(h['x-forwarded-proto'] || (host.startsWith('localhost') ? 'http' : 'https')).split(',')[0].trim();
+  return `${proto}://${host}`;
+}
+
+const storyPath = (doc) => (doc.username && doc.urlSlug
+  ? `/stories/${encodeURIComponent(doc.username)}/${encodeURIComponent(doc.urlSlug)}`
+  : `/api/storymaps?action=view&slug=${encodeURIComponent(doc.slug)}`);
+
+// Pages carry placeholders for what depends on where and how they're served
+// (see _storyRender.js); older stories without them pass through unchanged.
+function servePage(doc, req) {
+  const origin = requestOrigin(req);
+  const url = origin + storyPath(doc);
+  const image = doc.hasImage && doc.username && doc.urlSlug ? `${url}/preview.jpg` : '';
+  const attr = (v) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  return doc.html
+    .split('__FT_STORY_URL__').join(attr(url))
+    .split('__FT_IMAGE_URL__').join(attr(image))
+    .split('__FT_PUBLIC__').join(doc.isPublic ? 'true' : 'false');
+}
+
+// The public story a request names: /stories/<username>/<slug>, or an old ?slug= link
+async function findPublicStory(req, stories, projection) {
+  const q = { ...(req.query || {}), ...(req.params || {}) };
+  if (q.username && q.slug) {
+    return stories.findOne({ username: String(q.username).toLowerCase(), urlSlug: String(q.slug).toLowerCase(), isPublic: true }, { projection });
+  }
+  return stories.findOne({ slug: String(q.slug || ''), isPublic: true }, { projection });
+}
+
 function notFoundPage() {
   return '<!doctype html><meta charset="utf-8"><title>Story not found · ForestTrace</title>'
     + '<body style="font-family:system-ui;padding:48px;color:#333"><h1>Story not found</h1>'
@@ -169,6 +222,9 @@ function storySummary(doc) {
     title: doc.title,
     dek: doc.dek,
     slug: doc.slug,
+    username: doc.username || null,
+    urlSlug: doc.urlSlug || null,
+    path: storyPath(doc),
     isPublic: Boolean(doc.isPublic),
     regions: doc.context?.regions || [],
     year: doc.context?.year ?? null,
@@ -180,7 +236,8 @@ function storySummary(doc) {
 async function handler(req, res) {
   if (!getMongoUri()) return res.status(503).json({ error: 'Database service unavailable' });
 
-  const action = (req.query?.action || req.body?.action || '').toLowerCase();
+  // req.params.action: the /stories/... routes in index.js (Express 5 query is read-only)
+  const action = (req.query?.action || req.params?.action || req.body?.action || '').toLowerCase();
   const user = getUserFromRequest(req);
 
   try {
@@ -188,11 +245,21 @@ async function handler(req, res) {
 
     // Public link: no account needed, only for stories the owner has shared
     if (req.method === 'GET' && action === 'view') {
-      const doc = await stories.findOne({ slug: String(req.query?.slug || ''), isPublic: true });
+      const doc = await findPublicStory(req, stories, { ogImage: 0, story: 0 });
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       if (!doc) return res.status(404).send(notFoundPage());
       res.setHeader('Cache-Control', 'public, max-age=60');
-      return res.status(200).send(doc.html);
+      return res.status(200).send(servePage(doc, req));
+    }
+
+    // Preview image for social cards. Public stories only, like the page.
+    if (req.method === 'GET' && action === 'og') {
+      const doc = await findPublicStory(req, stories, { ogImage: 1 });
+      const image = doc?.ogImage?.buffer ? Buffer.from(doc.ogImage.buffer) : doc?.ogImage;
+      if (!image) return res.status(404).json({ error: 'No preview image.' });
+      res.setHeader('Content-Type', 'image/jpeg');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      return res.status(200).send(image);
     }
 
     if (!user?.id) return res.status(401).json({ error: 'Sign in to use story maps.' });
@@ -202,17 +269,29 @@ async function handler(req, res) {
     };
 
     if (req.method === 'GET' && action === 'list') {
-      const docs = await stories.find({ userId: user.id }, { projection: { html: 0, story: 0 } })
+      const docs = await stories.find({ userId: user.id }, { projection: { html: 0, story: 0, ogImage: 0 } })
         .sort({ createdAt: -1 }).limit(100).toArray();
+      // Stories made before pretty URLs: give them a username + URL slug now
+      if (docs.some((d) => !d.urlSlug || !d.username)) {
+        const users = await getCollection('users');
+        const owner = await users.findOne({ _id: new ObjectId(user.id) });
+        const username = owner ? await ensureUsername(users, owner) : null;
+        for (const d of docs.filter((x) => !x.urlSlug || !x.username)) {
+          if (!username) break;
+          d.username = username;
+          d.urlSlug = d.urlSlug || await uniqueUrlSlug(stories, user.id, d.title);
+          await stories.updateOne({ _id: d._id }, { $set: { username: d.username, urlSlug: d.urlSlug } });
+        }
+      }
       return res.status(200).json({ stories: docs.map(storySummary) });
     }
 
     if (req.method === 'GET' && action === 'html') {
       const q = ownerQuery(req.query?.id);
-      const doc = q && await stories.findOne(q, { projection: { html: 1 } });
+      const doc = q && await stories.findOne(q, { projection: { html: 1, username: 1, urlSlug: 1, slug: 1, isPublic: 1, hasImage: 1 } });
       if (!doc) return res.status(404).json({ error: 'Story not found.' });
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      return res.status(200).send(doc.html);
+      return res.status(200).send(servePage(doc, req));
     }
 
     if (req.method === 'POST' && action === 'update') {
@@ -220,7 +299,7 @@ async function handler(req, res) {
       if (!q) return res.status(400).json({ error: 'Story id is required.' });
       const result = await stories.findOneAndUpdate(q,
         { $set: { isPublic: Boolean(req.body?.isPublic), updatedAt: new Date() } },
-        { returnDocument: 'after', projection: { html: 0, story: 0 } });
+        { returnDocument: 'after', projection: { html: 0, story: 0, ogImage: 0 } });
       const doc = result?.value ?? result;
       if (!doc) return res.status(404).json({ error: 'Story not found.' });
       return res.status(200).json({ story: storySummary(doc) });
@@ -249,6 +328,23 @@ async function handler(req, res) {
 
       const { story, usage } = await generateStory({ facts, angle: String(angle), audience });
       const createdAt = new Date();
+
+      const users = await getCollection('users');
+      const owner = await users.findOne({ _id: new ObjectId(user.id) });
+      const username = owner ? await ensureUsername(users, owner) : null;
+      const urlSlug = await uniqueUrlSlug(stories, user.id, story.title);
+
+      // Social preview: the story's first map view. Optional -- a story
+      // without one still shares, just without an image on the card.
+      let ogImage = null;
+      const firstView = facts.places.find((p) => p.kind === 'fmu') || facts.places[0];
+      if (firstView?.bbox) {
+        try {
+          ogImage = await renderStoryThumbnail(firstView.bbox, facts.layers);
+        } catch (err) {
+          console.error('[Story maps] preview image failed:', err.message);
+        }
+      }
       const html = renderStoryHtml({
         story, facts, createdAt, model: 'Claude Sonnet 5 (Anthropic)',
         author: user.name || 'ForestTrace user',
@@ -259,6 +355,10 @@ async function handler(req, res) {
         title: story.title,
         dek: story.dek,
         slug: newSlug(),
+        username,
+        urlSlug,
+        ogImage,
+        hasImage: Boolean(ogImage),
         isPublic: false,
         html,
         story,
@@ -270,6 +370,7 @@ async function handler(req, res) {
         updatedAt: createdAt,
       };
       const { insertedId } = await stories.insertOne(doc);
+      await stories.createIndex({ username: 1, urlSlug: 1 }).catch(() => {});
       return res.status(201).json({ story: storySummary({ ...doc, _id: insertedId }) });
     }
 

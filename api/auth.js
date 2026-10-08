@@ -6,6 +6,9 @@ const {
   getUserFromRequest,
   getMongoUri,
 } = require('./_db');
+const {
+  normalizeUsername, validateUsername, ensureUsername, ensureIndex,
+} = require('./_usernames');
 
 module.exports = async function handler(req, res) {
   // Check database configuration
@@ -36,6 +39,7 @@ module.exports = async function handler(req, res) {
           userDetails = {
             id: doc._id.toString(),
             email: doc.email,
+            username: await ensureUsername(users, doc),
             name: doc.name || doc.email.split('@')[0],
             role: doc.role || 'user',
             createdAt: doc.createdAt,
@@ -67,6 +71,7 @@ module.exports = async function handler(req, res) {
         user: {
           id: doc._id.toString(),
           email: doc.email,
+          username: await ensureUsername(users, doc),
           name: doc.name || doc.email.split('@')[0],
           role: doc.role || 'user',
           createdAt: doc.createdAt,
@@ -79,7 +84,7 @@ module.exports = async function handler(req, res) {
       return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const { email, password, name } = req.body || {};
+    const { email, password, name, username } = req.body || {};
     const normalizedEmail = (email || '').trim().toLowerCase();
 
     // 3. BOOTSTRAP-ADMIN: Defines the first admin on initial setup
@@ -111,6 +116,7 @@ module.exports = async function handler(req, res) {
       const userPayload = {
         id: result.insertedId.toString(),
         email: normalizedEmail,
+        username: await ensureUsername(users, { ...newUser, _id: result.insertedId }),
         name: displayName,
         role: 'admin',
       };
@@ -131,9 +137,17 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ error: 'Valid email and password (minimum 6 characters) required.' });
       }
 
+      const usernameError = validateUsername(username);
+      if (usernameError) return res.status(400).json({ error: usernameError });
+      const normalizedUsername = normalizeUsername(username);
+
       const existing = await users.findOne({ email: normalizedEmail });
       if (existing) {
         return res.status(409).json({ error: 'An account with this email already exists.' });
+      }
+      await ensureIndex(users);
+      if (await users.findOne({ username: normalizedUsername }, { projection: { _id: 1 } })) {
+        return res.status(409).json({ error: 'That username is taken. Please choose another.' });
       }
 
       const passwordHash = hashPassword(password);
@@ -143,6 +157,7 @@ module.exports = async function handler(req, res) {
 
       const newUser = {
         email: normalizedEmail,
+        username: normalizedUsername,
         name: displayName,
         passwordHash,
         role,
@@ -154,6 +169,7 @@ module.exports = async function handler(req, res) {
       const userPayload = {
         id: result.insertedId.toString(),
         email: normalizedEmail,
+        username: normalizedUsername,
         name: displayName,
         role,
       };
@@ -186,6 +202,7 @@ module.exports = async function handler(req, res) {
       const userPayload = {
         id: userDoc._id.toString(),
         email: userDoc.email,
+        username: await ensureUsername(users, userDoc),
         name: userDoc.name || userDoc.email.split('@')[0],
         role: userDoc.role || 'user',
       };

@@ -55,7 +55,7 @@ function StoryMapsModal({ isOpen, onClose }) {
 
   async function copyLink(story) {
     try {
-      await navigator.clipboard.writeText(publicStoryUrl(story.slug));
+      await navigator.clipboard.writeText(publicStoryUrl(story));
       setCopied(story.id);
       setTimeout(() => setCopied(null), 2000);
     } catch {
@@ -94,6 +94,11 @@ function StoryMapsModal({ isOpen, onClose }) {
                     {s.regions?.length ? ` · ${s.regions.map((r) => r.replace(/_/g, ' ')).join(', ')}` : ''}
                     {s.year ? ` · ${s.year}` : ''}
                   </p>
+                  {s.isPublic && (
+                    <a className="story-url" href={publicStoryUrl(s)} target="_blank" rel="noopener noreferrer">
+                      {publicStoryUrl(s).replace(/^https?:\/\//, '')}
+                    </a>
+                  )}
                   {s.reviewNotes?.length > 0 && (
                     <p className="story-review story-review--small">Double-check: {s.reviewNotes.join(', ')}</p>
                   )}

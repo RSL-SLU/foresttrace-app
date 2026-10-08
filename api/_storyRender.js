@@ -54,6 +54,21 @@ function renderStoryHtml({ story, facts, author, createdAt, model }) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(story.title)} · ForestTrace</title>
 <meta name="description" content="${esc(story.dek)}">
+<!-- Social previews. __FT_*__ are filled in when the page is served (api/storymaps.js servePage). -->
+<link rel="canonical" href="__FT_STORY_URL__">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="ForestTrace">
+<meta property="og:title" content="${esc(story.title)}">
+<meta property="og:description" content="${esc(story.dek)}">
+<meta property="og:url" content="__FT_STORY_URL__">
+<meta property="og:image" content="__FT_IMAGE_URL__">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Satellite map of ${esc(facts.regions.map((r) => r.name).join(", "))} with the areas discussed in the story">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${esc(story.title)}">
+<meta name="twitter:description" content="${esc(story.dek)}">
+<meta name="twitter:image" content="__FT_IMAGE_URL__">
 <link rel="stylesheet" href="${MAPLIBRE}/maplibre-gl.css">
 <style>
   :root { --ink:#1f2933; --muted:#5f6b76; --accent:#2f8f5b; --rule:#e3e7ea; --amber:#d97706; --pink:#ff2d95; }
@@ -86,6 +101,11 @@ function renderStoryHtml({ story, facts, author, createdAt, model }) {
   .back-matter p, .back-matter li { font-size:15px; line-height:1.6; }
   .legend { position:absolute; left:12px; bottom:28px; background:rgba(255,255,255,.92); border-radius:8px; padding:8px 10px; font: 12px/1.6 system-ui, sans-serif; }
   .legend span { display:inline-block; width:12px; height:12px; border-radius:2px; margin-right:6px; vertical-align:-1px; }
+  .share { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin: 0 0 28px; font: 13px/1.4 system-ui, sans-serif; }
+  .share-label { color:var(--muted); margin-right:4px; }
+  .share a, .share button { display:inline-flex; align-items:center; padding:6px 12px; border:1px solid var(--rule); border-radius:999px; background:#fff; color:var(--ink); font: 600 13px/1.2 system-ui, sans-serif; text-decoration:none; cursor:pointer; }
+  .share a:hover, .share button:hover { border-color: var(--accent); color: var(--accent); }
+  .share-note { color:var(--muted); font-style:italic; }
   footer { font: 12px/1.5 system-ui, sans-serif; color:var(--muted); margin-top:40px; }
   footer a { color: var(--accent); }
   @media (max-width: 860px) {
@@ -103,6 +123,7 @@ function renderStoryHtml({ story, facts, author, createdAt, model }) {
     <h1>${esc(story.title)}</h1>
     <p class="dek">${esc(story.dek)}</p>
     <div class="byline">${esc(author)} · ${esc(date)} · Data: ForestTrace, Remote Sensing Lab, Saint Louis University</div>
+    <div class="share" data-share></div>
     <div class="notice"><strong>AI-assisted draft.</strong> Written by ${esc(model)} from ForestTrace data; every chart is drawn from the underlying datasets. Verify figures before publication.${demoData ? ' Disturbance alerts in this story are <strong>demonstration data</strong>.' : ''}</div>
 
     <section class="step" data-place="${esc(page.initialPlace || '')}" style="border-top:none; min-height:auto;">
@@ -130,6 +151,7 @@ function renderStoryHtml({ story, facts, author, createdAt, model }) {
       <h2>Sources</h2>
       <ul>${usedSources.map((s) => `<li>${esc(s)}</li>`).join('')}<li>Basemap imagery: Esri, Maxar, Earthstar Geographics</li></ul>
     </div>
+    <div class="share" data-share style="margin-top:28px"></div>
     <footer>Created with ForestTrace · Remote Sensing Lab, Saint Louis University.</footer>
   </main>
   <div class="map-wrap">
@@ -143,6 +165,52 @@ function renderStoryHtml({ story, facts, author, createdAt, model }) {
 </div>
 
 <script id="story-data" type="application/json">${jsonForScript(page)}</script>
+<script>
+// Share bar. The URL comes from og:url, filled in when the page is served;
+// a private story (or the owner's preview) shows a note instead of links.
+(function () {
+  var isPublic = __FT_PUBLIC__;
+  var url = (document.querySelector('meta[property="og:url"]') || {}).content || '';
+  var title = (document.querySelector('meta[property="og:title"]') || {}).content || document.title;
+  var summary = (document.querySelector('meta[property="og:description"]') || {}).content || '';
+  var e = encodeURIComponent;
+  var links = [
+    ['X', 'https://twitter.com/intent/tweet?text=' + e(title) + '&url=' + e(url)],
+    ['Facebook', 'https://www.facebook.com/sharer/sharer.php?u=' + e(url)],
+    ['LinkedIn', 'https://www.linkedin.com/sharing/share-offsite/?url=' + e(url)],
+    ['Bluesky', 'https://bsky.app/intent/compose?text=' + e(title + ' ' + url)],
+    ['WhatsApp', 'https://wa.me/?text=' + e(title + ' ' + url)],
+    ['Email', 'mailto:?subject=' + e(title) + '&body=' + e(summary + '\\n\\n' + url)]
+  ];
+  document.querySelectorAll('[data-share]').forEach(function (bar) {
+    if (!isPublic || !/^https?:/.test(url)) {
+      bar.innerHTML = '<span class="share-note">This story is private. Make it public in My Story Maps to share it.</span>';
+      return;
+    }
+    var label = document.createElement('span');
+    label.className = 'share-label';
+    label.textContent = 'Share';
+    bar.appendChild(label);
+    links.forEach(function (l) {
+      var a = document.createElement('a');
+      a.textContent = l[0];
+      a.href = l[1];
+      if (l[0] !== 'Email') { a.target = '_blank'; a.rel = 'noopener'; }
+      bar.appendChild(a);
+    });
+    var copy = document.createElement('button');
+    copy.type = 'button';
+    copy.textContent = 'Copy link';
+    copy.addEventListener('click', function () {
+      navigator.clipboard.writeText(url).then(function () {
+        copy.textContent = 'Link copied';
+        setTimeout(function () { copy.textContent = 'Copy link'; }, 2000);
+      });
+    });
+    bar.appendChild(copy);
+  });
+})();
+</script>
 <script src="${MAPLIBRE}/maplibre-gl.js"></script>
 <script src="${CHARTJS}"></script>
 <script>

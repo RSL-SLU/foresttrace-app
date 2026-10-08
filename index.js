@@ -46,6 +46,16 @@ app.all('/api/admin', adminHandler);
 app.all('/api/reports', reportsHandler);
 app.all('/api/alerts', alertsHandler);
 app.all('/api/storymaps', storyMapsHandler);
+
+// Public story map URLs (on Vercel these are rewrites in vercel.json)
+app.get('/stories/:username/:slug/preview.jpg', (req, res) => {
+  req.params.action = 'og';
+  return storyMapsHandler(req, res);
+});
+app.get('/stories/:username/:slug', (req, res) => {
+  req.params.action = 'view';
+  return storyMapsHandler(req, res);
+});
 app.all('/api/chat', chatHandler);
 
 app.get('/{*any}', (_req, res) => {

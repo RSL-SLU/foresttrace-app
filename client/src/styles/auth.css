@@ -528,3 +528,10 @@ body.dark-mode .user-dropdown-divider {
   background: #334155 !important;
 }
 
+
+.auth-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  opacity: 0.7;
+}

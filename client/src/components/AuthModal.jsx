@@ -17,6 +17,7 @@ function AuthModal() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
 
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -41,13 +42,14 @@ function AuthModal() {
       if (isBootstrap) {
         await bootstrapAdmin(email, password, name);
       } else if (isRegister) {
-        await register(email, password, name);
+        await register(email, password, name, username);
       } else {
         await login(email, password);
       }
       setEmail('');
       setPassword('');
       setName('');
+      setUsername('');
     } catch (err) {
       setError(err.message || 'Operation failed');
     } finally {
@@ -133,6 +135,27 @@ function AuthModal() {
                 autoComplete="name"
                 required={isBootstrap}
               />
+            </div>
+          )}
+
+          {isRegister && (
+            <div className="auth-form-group">
+              <label htmlFor="auth-username">Username</label>
+              <input
+                id="auth-username"
+                className="auth-input"
+                type="text"
+                placeholder="e.g. jane-doe"
+                value={username}
+                onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/s+/g, '-'))}
+                autoComplete="username"
+                pattern="[a-z0-9](?:[a-z0-9]|-(?=[a-z0-9])){2,29}"
+                title="3–30 characters: lowercase letters, numbers and single hyphens"
+                required
+              />
+              <span className="auth-hint">
+                Appears in your story map links: /stories/{username || 'your-name'}/…
+              </span>
             </div>
           )}
 

@@ -30,8 +30,8 @@ export const setStoryMapPublic = (token, id, isPublic) =>
 export const deleteStoryMap = (token, id) =>
   request('/api/storymaps?action=delete', token, { method: 'POST', body: JSON.stringify({ id }) });
 
-export const publicStoryUrl = (slug) =>
-  `${window.location.origin}/api/storymaps?action=view&slug=${encodeURIComponent(slug)}`;
+// /stories/<username>/<title-slug> (the API returns the path)
+export const publicStoryUrl = (story) => `${window.location.origin}${story.path}`;
 
 /**
  * Opens a story in a new tab. Private stories need the session token, which a

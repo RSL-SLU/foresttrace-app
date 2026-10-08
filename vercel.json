@@ -3,6 +3,8 @@
   "buildCommand": "cd client && npm install && npm run build",
   "outputDirectory": "client/build",
   "rewrites": [
+    { "source": "/stories/:username/:slug/preview.jpg", "destination": "/api/storymaps?action=og&username=:username&slug=:slug" },
+    { "source": "/stories/:username/:slug", "destination": "/api/storymaps?action=view&username=:username&slug=:slug" },
     { "source": "/api/(.*)", "destination": "/api/$1" }
   ],
   "functions": {

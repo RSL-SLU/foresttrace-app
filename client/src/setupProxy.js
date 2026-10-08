@@ -117,11 +117,24 @@ module.exports = function (app) {
     app.use('/mvt', express.static(path.normalize(ARI_MVT_DIR)));
   }
 
+  // xfwd: pass the browser's host on, so links the API builds (story map share
+  // URLs) point at this dev server rather than at the API's own port.
   app.use(
     '/api',
     createProxyMiddleware({
       target: `http://localhost:${API_PORT}`,
       changeOrigin: true,
+      xfwd: true,
+    })
+  );
+
+  // Public story map URLs -- served by the API (see index.js / vercel.json)
+  app.use(
+    '/stories',
+    createProxyMiddleware({
+      target: `http://localhost:${API_PORT}`,
+      changeOrigin: true,
+      xfwd: true,
     })
   );
 
