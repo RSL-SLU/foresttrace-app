@@ -8,11 +8,12 @@ const {
  * Disturbance Alerts (OPERA DIST-ALERT-HLS shaped documents in
  * `disturbance_alerts`; see scripts/alerts/seed-mock-alerts.js for the schema).
  *
- *   GET  /api/alerts?action=list[&region=a,b][&days=180]   public
+ *   GET  /api/alerts?action=list[&region=a,b][&days=180]   signed in
  *   POST /api/alerts?action=triage { id, label, note }     analyst / admin
  *
- * Reading is public: the module is meant for partners and the public. Triage
- * notes and who triaged stay with staff; everyone sees the resulting label.
+ * Any signed-in user can read alerts (the rest of the map is open to
+ * everyone). Triage notes and who triaged stay with staff; everyone sees the
+ * resulting label.
  */
 
 const TRIAGE_LABELS = new Set(['clearcut', 'fire', 'natural', 'false_positive']);
@@ -63,6 +64,7 @@ module.exports = async function handler(req, res) {
     const alerts = await getCollection('disturbance_alerts');
 
     if (req.method === 'GET' && action === 'list') {
+      if (!user) return res.status(401).json({ error: 'Sign in to see disturbance alerts.' });
       const days = Math.min(MAX_DAYS, Math.max(1, parseInt(req.query?.days, 10) || 180));
       const query = { firstDetected: { $gte: new Date(Date.now() - days * DAY) } };
       const regions = String(req.query?.region || '')

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ForestryAIAgent from './ForestryAIAgent';
+import { useAuth } from '../context/AuthContext';
 
 const MIN_WIDTH = 180;
 const MAX_WIDTH = 520;
@@ -26,6 +27,7 @@ function ModuleSelector({
   // Controlled when the parent supplies a tab -- the map's "Ask AI" button has
   // to be able to bring this panel to the agent -- and self-managed otherwise,
   // so existing callers keep working.
+  const { isAuthenticated, openAuthModal } = useAuth();
   const [ownTab, setOwnTab] = useState('modules');
   const activeTab = controlledTab ?? ownTab;
   const setActiveTab = onTabChange ?? setOwnTab;
@@ -117,6 +119,9 @@ function ModuleSelector({
                 >
                   <span className="module-btn-icon">{module.icon}</span>
                   <span className="module-btn-label">{module.name}</span>
+                  {module.requiresAuth && !isAuthenticated && (
+                    <span className="module-lock" title="Sign in to use" aria-label="Requires sign-in">🔒</span>
+                  )}
                   <span
                     className="module-expand-indicator"
                     onClick={(e) => {
@@ -163,7 +168,24 @@ function ModuleSelector({
         </div>
       )}
 
-      {activeTab === 'forest-ai' && (
+      {activeTab === 'forest-ai' && !isAuthenticated && (
+        <div className="ai-locked">
+          <div className="ai-locked-icon" aria-hidden="true">🔒</div>
+          <h3>Sign in to use the Forestry AI Agent</h3>
+          <p>
+            Ask questions about what’s on the map, get answers grounded in ForestTrace data, and
+            turn your findings into story maps. Accounts are free.
+          </p>
+          <button type="button" className="ai-locked-btn" onClick={() => openAuthModal('login')}>
+            Sign in
+          </button>
+          <button type="button" className="ai-locked-link" onClick={() => openAuthModal('register')}>
+            Create an account
+          </button>
+        </div>
+      )}
+
+      {activeTab === 'forest-ai' && isAuthenticated && (
         <ForestryAIAgent
           moduleData={moduleData}
           selectedModule={selectedModule}

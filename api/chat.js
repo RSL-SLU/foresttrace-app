@@ -230,6 +230,11 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // The map is open to everyone; the AI agent is for signed-in users only.
+  if (!getUserFromRequest(req)) {
+    return res.status(401).json({ error: 'Sign in to use the Forestry AI Agent.' });
+  }
+
   const { messages, context } = req.body || {};
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: 'messages array is required' });

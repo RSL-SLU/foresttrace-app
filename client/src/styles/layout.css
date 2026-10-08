@@ -1495,3 +1495,46 @@ body.dark-mode .range-swatch--hollow {
 body.dark-mode .range-swatch--hollow {
   border-color: var(--swatch-dark);
 }
+
+/* Signed-out state of the Forestry AI Agent tab (ModuleSelector.jsx) */
+.ai-locked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 18px;
+  text-align: center;
+}
+
+.ai-locked-icon { font-size: 28px; }
+.ai-locked h3 { margin: 0; font-size: 15px; }
+.ai-locked p { margin: 0 0 6px; font-size: 13px; line-height: 1.5; opacity: 0.8; }
+
+.ai-locked-btn {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #2f8f5b;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ai-locked-btn:hover { background: #267a4d; }
+
+.ai-locked-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: #2f8f5b;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.ai-locked-link:hover { text-decoration: underline; }
+
+body.dark-mode .ai-locked { color: #ffffff; }
+body.dark-mode .ai-locked-link { color: #9fdcb9; }
+
+.module-lock { font-size: 11px; margin-left: 4px; opacity: 0.8; }

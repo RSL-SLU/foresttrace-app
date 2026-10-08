@@ -292,6 +292,8 @@ const MODULES = [
     // map; it has no tile/COG source, so the raster loops skip it.
     id: 'alerts',
     name: 'Disturbance Alerts',
+    // Signed-in users only, here and in api/alerts.js
+    requiresAuth: true,
     icon: '🚨',
     description: 'Near real-time forest disturbance alerts',
     component: DisturbanceAlerts,
@@ -709,15 +711,6 @@ function App() {
     prevAuthRef.current = isAuthenticated;
   }, [isAuthenticated, showApp]);
 
-  // If user signs out while on map workspace, return to landing page. The info
-  // pages (About, News, Documentation...) are public and render without the
-  // map, so they stay open -- bouncing them is what made the landing page's
-  // links to them flash open and closed for signed-out visitors.
-  useEffect(() => {
-    if (!isAuthenticated && showApp && !activePage) {
-      setShowApp(false);
-    }
-  }, [isAuthenticated, showApp, activePage]);
   // Shown only if the load is still running after a beat. Most tile loads finish
   // faster than that, and an indicator that flashes on every pan reads as the
   // map fighting you rather than as information.
@@ -777,13 +770,11 @@ function App() {
     }).catch((err) => console.warn('[Analytics tracking]', err));
   }, [selectedModuleId, token]);
 
+  // The map is open to everyone; only the AI features and Disturbance Alerts
+  // ask for an account (see requireSignIn).
   const handleEnterApp = useCallback(() => {
-    if (!isAuthenticated) {
-      openAuthModal(isInitialized ? 'login' : 'bootstrap');
-    } else {
-      setShowApp(true);
-    }
-  }, [isAuthenticated, isInitialized, openAuthModal]);
+    setShowApp(true);
+  }, []);
 
   const currentContext = useMemo(() => ({
     module: selectedModule?.id || 'clearcut',
@@ -882,6 +873,10 @@ function App() {
   });
 
   const handleLayerToggle = (moduleId, layerId) => {
+    if (MODULES.find((m) => m.id === moduleId)?.requiresAuth && !isAuthenticated) {
+      openAuthModal('login');
+      return;
+    }
     setActiveLayers((prev) => {
       const current = prev[moduleId] || [];
       if (current.includes(layerId)) {
@@ -943,7 +938,7 @@ function App() {
   const [alertFilters, setAlertFilters] = useState({ days: 30, status: 'all', hideFire: false });
   const [selectedAlertId, setSelectedAlertId] = useState(null);
   const alertsLayerOn = (activeLayers.alerts || []).includes('disturbance-alerts');
-  const alertsWanted = alertsLayerOn || selectedModuleId === 'alerts';
+  const alertsWanted = isAuthenticated && (alertsLayerOn || selectedModuleId === 'alerts');
 
   const loadAlerts = useCallback(async () => {
     setAlertsLoading(true);
@@ -1178,9 +1173,30 @@ function App() {
   const [proposedFeatures, setProposedFeatures] = useState(null);
 
   const askAboutDrawing = useCallback(() => {
+    if (!isAuthenticated) {
+      openAuthModal('login');
+      return;
+    }
     setPanelTab('forest-ai');
     setPendingPrompt("What's in here?");
-  }, []);
+  }, [isAuthenticated, openAuthModal]);
+
+  // Signing out closes whatever needed the account: the AI tab, the alerts
+  // module and its layer. The rest of the map stays as it was.
+  useEffect(() => {
+    if (isAuthenticated) return;
+    setPanelTab((tab) => (tab === 'forest-ai' ? 'modules' : tab));
+    setSelectedModuleId((id) => (MODULES.find((m) => m.id === id)?.requiresAuth ? MODULES[0].id : id));
+    setActiveLayers((prev) => {
+      const gated = MODULES.filter((m) => m.requiresAuth && (prev[m.id] || []).length);
+      if (!gated.length) return prev;
+      const next = { ...prev };
+      gated.forEach((m) => { next[m.id] = []; });
+      return next;
+    });
+    setSelectedAlertId(null);
+    setAlertsData(null);
+  }, [isAuthenticated]);
 
   // Flattens the module/layer/region matrix into plain source descriptors.
   // Mirrors the <RasterTileLayer> mapping in the Leaflet branch below -- kept as
@@ -1574,6 +1590,10 @@ function App() {
     && clearcutSources.includes('ari');
 
   const handleModuleSelect = useCallback((module) => {
+    if (module.requiresAuth && !isAuthenticated) {
+      openAuthModal('login');
+      return;
+    }
     setSelectedModuleId(module.id);
     // Opening Disturbance Alerts shows them: the module is a single layer, and
     // an alert list with nothing on the map reads as broken.
@@ -1588,7 +1608,7 @@ function App() {
       const [, maxYear] = module.temporalOptions.yearRange;
       setSelectedYear(maxYear);
     }
-  }, [moduleYears]);
+  }, [moduleYears, isAuthenticated, openAuthModal]);
 
   // The year is a property of the view, not of the module being read: the
   // timeline sits on the map and moves everything drawn there. Setting only the
