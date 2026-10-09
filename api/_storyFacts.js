@@ -295,10 +295,22 @@ async function buildStoryFacts(ctx = {}) {
   const inputRegions = (Array.isArray(ctx.ranges) && ctx.ranges.length > 0)
     ? [...ctx.ranges, ...(Array.isArray(ctx.regions) ? ctx.regions : [])]
     : (Array.isArray(ctx.regions) ? ctx.regions : []);
-  const regions = [...new Set(inputRegions.map(String))]
-    .map((r) => r.toLowerCase().trim())
+  // With more than MAX_REGIONS selected, keep the ones that have data for the
+  // modules on screen -- taking the first six alphabetically dropped Wabigoon
+  // (the clearcut FMU) from a clearcut story with all of Ontario selected.
+  const ctxText = [ctx.moduleId, ctx.module, ...(Array.isArray(ctx.activeLayers)
+    ? ctx.activeLayers.map((l) => `${l.moduleId || ''} ${l.module || ''} ${l.layer || ''}`) : [])].join(' ');
+  const wants = (re) => re.test(ctxText);
+  const dataScore = (r) => (CARIBOU_RANGE_IDS.has(r) && Array.isArray(ctx.ranges) && ctx.ranges.includes(r) ? 8 : 0)
+    + (wants(/clearcut/i) && clearcutStats[`${r}_hls`] ? 4 : 0)
+    + (wants(/caribou|wildlife|species/i) && caribouStats[r] ? 2 : 0)
+    + (wants(/wildfire|burned/i) && wildfireStats[r] ? 1 : 0);
+  const regions = [...new Set(inputRegions.map((r) => String(r).toLowerCase().trim()))]
     .filter((r) => /^[a-z0-9_]+$/.test(r))
-    .slice(0, MAX_REGIONS);
+    .map((r, i) => ({ r, i, score: dataScore(r) }))
+    .sort((a, b) => b.score - a.score || a.i - b.i)
+    .slice(0, MAX_REGIONS)
+    .map(({ r }) => r);
   const year = Number(ctx.year) || new Date().getFullYear() - 1;
 
   let alertsCol = null;
