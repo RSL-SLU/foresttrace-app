@@ -47,7 +47,10 @@ import {
 import useRegionBoundaries from './hooks/useRegionBoundaries';
 import { TINTED_LAYER_IDS, tintedTileUrl } from './utils/tintedTileProtocol';
 import { summarizeDrawing } from './utils/drawnShapeContext';
-import { getCogCoverage, getTileCoverage } from './utils/clearcutCogCoverage';
+import { getCogCoverage, getTileCoverage, getStaticCogCoverage } from './utils/clearcutCogCoverage';
+import {
+  ariColorFn, statusColorFn, scarsColorFn, scanfiColorFn,
+} from './utils/borealLayers';
 import { fetchAlerts, triageAlert, ageDays, ageColor, geometryBounds } from './utils/alerts';
 import { computeClearcutDrawingPresence } from './utils/clearcutDrawingStats';
 
@@ -212,6 +215,10 @@ const MODULES = [
         mode: 'accumulated',
         tms: false,
         cogAuthoritative: true,
+        // One AR_YEAR raster per FMU covers every year: accumulated = harvested
+        // in the last ARI_ACCUMULATED_WINDOW_YEARS (boreal-canada-mapping
+        // handoff 2026-10-09; prepared by scripts/data/prepare-boreal-cogs.py).
+        cog: { prefix: 'ari-ground-truth-v1', static: true, colorFn: (year) => ariColorFn('accumulated', year) },
       },
       {
         id: 'clearcut-annual',
@@ -221,6 +228,7 @@ const MODULES = [
         mode: 'annual',
         tms: false,
         cogAuthoritative: true,
+        cog: { prefix: 'ari-ground-truth-v1', static: true, colorFn: (year) => ariColorFn('annual', year) },
       },
       // Harvest polygons themselves (utils/generate_ari_harvest_mvt.py), as
       // vector tiles rather than a raster -- carries YRDEP per feature, so a
@@ -268,6 +276,13 @@ const MODULES = [
         cogAuthoritative: true,
         cogOutline: true,
         hideFromLayerList: true,
+        // Status/confidence product merged over the 5-year window
+        cog: {
+          prefix: 'clearcut-status-acc-v2',
+          colorFn: (year, opts) => statusColorFn(year, opts.aiMinConfidence),
+          variant: (opts) => `c${opts.aiMinConfidence}`,
+          inspect: 'status',
+        },
       },
       {
         id: 'clearcut-ml-annual',
@@ -276,11 +291,32 @@ const MODULES = [
         mode: 'annual',
         cogAuthoritative: true,
         cogOutline: true,
-        // Only what entered the accumulated window this year: a stand already
-        // standing in the previous year's accumulated raster is masked out,
-        // so a cut shown in 2024 doesn't reappear as annual in 2025.
-        cogNewSincePrevious: true,
         hideFromLayerList: true,
+        // The yearly status product keeps only detections new that year (not
+        // flagged in the 4 years before; prepare-boreal-cogs.py), so a stand
+        // shown in 2024 doesn't reappear as annual in 2025.
+        cog: {
+          prefix: 'clearcut-status-v2',
+          colorFn: (year, opts) => statusColorFn(year, opts.aiMinConfidence),
+          variant: (opts) => `c${opts.aiMinConfidence}`,
+          inspect: 'status',
+        },
+      },
+      // Logging scars: harvested stands whose biomass never recovered relative
+      // to same-age peers (SCANFI 2015/2020/2025). One raster per FMU, not
+      // year-dependent. A sub-module of Clearcut Detection: options and legend
+      // live in its panel; persistent-only is a panel switch (layerOptions).
+      {
+        id: 'logging-scars',
+        name: 'Logging Scars',
+        color: '#1d4ed8',
+        cog: {
+          prefix: 'logging-scars-v1',
+          static: true,
+          yearIndependent: true,
+          colorFn: (year, opts) => scarsColorFn(opts.scarsPersistentOnly),
+          variant: (opts) => (opts.scarsPersistentOnly ? 'persistent' : 'all'),
+        },
       },
     ],
   },
@@ -308,9 +344,19 @@ const MODULES = [
     description: 'Biomass density visualization',
     component: BiomassModule,
     temporalOptions: {
-      yearRange: [2010, 2010],
+      yearRange: [2010, 2025],
+      // 2010: the original biomass tiles; 2015/2020/2025: SCANFI snapshots
+      availableYears: [2010, 2015, 2020, 2025],
     },
     layers: [
+      {
+        // NRCan SCANFI above-ground biomass (t/ha), 2015/2020/2025 snapshots;
+        // the map shows the latest snapshot not after the selected year.
+        id: 'biomass-scanfi',
+        name: 'Biomass (SCANFI)',
+        color: '#31a354',
+        cog: { prefix: 'scanfi-v1', static: true, colorFn: (year) => scanfiColorFn(year) },
+      },
       {
         id: 'biomass-density',
         name: 'Biomass Density',
@@ -898,6 +944,11 @@ function App() {
   // 'ml' (model estimates). Chosen in ClearcutDetection's panel, independently
   // of the disturbance type picked in the left-hand layer list.
   const [clearcutSources, setClearcutSources] = useState(['ari']);
+  // Logging scars: only stands flagged at 2+ SCANFI snapshots
+  const [scarsPersistentOnly, setScarsPersistentOnly] = useState(false);
+  // Hides provisional AI detections below this confidence (0-100); confirmed
+  // ones always show
+  const [aiMinConfidence, setAiMinConfidence] = useState(0);
 
   const handleToggleClearcutSource = useCallback((source, on) => {
     setClearcutSources((prev) => (
@@ -926,6 +977,7 @@ function App() {
     if (ari && selected.includes('clearcut-harvest-year-ari')) {
       clearcut.push('clearcut-harvest-year-ari');
     }
+    if (selected.includes('logging-scars')) clearcut.push('logging-scars');
     return { ...activeLayers, clearcut };
   }, [activeLayers, clearcutSources]);
 
@@ -1263,6 +1315,14 @@ function App() {
     const wanted = [];
     MODULES.forEach((module) => {
       (effectiveActiveLayers[module.id] || []).forEach((layerId) => {
+        const cog = module.layers?.find((l) => l.id === layerId)?.cog;
+        if (cog) {
+          const key = cog.static ? `static:${cog.prefix}` : cog.prefix;
+          if (!wanted.some((w) => w.prefix === key)) {
+            wanted.push({ prefix: key, cogPrefix: cog.prefix, isStatic: Boolean(cog.static), year: moduleYears[module.id] || selectedYear, regions: rasterRegions });
+          }
+          return;
+        }
         const caribouRangeMode = layerId === 'caribou-habitat' && selectedRanges.length > 0;
         const prefix = coveragePrefixForLayer(layerId, { caribouRangeMode });
         if (!prefix || wanted.some((w) => w.prefix === prefix)) return;
@@ -1278,8 +1338,10 @@ function App() {
       });
     });
 
-    Promise.all(wanted.map(({ prefix, year, regions }) => (
-      getCogCoverage(regions.map((region) => ({ region, years: [year] })), prefix)
+    Promise.all(wanted.map(({ prefix, cogPrefix, isStatic, year, regions }) => (
+      (isStatic
+        ? getStaticCogCoverage(regions, cogPrefix)
+        : getCogCoverage(regions.map((region) => ({ region, years: [year] })), cogPrefix || prefix))
         .then((covered) => [prefix, covered])
     ))).then((entries) => {
       if (!cancelled) setCogCoverageByPrefix(Object.fromEntries(entries));
@@ -1320,6 +1382,12 @@ function App() {
     if (names.length === 1) return names[0];
     return `${names[0]} +${names.length - 1} more`;
   }, [loadingSourceIds, labelForSourceId]);
+
+  // Per-layer options read by layer.cog color functions
+  const layerOptions = useMemo(
+    () => ({ scarsPersistentOnly, aiMinConfidence }),
+    [scarsPersistentOnly, aiMinConfidence],
+  );
 
   const maplibreLayers = useMemo(() => {
     if (!USE_MAPLIBRE) return { rasterLayers: [], cogLayers: [] };
@@ -1395,6 +1463,38 @@ function App() {
         const layerOpacity = frameIdx === 0 ? undefined : 0;
 
         layerRegions.forEach((region) => {
+          // Products declared with layer.cog (boreal-canada-mapping handoff):
+          // their own coverage, URL layout and color function. A single-file
+          // product reads one raster for every year, so each use of it gets
+          // its own ?v= variant -- the COG protocol keys color functions by
+          // URL, and annual vs accumulated (or two years) color it differently.
+          if (layer.cog) {
+            if (!USE_COG) return;
+            const c = layer.cog;
+            const coverage = cogCoverageByPrefix[c.static ? `static:${c.prefix}` : c.prefix];
+            if (!coverage) return;
+            if (c.static ? !coverage.has(region) : !coverage.has(`${region}_${renderYear}`)) return;
+            if (c.yearIndependent && frameIdx > 0) return;
+            const fileUrl = c.static
+              ? `${COG_BASE_URL}/cogs/${c.prefix}/${region}.tif`
+              : cogUrlForPrefix(c.prefix, region, renderYear);
+            const variant = [
+              layer.id,
+              c.static && !c.yearIndependent ? renderYear : null,
+              c.variant ? c.variant(layerOptions) : null,
+            ].filter(Boolean).join('-');
+            cogLayers.push({
+              id: c.yearIndependent ? `${variant}-${region}` : `${layer.id}-${region}-${renderYear}`,
+              url: `${fileUrl}?v=${variant}`,
+              opacity: c.yearIndependent ? undefined : layerOpacity,
+              colorFunction: c.colorFn(renderYear, layerOptions),
+              outline: layer.cogOutline ? layer.id : undefined,
+              // Click-to-read: the map decodes this layer's pixel values
+              inspect: c.inspect ? { kind: c.inspect, year: renderYear, name: layer.name } : undefined,
+            });
+            return;
+          }
+
           // Which COG product this layer draws, and whose coverage answers for
           // it. Asking per prefix is what lets wildfire be gated by its own
           // availability rather than clearcut's -- the two hold different
@@ -1528,7 +1628,7 @@ function App() {
     });
 
     return { rasterLayers, cogLayers, vectorLayers };
-  }, [effectiveActiveLayers, rasterRegions, caribouRasterRegions, selectedRanges,
+  }, [effectiveActiveLayers, rasterRegions, caribouRasterRegions, selectedRanges, layerOptions,
       moduleYears, selectedYear, cogCoverageByPrefix,
       clearcutRegions, tileCoverage, playing, timelineYears]);
 
@@ -1537,7 +1637,9 @@ function App() {
   // than ids, since these go into a prompt.
   const activeLayerSummary = useMemo(() => (
     MODULES.flatMap((module) => (effectiveActiveLayers[module.id] || []).map((layerId) => ({
+      moduleId: module.id,
       module: module.name,
+      layerId,
       layer: module.layers?.find((l) => l.id === layerId)?.name || layerId,
       year: moduleYears[module.id] || selectedYear,
     })))
@@ -1560,6 +1662,17 @@ function App() {
     drawingStats,
     clearcutSources,
     onToggleClearcutSource: handleToggleClearcutSource,
+    scars: {
+      on: (activeLayers.clearcut || []).includes('logging-scars'),
+      toggle: () => handleLayerToggle('clearcut', 'logging-scars'),
+      persistentOnly: scarsPersistentOnly,
+      setPersistentOnly: setScarsPersistentOnly,
+    },
+    aiStatus: {
+      minConfidence: aiMinConfidence,
+      setMinConfidence: setAiMinConfidence,
+    },
+    scanfiOn: (activeLayers.biomass || []).includes('biomass-scanfi'),
     alerts: {
       all: alertsInArea,
       features: filteredAlerts,

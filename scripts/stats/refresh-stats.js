@@ -53,6 +53,9 @@ const DATA_DIR = path.join(ROOT, 'client', 'public', 'data');
 function moduleForPrefix(prefix) {
   const product = prefix.replace(/^\/*(cogs\/)?/, '').split('/')[0];
   if (/^clearcut-.*-ari$/.test(product)) return null;
+  // boreal-canada-mapping handoff products (scripts/data/prepare-boreal-cogs.py):
+  // no chart-stats generator for them yet
+  if (/^(clearcut-status|ari-ground-truth|logging-scars|scanfi)/.test(product)) return null;
   if (product.startsWith('clearcut')) return 'clearcut';
   if (product.startsWith('wildfire')) return 'wildfire';
   if (product.startsWith('caribou')) return 'caribou';

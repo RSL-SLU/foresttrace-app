@@ -72,6 +72,8 @@ Accuracy rules -- these come before style:
 - Use only figures that appear in DATASETS or SUMMARY. Do not estimate, extrapolate or invent numbers, dates, names, causes or quotes.
 - You may round (e.g. 61,236.8 ha -> about 61,200 ha) and compute simple differences or percentage changes between two values in the data; when you do, say which two values you compared.
 - Attribute figures to their source as listed. Clearcut figures come from an AI model applied to satellite imagery (Harmonized Landsat Sentinel-2); say so, and treat them as estimates. Use the accuracy dataset, when present, to describe how reliable the model is.
+- Wildfire burned area figures come from the Canadian National Burned Area Composite (NBAC); attribute them to NBAC.
+- When multiple disturbances (such as both clearcutting and wildfires) or wildlife habitat datasets are present, examine their cumulative or compounded impact across the landscape.
 - Do not attribute clearcuts to any company, person or cause; the data cannot show who cut or why.
 - "Standing clearcut area" is a 5-year rolling total; "newly detected clearcut" is new area per year. Do not mix them up.
 - If alert data is marked demo data, say clearly that alerts are demonstration data and not real detections.
@@ -362,7 +364,7 @@ async function handler(req, res) {
         isPublic: false,
         html,
         story,
-        context: { regions: facts.regions.map((r) => r.id), year: facts.year, module: facts.module, angle, audience },
+        context: { regions: facts.regions.map((r) => r.id), year: facts.year, module: facts.module, moduleId: facts.moduleId, angle, audience },
         reviewNotes: uncheckedFigures(story, facts),
         model: MODEL,
         usage: usage ? { input: usage.input_tokens, output: usage.output_tokens } : null,

@@ -1,5 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
+  SCAR_RAMP, rampCss, REGION_LABELS, REGION_MODEL_NOTES, reliabilityNotes, STATUS_COLORS,
+} from '../utils/borealLayers';
+import {
   ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ErrorBar,
   ReferenceArea, Cell,
 } from 'recharts';
@@ -15,6 +18,13 @@ import {
 } from '../utils/clearcutAreaStats';
 import { DATA_BASE_URL } from '../config';
 import { getCogCoverage } from '../utils/clearcutCogCoverage';
+
+// AI status classes, in the order the legend lists them
+const AI_STATUS_LEGEND = [
+  { status: 1, label: 'Provisional — model detection only' },
+  { status: 2, label: 'Confirmed by a harvest (AR) record' },
+  { status: 4, label: 'Confirmed — model flagged it again in a later year' },
+];
 
 const CLEARCUT_YEARS = [2010, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025];
 
@@ -491,6 +501,67 @@ function ClearcutDetection({ data }) {
         </div>
       </div>
 
+      {data?.scars && (
+        <div className="module-section">
+          <h3>Logging Scars</h3>
+          <label className="switch range-switch" htmlFor="logging-scars-toggle">
+            <span className="range-name">Show stands that never recovered</span>
+            <input
+              id="logging-scars-toggle"
+              type="checkbox"
+              role="switch"
+              checked={data.scars.on}
+              onChange={data.scars.toggle}
+            />
+            <span className="switch-track" aria-hidden="true" />
+          </label>
+          {data.scars.on && (
+            <>
+              <label className="switch range-switch" htmlFor="logging-scars-persistent">
+                <span className="range-name">Persistent only (flagged at 2+ snapshots)</span>
+                <input
+                  id="logging-scars-persistent"
+                  type="checkbox"
+                  role="switch"
+                  checked={data.scars.persistentOnly}
+                  onChange={(e) => data.scars.setPersistentOnly(e.target.checked)}
+                />
+                <span className="switch-track" aria-hidden="true" />
+              </label>
+              <div className="scar-legend" title="Stand biomass ÷ median biomass of same-age stands; below 0.5 is flagged">
+                <div className="scar-legend-bar" style={{ background: rampCss(SCAR_RAMP) }} />
+                <div className="scar-legend-labels">
+                  <span>0 (worst)</span>
+                  <span>0.25</span>
+                  <span>0.5</span>
+                </div>
+                <p className="stat-sub">
+                  Biomass relative to same-age stands (NRCan SCANFI 2015/2020/2025). Lighter: flagged at
+                  one snapshot only, which may be a transient bad year.
+                </p>
+              </div>
+            </>
+          )}
+          <p className="stat-sub scar-caveat">
+            Only stands harvested at least 15 years ago are scored; younger stands are too young to judge.
+          </p>
+        </div>
+      )}
+
+      {regions.some((r) => REGION_MODEL_NOTES[r]) && (
+        <div className="module-section">
+          <h3>Data Notes</h3>
+          {regions.filter((r) => REGION_MODEL_NOTES[r]).map((r) => (
+            <p key={r} className="stat-sub data-note">
+              <strong>{REGION_LABELS[r] || r}</strong>: {REGION_MODEL_NOTES[r]}
+            </p>
+          ))}
+          {reliabilityNotes(regions, selectedYear).map((note) => (
+            <p key={note} className="stat-sub data-note data-note--warn">{note}</p>
+          ))}
+        </div>
+      )}
+
       <div className="module-section">
         <h3>Legend &amp; Color Guide</h3>
         {clearcutSources.includes('ari') && (
@@ -513,14 +584,36 @@ function ClearcutDetection({ data }) {
             <p className="stat-sub" style={{ marginTop: clearcutSources.includes('ari') ? 8 : 0, marginBottom: 6 }}>
               <strong>AI Model Estimates (HLS Deep Learning):</strong>
             </p>
-            <div className="legend-item">
-              <span className="legend-color outline-amber" />
-              <span>AI Model: Accumulated Cuts (outline)</span>
-            </div>
-            <div className="legend-item">
-              <span className="legend-color outline-red" />
-              <span>AI Model: Annual Cuts (newly detected this year, outline)</span>
-            </div>
+            {AI_STATUS_LEGEND.map(({ status, label }) => (
+              <div className="legend-item" key={status}>
+                <span
+                  className="legend-color status-outline"
+                  style={{ borderColor: `rgb(${STATUS_COLORS[status].join(',')})` }}
+                />
+                <span>{label}</span>
+              </div>
+            ))}
+            <p className="stat-sub status-legend-note">
+              Outlined. Provisional outlines fade with the model’s confidence; confirmed ones are
+              solid. Click a stand to read its status.
+            </p>
+            {data?.aiStatus && (
+              <div className="confidence-filter">
+                <label htmlFor="ai-min-confidence">
+                  Hide provisional below <strong>{data.aiStatus.minConfidence}%</strong> confidence
+                </label>
+                <input
+                  id="ai-min-confidence"
+                  type="range"
+                  min="0"
+                  max="90"
+                  step="10"
+                  value={data.aiStatus.minConfidence}
+                  onChange={(e) => data.aiStatus.setMinConfidence(Number(e.target.value))}
+                />
+                <small>Confirmed detections always stay visible.</small>
+              </div>
+            )}
           </>
         )}
         {clearcutSources.length === 0 && (

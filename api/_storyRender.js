@@ -11,6 +11,7 @@
 
 const MAPLIBRE = 'https://cdn.jsdelivr.net/npm/maplibre-gl@5/dist';
 const CHARTJS = 'https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js';
+const COG_PROTOCOL = 'https://cdn.jsdelivr.net/npm/@geomatico/maplibre-cog-protocol@0.9.2/dist/index.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -157,7 +158,10 @@ function renderStoryHtml({ story, facts, author, createdAt, model }) {
   <div class="map-wrap">
     <div id="map" role="img" aria-label="Map of the area discussed in this story"></div>
     <div class="legend">
-      <div><span style="background:rgba(217,119,6,.75)"></span>Clearcut patches (${esc(facts.year)})</div>
+      ${facts.isWildfire ? `<div><span style="background:rgba(255,127,0,.85)"></span>Wildfire burned area (${esc(facts.year)})</div>` : ''}
+      ${(facts.layers.cogs && facts.layers.cogs.some((c) => c.layerId === 'clearcut-accumulated')) || (facts.isClearcut && facts.layers.patches.length) ? `<div><span style="background:rgba(217,119,6,.75)"></span>Standing clearcut (${esc(facts.year)})</div>` : ''}
+      ${facts.layers.cogs && facts.layers.cogs.some((c) => c.layerId === 'clearcut-annual') ? `<div><span style="background:rgba(220,38,38,.8)"></span>Annual clearcut (${esc(facts.year)})</div>` : ''}
+      ${facts.hasCaribou ? `<div><span style="background:rgba(33,145,140,.8)"></span>Caribou habitat</div>` : ''}
       ${facts.layers.alerts.length ? '<div><span style="background:rgba(255,45,149,.75)"></span>Disturbance alerts (last 90 days)</div>' : ''}
       <div><span style="background:transparent;border:2px solid #fff"></span>Forest management unit</div>
     </div>
@@ -212,11 +216,20 @@ function renderStoryHtml({ story, facts, author, createdAt, model }) {
 })();
 </script>
 <script src="${MAPLIBRE}/maplibre-gl.js"></script>
+<script src="${COG_PROTOCOL}"></script>
 <script src="${CHARTJS}"></script>
 <script>
 (function () {
   var page = JSON.parse(document.getElementById('story-data').textContent);
   var fc = function (features) { return { type: 'FeatureCollection', features: features || [] }; };
+
+  if (window.MaplibreCOGProtocol && window.MaplibreCOGProtocol.cogProtocol) {
+    try {
+      maplibregl.addProtocol('cog', window.MaplibreCOGProtocol.cogProtocol);
+    } catch (e) {
+      console.warn('[StoryMap] COG protocol registration:', e);
+    }
+  }
 
   var map = new maplibregl.Map({
     container: 'map',
@@ -247,12 +260,139 @@ function renderStoryHtml({ story, facts, author, createdAt, model }) {
     map.addSource('patches', { type: 'geojson', data: fc(page.layers.patches) });
     map.addSource('alerts', { type: 'geojson', data: fc(page.layers.alerts) });
     map.addSource('focus', { type: 'geojson', data: fc([]) });
-    map.addLayer({ id: 'patches', type: 'fill', source: 'patches', paint: { 'fill-color': '#d97706', 'fill-opacity': 0.55 } });
-    map.addLayer({ id: 'alerts-fill', type: 'fill', source: 'alerts', paint: { 'fill-color': '#ff2d95', 'fill-opacity': 0.35 } });
-    map.addLayer({ id: 'alerts-line', type: 'line', source: 'alerts', paint: { 'line-color': '#ff2d95', 'line-width': 1.5 } });
-    map.addLayer({ id: 'fmu', type: 'line', source: 'fmu', paint: { 'line-color': '#ffffff', 'line-width': 2 } });
-    map.addLayer({ id: 'focus', type: 'line', source: 'focus', paint: { 'line-color': '#fde047', 'line-width': 3, 'line-dasharray': [2, 1] } });
+
+    var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    var hasCogProtocol = Boolean(window.MaplibreCOGProtocol && window.MaplibreCOGProtocol.cogProtocol);
+    var cogs = page.layers.cogs || [];
+
+    cogs.forEach(function (cog) {
+      var targetUrl = (isLocal && cog.cogPath) ? (window.location.origin + cog.cogPath) : cog.url;
+      var tileTarget = (isLocal && cog.tilePath) ? (window.location.origin + cog.tilePath) : cog.tileUrl;
+      var sourceId = 'cog-' + cog.id;
+      var layerId = 'cog-layer-' + cog.id;
+
+      if (hasCogProtocol && targetUrl) {
+        if (window.MaplibreCOGProtocol.setColorFunction) {
+          if (cog.paletteType === 'wildfire') {
+            window.MaplibreCOGProtocol.setColorFunction(targetUrl, function (pixel, color, metadata) {
+              if (pixel[0] === metadata.noData) {
+                color.set([0, 0, 0, 0]);
+                return;
+              }
+              if (pixel[0] === 1) {
+                color.set([255, 127, 0, 230]); // #FF7F00 Burned area
+              } else {
+                color.set([0, 0, 0, 0]);
+              }
+            });
+          } else if (cog.paletteType === 'clearcut') {
+            window.MaplibreCOGProtocol.setColorFunction(targetUrl, function (pixel, color, metadata) {
+              if (pixel[0] === metadata.noData) {
+                color.set([0, 0, 0, 0]);
+                return;
+              }
+              if (pixel[0] === 2) {
+                color.set([217, 119, 6, 220]); // #d97706 Standing clearcut
+              } else {
+                color.set([0, 0, 0, 0]);
+              }
+            });
+          } else if (cog.paletteType === 'clearcut-annual') {
+            window.MaplibreCOGProtocol.setColorFunction(targetUrl, function (pixel, color, metadata) {
+              if (pixel[0] === metadata.noData) {
+                color.set([0, 0, 0, 0]);
+                return;
+              }
+              if (pixel[0] === 2) {
+                color.set([220, 38, 38, 230]); // #dc2626 Annual clearcut
+              } else {
+                color.set([0, 0, 0, 0]);
+              }
+            });
+          } else if (cog.paletteType === 'caribou') {
+            var ramp = [
+              [68, 1, 84, 180],
+              [59, 82, 139, 180],
+              [33, 145, 140, 180],
+              [94, 201, 98, 180],
+              [253, 231, 37, 180]
+            ];
+            window.MaplibreCOGProtocol.setColorFunction(targetUrl, function (pixel, color, metadata) {
+              var v = pixel[0];
+              if (v >= 1 && v <= 5) {
+                color.set(ramp[v - 1]);
+              } else {
+                color.set([0, 0, 0, 0]);
+              }
+            });
+          }
+        }
+
+        map.addSource(sourceId, {
+          type: 'raster',
+          url: 'cog://' + targetUrl,
+          tileSize: 256
+        });
+        map.addLayer({
+          id: layerId,
+          type: 'raster',
+          source: sourceId,
+          paint: { 'raster-opacity': cog.opacity || 0.75 }
+        }, 'labels');
+      } else if (tileTarget) {
+        map.addSource(sourceId, {
+          type: 'raster',
+          tiles: [tileTarget],
+          tileSize: 256
+        });
+        map.addLayer({
+          id: layerId,
+          type: 'raster',
+          source: sourceId,
+          paint: { 'raster-opacity': cog.opacity || 0.75 }
+        }, 'labels');
+      }
+    });
+
+    map.addLayer({ id: 'patches', type: 'fill', source: 'patches', paint: { 'fill-color': '#d97706', 'fill-opacity': 0.55 } }, 'labels');
+    map.addLayer({ id: 'alerts-fill', type: 'fill', source: 'alerts', paint: { 'fill-color': '#ff2d95', 'fill-opacity': 0.35 } }, 'labels');
+    map.addLayer({ id: 'alerts-line', type: 'line', source: 'alerts', paint: { 'line-color': '#ff2d95', 'line-width': 1.5 } }, 'labels');
+    map.addLayer({ id: 'fmu', type: 'line', source: 'fmu', paint: { 'line-color': '#ffffff', 'line-width': 2 } }, 'labels');
+    map.addLayer({ id: 'focus', type: 'line', source: 'focus', paint: { 'line-color': '#fde047', 'line-width': 3, 'line-dasharray': [2, 1] } }, 'labels');
     focusOn(page.initialPlace, false);
+  });
+
+  map.on('error', function (e) {
+    if (e && e.sourceId && e.sourceId.indexOf('cog-') === 0) {
+      var cogId = e.sourceId.replace(/^cog-/, '');
+      var cogs = page.layers.cogs || [];
+      var cog = cogs.find(function (c) { return c.id === cogId; });
+      if (cog && !cog._fellBack) {
+        cog._fellBack = true;
+        try {
+          if (map.getLayer('cog-layer-' + cog.id)) map.removeLayer('cog-layer-' + cog.id);
+          if (map.getSource('cog-' + cog.id)) map.removeSource('cog-' + cog.id);
+          var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+          var tileTarget = (isLocal && cog.tilePath) ? (window.location.origin + cog.tilePath) : cog.tileUrl;
+          if (tileTarget) {
+            var tileSourceId = 'tile-' + cog.id;
+            map.addSource(tileSourceId, {
+              type: 'raster',
+              tiles: [tileTarget],
+              tileSize: 256
+            });
+            map.addLayer({
+              id: 'tile-layer-' + cog.id,
+              type: 'raster',
+              source: tileSourceId,
+              paint: { 'raster-opacity': cog.opacity || 0.75 }
+            }, 'labels');
+          }
+        } catch (err) {
+          // ignore fallback errors
+        }
+      }
+    }
   });
 
   var current = null;

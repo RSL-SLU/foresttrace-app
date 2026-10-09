@@ -168,7 +168,8 @@ function ForestryAIAgent({
   const storyContext = {
     regions: selectedFMUs || [],
     year: selectedYear,
-    module: selectedModule?.name,
+    moduleId: selectedModule?.id,
+    module: selectedModule?.name || selectedModule?.id,
     activeLayers: moduleData?.activeLayerSummary,
     drawing: drawingContext || undefined,
   };

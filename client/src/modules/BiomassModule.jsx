@@ -1,5 +1,6 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { BIOMASS_RAMP, BIOMASS_MAX, rampCss, scanfiSnapshot } from '../utils/borealLayers';
 
 const EMPTY_HISTOGRAM = [
   { label: '0-10', area: 0, pixels: 0 },
@@ -22,6 +23,21 @@ function BiomassModule({ data }) {
 
   return (
     <div className="biomass-module">
+      {data?.scanfiOn && (
+        <div className="module-section">
+          <h3>Biomass (SCANFI) · {scanfiSnapshot(data?.selectedYear ?? 2025)} snapshot</h3>
+          <div className="scar-legend-bar" style={{ background: rampCss(BIOMASS_RAMP) }} />
+          <div className="scar-legend-labels">
+            <span>0</span>
+            <span>{BIOMASS_MAX / 2}</span>
+            <span>{BIOMASS_MAX}+ t/ha</span>
+          </div>
+          <p className="stat-sub">
+            Above-ground biomass from NRCan’s SCANFI (ground-plot calibrated), snapshots for 2015, 2020
+            and 2025. The map shows the latest snapshot not after the selected year.
+          </p>
+        </div>
+      )}
       <div className="module-section">
         <h3>Legend - Biomass Density (Mg/ha)</h3>
         <div className="legend-gradient" style={{ position: 'relative', height: '220px', marginBottom: '10px' }}>

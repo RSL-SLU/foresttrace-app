@@ -33,6 +33,9 @@ const MANIFEST_KEY = 'cogs/manifest.json';
 
 // cogs/<prefix>/<region>_<year>.tif -- the layout clearcutCogUrl() builds.
 const COG_KEY = /^cogs\/([^/]+)\/([a-z0-9]+)_(\d{4})\.tif$/;
+// cogs/<prefix>/<region>.tif -- one file covering every year (ARI, logging
+// scars, SCANFI); listed under manifest.static[prefix] as region ids.
+const STATIC_KEY = /^cogs\/([^/]+)\/([a-z0-9]+)\.tif$/;
 
 /**
  * Rebuild the manifest from Vercel Blob and (unless dryRun) publish it.
@@ -55,6 +58,7 @@ async function rebuildManifestVercel({
   }
 
   const prefixes = {};
+  const statics = {};
   let cursor;
   let scanned = 0;
 
@@ -67,6 +71,11 @@ async function rebuildManifestVercel({
 
     for (const blob of res.blobs ?? []) {
       scanned += 1;
+      const single = blob.pathname.match(STATIC_KEY);
+      if (single) {
+        (statics[single[1]] ??= []).push(single[2]);
+        continue;
+      }
       const match = blob.pathname.match(COG_KEY);
       if (!match) continue;
       const [, prefix, region, year] = match;
@@ -137,7 +146,8 @@ async function rebuildManifestVercel({
     }
   }
 
-  const manifest = { generatedAt: new Date().toISOString(), prefixes, tiles };
+  Object.values(statics).forEach((regions) => regions.sort());
+  const manifest = { generatedAt: new Date().toISOString(), prefixes, static: statics, tiles };
   const body = `${JSON.stringify(manifest, null, 2)}\n`;
 
   log(`Scanned ${scanned} objects under cogs/ in Vercel Blob\n`);

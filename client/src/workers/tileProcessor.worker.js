@@ -69,13 +69,6 @@ function processPixels(layerId, pixels, coords, width = 256, height = 256) {
       }
     }
 
-    const isAccumulated = layerId === 'clearcut-ml-accumulated';
-    // Same colors as the ARI fills -- amber (#d97706) accumulated, red
-    // (#dc2626) annual; the source is told apart by outline vs fill.
-    const edgeR = isAccumulated ? 217 : 220;
-    const edgeG = isAccumulated ? 119 : 38;
-    const edgeB = isAccumulated ? 6 : 38;
-
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const p = y * width + x;
@@ -104,15 +97,10 @@ function processPixels(layerId, pixels, coords, width = 256, height = 256) {
           if (isEdge) break;
         }
 
-        if (isEdge) {
-          pixels[idx] = edgeR;
-          pixels[idx + 1] = edgeG;
-          pixels[idx + 2] = edgeB;
-          pixels[idx + 3] = 230;
-        } else {
-          // Transparent interior
-          pixels[idx + 3] = 0;
-        }
+        // Edge pixels keep the color function's own color and alpha: STATUS
+        // picks the color, CONFIDENCE the opacity (utils/borealLayers.js).
+        // The interior goes transparent.
+        if (!isEdge) pixels[idx + 3] = 0;
       }
     }
 

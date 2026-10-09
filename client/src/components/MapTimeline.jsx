@@ -13,15 +13,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * a five-year hole in it -- every stop is a year you can actually select.
  */
 
-// How long a fully-drawn frame is held before advancing. Playback waits for
-// tiles on top of this, so the real frame time is this plus whatever the year
-// took to load.
-const FRAME_MS = 1200;
+// Target display time per frame during playback.
+const FRAME_MS = 1500;
 
-// Ceiling on that wait. A year whose tiles error, or a source that never
-// reports itself settled, would otherwise park playback forever -- better to
-// advance on a visibly incomplete frame than to appear frozen.
-const MAX_WAIT_MS = 8000;
+// Maximum wait before advancing, preventing cold caches, sparse data, or 404s
+// from freezing playback.
+const MAX_WAIT_MS = 3000;
 
 function MapTimeline({
   years, selectedYear, onYearChange, onPlayingChange,
@@ -36,6 +33,12 @@ function MapTimeline({
   const onYearChangeRef = useRef(onYearChange);
   onYearChangeRef.current = onYearChange;
 
+  const loadingRef = useRef(loading);
+  loadingRef.current = loading;
+
+  const restartingRef = useRef(false);
+  const frameStartTimeRef = useRef(Date.now());
+
   // Lifted so the map can buffer upcoming years only while playing -- rendering
   // three years' worth of sources during ordinary browsing would triple the
   // requests for no benefit.
@@ -43,30 +46,62 @@ function MapTimeline({
   onPlayingChangeRef.current = onPlayingChange;
   useEffect(() => { onPlayingChangeRef.current?.(playing); }, [playing]);
 
-  // Playback stops at the end rather than looping: a loop makes it ambiguous
-  // whether the last frame is the newest year or a rerun of the first.
-  //
-  // Frames advance only once the map has finished loading. A fixed clock
-  // outran the tiles on a cold cache and animated a sequence of half-drawn
-  // years -- which is worse than a slower animation, because the viewer cannot
-  // tell a partially-loaded year from a year with less clearcut in it.
+  // Keep track of when a new frame begins
+  useEffect(() => {
+    frameStartTimeRef.current = Date.now();
+  }, [index]);
+
+  // Playback advancement with steady cadence
   useEffect(() => {
     if (!playing) return undefined;
+
     if (index >= years.length - 1) {
+      if (restartingRef.current) {
+        // Just requested wrap-around to start; wait for index prop update to 0
+        return undefined;
+      }
       setPlaying(false);
       return undefined;
     }
+    restartingRef.current = false;
 
-    const advance = () => onYearChangeRef.current(years[index + 1]);
+    let advanced = false;
+    const advance = () => {
+      if (advanced) return;
+      advanced = true;
+      const nextIdx = index + 1;
+      if (nextIdx < years.length) {
+        onYearChangeRef.current(years[nextIdx]);
+      }
+    };
 
-    if (!loading) {
-      const timer = setTimeout(advance, FRAME_MS);
-      return () => clearTimeout(timer);
+    // If tiles are already cached or finish within FRAME_MS, advance at FRAME_MS.
+    const minTimer = setTimeout(() => {
+      if (!loadingRef.current) {
+        advance();
+      }
+    }, FRAME_MS);
+
+    // Hard ceiling: advance even if network requests linger
+    const maxTimer = setTimeout(advance, MAX_WAIT_MS);
+
+    return () => {
+      clearTimeout(minTimer);
+      clearTimeout(maxTimer);
+    };
+  }, [playing, index, years]);
+
+  // If tiles finish loading after FRAME_MS has already elapsed, advance promptly
+  useEffect(() => {
+    if (!playing || loading || index >= years.length - 1) return;
+    const elapsed = Date.now() - frameStartTimeRef.current;
+    if (elapsed >= FRAME_MS) {
+      const nextIdx = index + 1;
+      if (nextIdx < years.length) {
+        onYearChangeRef.current(years[nextIdx]);
+      }
     }
-
-    const bail = setTimeout(advance, MAX_WAIT_MS);
-    return () => clearTimeout(bail);
-  }, [playing, index, years, loading]);
+  }, [loading, playing, index, years]);
 
   useEffect(() => {
     if (disabled) setPlaying(false);
@@ -77,7 +112,10 @@ function MapTimeline({
       if (was) return false;
       // Restart from the beginning when parked on the last year, so the button
       // never appears to do nothing.
-      if (index >= years.length - 1) onYearChangeRef.current(years[0]);
+      if (index >= years.length - 1) {
+        restartingRef.current = true;
+        onYearChangeRef.current(years[0]);
+      }
       return true;
     });
   }, [index, years]);
@@ -88,11 +126,22 @@ function MapTimeline({
     if (next !== index) onYearChangeRef.current(years[next]);
   }, [index, years]);
 
+  const handleTrackClick = useCallback((e) => {
+    if (disabled) return;
+    if (e.target.closest('.timeline-tick')) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (!rect.width) return;
+    const clickX = e.clientX - rect.left;
+    const ratio = Math.max(0, Math.min(1, clickX / rect.width));
+    const targetIdx = Math.round(ratio * (years.length - 1));
+    if (targetIdx >= 0 && targetIdx < years.length) {
+      setPlaying(false);
+      onYearChangeRef.current(years[targetIdx]);
+    }
+  }, [disabled, years]);
+
   if (!years?.length) return null;
 
-  const shown = hoverIndex === null ? selectedYear : years[hoverIndex];
-  // Waiting is a distinct state from playing: the year has changed and the map
-  // is catching up, so the button says "working" rather than "paused".
   const waiting = playing && loading;
   const progress = years.length > 1 ? (index / (years.length - 1)) * 100 : 0;
 
@@ -133,32 +182,58 @@ function MapTimeline({
         {'▶'}
       </button>
 
-      <span className={`timeline-year${hoverIndex !== null ? ' timeline-year--preview' : ''}`}>
-        {shown}
+      <span
+        className="timeline-bound-year timeline-bound-year--min"
+        onClick={() => { setPlaying(false); onYearChange(years[0]); }}
+        title={`Jump to ${years[0]}`}
+      >
+        {years[0]}
       </span>
 
-      <div className="timeline-track" onMouseLeave={() => setHoverIndex(null)}>
+      <div
+        className="timeline-track"
+        onClick={handleTrackClick}
+        onMouseLeave={() => setHoverIndex(null)}
+      >
         <div className="timeline-fill" style={{ width: `${progress}%` }} />
 
-        {/* A tick per year, both as the visible scale and as the hit target --
-            clicking a year is more direct than dragging to it. */}
-        {years.map((year, i) => (
-          <button
-            key={year}
-            type="button"
-            className={`timeline-tick${i === index ? ' timeline-tick--active' : ''}`}
-            style={{ left: `${years.length > 1 ? (i / (years.length - 1)) * 100 : 50}%` }}
-            onClick={() => { setPlaying(false); onYearChange(year); }}
-            onMouseEnter={() => setHoverIndex(i)}
-            disabled={disabled}
-            title={String(year)}
-            aria-label={String(year)}
-            aria-current={i === index}
-          />
-        ))}
+        {/* A tick per year, both as the visible scale and as the primary hit target */}
+        {years.map((year, i) => {
+          const isActive = i === index;
+          const isPassed = i < index;
+          const isHovered = i === hoverIndex;
+          return (
+            <button
+              key={year}
+              type="button"
+              className={`timeline-tick${isActive ? ' timeline-tick--active' : ''}${isPassed ? ' timeline-tick--passed' : ''}`}
+              style={{ left: `${years.length > 1 ? (i / (years.length - 1)) * 100 : 50}%` }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setPlaying(false);
+                onYearChange(year);
+              }}
+              onMouseEnter={() => setHoverIndex(i)}
+              disabled={disabled}
+              title={String(year)}
+              aria-label={String(year)}
+              aria-current={isActive}
+            >
+              {isActive && (
+                <span className="timeline-tick-bubble">
+                  {year}
+                </span>
+              )}
+              {isHovered && !isActive && (
+                <span className="timeline-tick-bubble timeline-tick-bubble--hover">
+                  {year}
+                </span>
+              )}
+            </button>
+          );
+        })}
 
-        {/* The range input sits invisibly over the ticks so the control is
-            keyboard- and drag-operable, which a row of buttons is not. */}
+        {/* The range input sits underneath the ticks for keyboard and drag access */}
         <input
           type="range"
           className="timeline-range"
@@ -174,7 +249,15 @@ function MapTimeline({
         />
       </div>
 
-      <span className="timeline-bounds">{years[0]}–{years[years.length - 1]}</span>
+      {years.length > 1 && (
+        <span
+          className="timeline-bound-year timeline-bound-year--max"
+          onClick={() => { setPlaying(false); onYearChange(years[years.length - 1]); }}
+          title={`Jump to ${years[years.length - 1]}`}
+        >
+          {years[years.length - 1]}
+        </span>
+      )}
     </div>
   );
 }

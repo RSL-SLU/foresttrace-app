@@ -113,6 +113,13 @@ module.exports = function (app) {
     }
   });
 
+  // A whole local cogs/ tree (<root>/<prefix>/<file>.tif), e.g. the output of
+  // scripts/data/prepare-boreal-cogs.py before it's uploaded. Misses fall
+  // through to the Blob proxy below, so it can hold just the new products.
+  if (process.env.LOCAL_COG_ROOT) {
+    app.use('/cogs', express.static(path.normalize(process.env.LOCAL_COG_ROOT)));
+  }
+
   if (ARI_MVT_DIR) {
     app.use('/mvt', express.static(path.normalize(ARI_MVT_DIR)));
   }

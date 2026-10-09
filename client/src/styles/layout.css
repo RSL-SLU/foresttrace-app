@@ -545,19 +545,23 @@ body.dark-mode .resize-handle--active::after {
   background: #d97706;
 }
 
-/* AI model layers: same colors as the ARI fills above, drawn as outlines, so
-   their swatches are hollow to match. */
-.legend-color.outline-amber {
+/* AI model layers: drawn as outlines colored by STATUS, so their swatches
+   are hollow; the border color comes from STATUS_COLORS (borealLayers.js). */
+.legend-color.status-outline {
   background: transparent;
-  border: 2px solid #d97706;
+  border: 2px solid;
   box-sizing: border-box;
 }
 
-.legend-color.outline-red {
-  background: transparent;
-  border: 2px solid #dc2626;
-  box-sizing: border-box;
-}
+.status-legend-note { margin: 4px 0 8px; }
+
+.confidence-filter { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; font-size: 13px; }
+.confidence-filter input[type="range"] { width: 100%; accent-color: #4caf50; }
+.confidence-filter small { opacity: 0.75; }
+
+/* Click-to-read popup on the AI status layers (MapLibreMap.jsx) */
+.pixel-info { font-size: 13px; line-height: 1.4; color: #1f2937; max-width: 240px; }
+.pixel-info-layer { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: #6b7280; margin-bottom: 2px; }
 
 .legend-color.satellite {
   background: linear-gradient(135deg, #4CAF50, #8fd9af);
@@ -1538,3 +1542,12 @@ body.dark-mode .ai-locked { color: #ffffff; }
 body.dark-mode .ai-locked-link { color: #9fdcb9; }
 
 .module-lock { font-size: 11px; margin-left: 4px; opacity: 0.8; }
+
+/* Clearcut Detection: logging scars + data notes (ClearcutDetection.jsx) */
+.scar-legend { margin: 8px 0 4px; }
+.scar-legend-bar { height: 10px; border-radius: 4px; }
+.scar-legend-labels { display: flex; justify-content: space-between; font-size: 11px; opacity: 0.75; margin: 3px 0 6px; }
+.scar-caveat { margin-top: 8px; font-style: italic; }
+.data-note { margin-bottom: 8px; line-height: 1.45; }
+.data-note-region { text-transform: capitalize; }
+.data-note--warn { padding: 6px 8px; border-radius: 6px; background: rgba(245, 158, 11, 0.14); }

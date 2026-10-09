@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Map, { Source, Layer, NavigationControl, Popup, useMap } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
-import { cogProtocol, setColorFunction } from '@geomatico/maplibre-cog-protocol';
+import { cogProtocol, locationValues, setColorFunction } from '@geomatico/maplibre-cog-protocol';
 import { Protocol as PMTilesProtocol } from 'pmtiles';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { buildClassColorFunction } from '../utils/rasterClasses';
 import { CLEARCUT_CLASSES, DEFAULT_VISIBLE_CLASSES, CLEARCUT_CLASS_ID } from '../utils/clearcutClasses';
 import { ensureTintedProtocol, onTintActivity } from '../utils/tintedTileProtocol';
 import { processTile } from '../utils/tileWorkerClient';
+import { describeStatus } from '../utils/borealLayers';
 
 // COG support is a URL protocol handler, not a layer type: once registered,
 // any source whose url starts with cog:// is range-read straight from R2 with
@@ -230,7 +231,7 @@ const DRAW_MODES = [
   { id: 'circle', glyph: '\u25EF', label: 'Circle' },
 ];
 
-function DrawingTools({ onCreate, onChange, onAsk, proposedFeatures, enabled }) {
+function DrawingTools({ onCreate, onChange, onAsk, proposedFeatures, enabled, modeRef }) {
   const { current: mapRef } = useMap();
   const drawRef = useRef(null);
   const onCreateRef = useRef(onCreate);
@@ -242,6 +243,7 @@ function DrawingTools({ onCreate, onChange, onAsk, proposedFeatures, enabled }) 
   // finished, without a round trip through App.
   const [shapeCount, setShapeCount] = useState(0);
   const [mode, setMode] = useState('select');
+  if (modeRef) modeRef.current = enabled ? mode : 'static';
   // Set once terra-draw has started. The setup is async, so the mode effect
   // would otherwise run against a null instance on first render and never
   // re-run -- leaving the toolbar visually active but inert.
@@ -756,6 +758,12 @@ function MapLibreMap({
   // Local to this component: nothing outside the map needs to know what's
   // currently popped up.
   const [clickedFeature, setClickedFeature] = useState(null);
+  // Decoded pixel under a click on a layer declaring `inspect` (the AI status
+  // layers) -- {lngLat, name, title, detail} or null.
+  const [pixelInfo, setPixelInfo] = useState(null);
+  const drawModeRef = useRef('static');
+  const cogLayersRef = useRef(cogLayers);
+  cogLayersRef.current = cogLayers;
 
   const vectorLayerIds = useMemo(
     () => [
@@ -769,11 +777,33 @@ function MapLibreMap({
   const onAlertClickRef = useRef(onAlertClick);
   onAlertClickRef.current = onAlertClick;
 
+  // Reads the clicked pixel from the visible inspectable COGs (one per FMU)
+  // and decodes it. A click outside every raster, or on nodata, reads as
+  // "No data"; a 0 STATUS as "checked, nothing detected".
+  const inspectPixel = useCallback(async (lngLat) => {
+    const targets = cogLayersRef.current.filter((l) => l.inspect && l.opacity === undefined);
+    if (!targets.length || (drawModeRef.current !== 'static' && drawModeRef.current !== 'select')) {
+      setPixelInfo(null);
+      return;
+    }
+    const reads = await Promise.all(targets.map((l) => locationValues(
+      l.url, { latitude: lngLat.lat, longitude: lngLat.lng },
+    ).then((values) => ({ layer: l, info: describeStatus(values, l.inspect.year), values }))
+      .catch(() => null)));
+    const found = reads.filter(Boolean);
+    const hit = found.find((r) => r.values[0] > 0 && r.info.detail !== undefined)
+      || found.find((r) => r.values[0] === 0);
+    const { layer, info } = hit || { layer: targets[0], info: describeStatus([], 0) };
+    setPixelInfo({ lngLat, name: layer.inspect.name, ...info });
+  }, []);
+
   const handleMapClick = useCallback((e) => {
     if (!e.features || e.features.length === 0) {
       setClickedFeature(null);
+      inspectPixel(e.lngLat);
       return;
     }
+    setPixelInfo(null);
     // Alerts take precedence: they're the layer being read when it's on, and
     // they open in the side panel rather than a popup.
     const alert = e.features.find((f) => ALERT_INTERACTIVE_LAYERS.includes(f.layer?.id));
@@ -784,7 +814,7 @@ function MapLibreMap({
     }
     const feature = e.features[0];
     setClickedFeature({ lngLat: e.lngLat, properties: feature.properties });
-  }, []);
+  }, [inspectPixel]);
 
   // One point per alert, from its precomputed centroid: polygons a few hundred
   // hectares across shrink to nothing at FMU zoom, so below ALERT_POINT_MAXZOOM
@@ -810,6 +840,14 @@ function MapLibreMap({
   useEffect(() => {
     setClickedFeature(null);
   }, [vectorLayerSignature]);
+  // Same for a decoded pixel: it described one year's raster
+  const inspectSignature = cogLayers
+    .filter((l) => l.inspect && l.opacity === undefined)
+    .map((l) => l.url)
+    .join('|');
+  useEffect(() => {
+    setPixelInfo(null);
+  }, [inspectSignature]);
 
   // Held in a ref so a year change does not rebuild the style.
   const satelliteRef = useRef({ url: satelliteUrl, attribution: satelliteAttribution });
@@ -870,7 +908,9 @@ function MapLibreMap({
       const overrides = (layer.color && colorClass !== null)
         ? { [colorClass]: layer.color }
         : {};
-      const colorFunction = buildClassColorFunction({
+      // Layers declared with layer.cog bring their own (multi-band,
+      // year-aware) color function; everything else gets the class palette.
+      const colorFunction = layer.colorFunction || buildClassColorFunction({
         palette,
         visibleClasses,
         alpha: 255,
@@ -1078,6 +1118,21 @@ function MapLibreMap({
         </Popup>
       )}
 
+      {pixelInfo && (
+        <Popup
+          longitude={pixelInfo.lngLat.lng}
+          latitude={pixelInfo.lngLat.lat}
+          onClose={() => setPixelInfo(null)}
+          closeOnClick={false}
+        >
+          <div className="pixel-info">
+            <div className="pixel-info-layer">{pixelInfo.name}</div>
+            <strong>{pixelInfo.title}</strong>
+            {pixelInfo.detail && <div>{pixelInfo.detail}</div>}
+          </div>
+        </Popup>
+      )}
+
       {/* Caribou range outlines. Must stay AFTER both raster blocks: MapLibre
           paints layers in the order they are added, so declared any earlier the
           outline sits under the habitat it annotates and is invisible wherever
@@ -1106,6 +1161,7 @@ function MapLibreMap({
         onAsk={onAskAboutDrawing}
         proposedFeatures={proposedFeatures}
         enabled={drawingEnabled}
+        modeRef={drawModeRef}
       />
     </Map>
   );

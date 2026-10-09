@@ -103,6 +103,29 @@ export async function getCogCoverage(wanted, prefix = DEFAULT_COG_PREFIX) {
   return new Set(pairs.filter((_, i) => present[i]).map(({ region, year }) => `${region}_${year}`));
 }
 
+/**
+ * Regions that have a single-file product: cogs/<prefix>/<region>.tif, one
+ * raster covering every year (ARI ground truth, logging scars, SCANFI).
+ * The manifest lists these under `static`; without it, each region is probed.
+ *
+ * @returns {Promise<Set<string>>} region ids
+ */
+export async function getStaticCogCoverage(regions, prefix) {
+  const manifest = await loadManifest();
+  const listed = manifest?.static?.[prefix];
+  if (Array.isArray(listed)) return new Set(listed);
+
+  const present = await Promise.all(regions.map((region) => {
+    const key = `${prefix}/${region}`;
+    if (!cache.has(key)) {
+      const url = `${COG_BASE_URL}/cogs/${prefix}/${region}.tif`;
+      cache.set(key, fetch(url, { method: 'HEAD' }).then((r) => r.ok).catch(() => false));
+    }
+    return cache.get(key);
+  }));
+  return new Set(regions.filter((_, i) => present[i]));
+}
+
 export function clearCogCoverageCache() {
   cache.clear();
   _manifestPromise = null;

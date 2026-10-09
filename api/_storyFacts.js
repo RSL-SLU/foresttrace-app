@@ -22,6 +22,21 @@ const clearcutStats = require('../client/public/data/clearcut_stats.json');
 const wildfireStats = require('../client/public/data/wildfire_stats.json');
 const caribouStats = require('../client/public/data/caribou_stats.json');
 
+const CARIBOU_RANGE_IDS = new Set([
+  'berens', 'brightsand', 'churchill', 'kesagami', 'nipigon', 'pagwachuan', 'sydney',
+]);
+let _caribouRangesGeoJson = null;
+async function loadCaribouRange(rangeId) {
+  if (!_caribouRangesGeoJson) {
+    _caribouRangesGeoJson = await loadDataFile('data/caribou_ranges.geojson');
+  }
+  if (!_caribouRangesGeoJson?.features) return null;
+  const wanted = String(rangeId || '').toLowerCase();
+  return _caribouRangesGeoJson.features.find(
+    (f) => String(f.properties?.RANGE_NAME || '').toLowerCase() === wanted
+  );
+}
+
 const ROOT = path.resolve(__dirname, '..');
 const DAY = 24 * 60 * 60 * 1000;
 const MAX_REGIONS = 6;
@@ -40,7 +55,7 @@ async function loadDataFile(rel) {
     || process.env.REACT_APP_COG_BASE_URL;
   if (!base) return null;
   try {
-    const res = await fetch(`${base}/${rel}`);
+    const res = await fetch(`${base}/${rel}`, { signal: AbortSignal.timeout(5000) });
     return res.ok ? await res.json() : null;
   } catch {
     return null;
@@ -114,11 +129,21 @@ async function regionFacts(region, year, alertsCol) {
   const layers = { boundary: null, patches: [], alerts: [] };
   const summary = { id: region, name };
 
-  const boundary = await loadDataFile(`data/regions/${region}.json`);
-  if (boundary) {
-    summary.areaHa = Math.round(areaHa(boundary));
-    layers.boundary = simplify(boundary);
-    places.push({ id: `fmu:${region}`, kind: 'fmu', label: `${name} Forest Management Unit`, bbox: bboxOf(boundary) });
+  const isRange = CARIBOU_RANGE_IDS.has(region.toLowerCase());
+  if (isRange) {
+    const rangeFeature = await loadCaribouRange(region);
+    if (rangeFeature) {
+      summary.areaHa = Math.round(areaHa(rangeFeature));
+      layers.boundary = simplify(rangeFeature);
+      places.push({ id: `range:${region}`, kind: 'range', label: `${name} Caribou Range`, bbox: bboxOf(rangeFeature) });
+    }
+  } else {
+    const boundary = await loadDataFile(`data/regions/${region}.json`);
+    if (boundary) {
+      summary.areaHa = Math.round(areaHa(boundary));
+      layers.boundary = simplify(boundary);
+      places.push({ id: `fmu:${region}`, kind: 'fmu', label: `${name} Forest Management Unit`, bbox: bboxOf(boundary) });
+    }
   }
 
   // Clearcut (AI model, HLS). "New" is the entering series: newly standing
@@ -147,9 +172,67 @@ async function regionFacts(region, year, alertsCol) {
   if (fire) {
     datasets.push({ id: `wildfire_area:${region}`, title: `Area burned per year, ${name}`, unit: 'ha', ...fire, source: 'Canadian National Burned Area Composite (NBAC)' });
   }
-  const caribou = series(caribouStats[region], (v) => v.coreHa);
-  if (caribou) {
-    datasets.push({ id: `caribou_core:${region}`, title: `Core caribou habitat, ${name}`, unit: 'ha', ...caribou, source: 'ForestTrace caribou habitat model' });
+  const fireYear = wildfireStats[region]?.[year];
+  if (fireYear) {
+    summary.wildfire = {
+      year,
+      areaHa: round(fireYear.areaHa),
+      fires: fireYear.fires,
+    };
+  }
+
+  if (isRange) {
+    // Sum across FMUs overlapping this range
+    const years = ['2015', '2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025'];
+    const coreHaByYear = {};
+    let inRangeHaTotal = 0;
+    Object.entries(caribouStats).forEach(([fmuId, fmuYears]) => {
+      const hasRange = Object.values(fmuYears).some((entry) =>
+        (entry?.ranges || []).some((rng) => rng.toLowerCase() === region.toLowerCase())
+      );
+      if (hasRange) {
+        years.forEach((yr) => {
+          const entry = fmuYears[yr];
+          if (entry?.coreHa) {
+            coreHaByYear[yr] = (coreHaByYear[yr] || 0) + entry.coreHa;
+          }
+        });
+        const currentEntry = fmuYears[String(year)] || fmuYears['2025'];
+        if (currentEntry?.inRangeHa) {
+          inRangeHaTotal += currentEntry.inRangeHa;
+        }
+      }
+    });
+    const caribou = series(coreHaByYear);
+    if (caribou) {
+      datasets.push({
+        id: `caribou_core:${region}`,
+        title: `Core caribou habitat, ${name} Range`,
+        unit: 'ha',
+        ...caribou,
+        source: 'ForestTrace caribou habitat model (MSPA)',
+      });
+    }
+    if (coreHaByYear[year]) {
+      summary.caribou = {
+        year,
+        coreHa: round(coreHaByYear[year]),
+        inRangeHa: round(inRangeHaTotal),
+      };
+    }
+  } else {
+    const caribou = series(caribouStats[region], (v) => v.coreHa);
+    if (caribou) {
+      datasets.push({ id: `caribou_core:${region}`, title: `Core caribou habitat, ${name}`, unit: 'ha', ...caribou, source: 'ForestTrace caribou habitat model' });
+    }
+    const caribouYear = caribouStats[region]?.[year];
+    if (caribouYear) {
+      summary.caribou = {
+        year,
+        coreHa: round(caribouYear.coreHa),
+        inRangeHa: round(caribouYear.inRangeHa),
+      };
+    }
   }
 
   // The year's largest clearcut patches, as places the map can visit
@@ -209,7 +292,11 @@ async function regionFacts(region, year, alertsCol) {
  *                      activeLayers: [{module, layer, year}], drawing }
  */
 async function buildStoryFacts(ctx = {}) {
-  const regions = [...new Set((ctx.regions || []).map(String))]
+  const inputRegions = (Array.isArray(ctx.ranges) && ctx.ranges.length > 0)
+    ? [...ctx.ranges, ...(Array.isArray(ctx.regions) ? ctx.regions : [])]
+    : (Array.isArray(ctx.regions) ? ctx.regions : []);
+  const regions = [...new Set(inputRegions.map(String))]
+    .map((r) => r.toLowerCase().trim())
     .filter((r) => /^[a-z0-9_]+$/.test(r))
     .slice(0, MAX_REGIONS);
   const year = Number(ctx.year) || new Date().getFullYear() - 1;
@@ -236,17 +323,176 @@ async function buildStoryFacts(ctx = {}) {
     }
   }
 
+  const activeLayers = Array.isArray(ctx.activeLayers) ? ctx.activeLayers : [];
+
+  // Determine active layers and modules across activeLayers array and primary selection
+  const hasWildfireLayer = activeLayers.some((l) =>
+    l.moduleId === 'wildfire' || l.layerId === 'wildfire-burned' || /wildfire|burned/i.test(l.module || l.layer || '')
+  );
+  const isWildfirePrimary = ctx.moduleId === 'wildfire' || (ctx.module && /wildfire/i.test(ctx.module));
+  const hasWildfire = Boolean(hasWildfireLayer || isWildfirePrimary);
+
+  const hasCaribouLayer = activeLayers.some((l) =>
+    l.moduleId === 'wildlife' || l.moduleId === 'caribou' || l.layerId === 'caribou-habitat'
+    || /caribou|wildlife|species/i.test(l.module || l.layer || '')
+  );
+  const isCaribouPrimary = ctx.moduleId === 'wildlife' || ctx.moduleId === 'caribou'
+    || /caribou|wildlife/i.test(ctx.module || '')
+    || (Array.isArray(ctx.ranges) && ctx.ranges.length > 0)
+    || regions.some((r) => CARIBOU_RANGE_IDS.has(r));
+  const hasCaribou = Boolean(hasCaribouLayer || isCaribouPrimary);
+
+  const hasClearcutAccumulated = activeLayers.some((l) =>
+    l.layerId === 'clearcut-accumulated' || /accumulated/i.test(l.layer || '')
+  );
+  const hasClearcutAnnual = activeLayers.some((l) =>
+    l.layerId === 'clearcut-annual' || /annual/i.test(l.layer || '')
+  );
+  const hasClearcutLayer = activeLayers.some((l) =>
+    l.moduleId === 'clearcut' || /clearcut/i.test(l.module || l.layer || '')
+  );
+  const isClearcutPrimary = ctx.moduleId === 'clearcut' || (ctx.module && /clearcut/i.test(ctx.module));
+  // Clearcut is active if explicitly chosen OR if no specific module/layers provided at all
+  const hasClearcut = Boolean(
+    hasClearcutLayer || isClearcutPrimary || hasClearcutAccumulated || hasClearcutAnnual
+    || (!hasWildfire && !hasCaribou && activeLayers.length === 0)
+  );
+
+  const hasAlerts = Boolean(
+    activeLayers.some((l) => l.moduleId === 'alerts' || /alert/i.test(l.module || l.layer || ''))
+    || ctx.moduleId === 'alerts' || (ctx.module && /alert/i.test(ctx.module))
+  );
+
+  const blobBase = (
+    process.env.VERCEL_BLOB_BASE_URL
+    || process.env.REACT_APP_COG_BASE_URL
+    || process.env.REACT_APP_DATA_BASE_URL
+    || 'https://mljbssdjqong7yae.public.blob.vercel-storage.com'
+  ).replace(/\/$/, '');
+
+  const cogs = [];
+
+  // Clearcut rasters (accumulated and/or annual)
+  if (hasClearcut) {
+    const showAnnual = hasClearcutAnnual;
+    const showAccumulated = hasClearcutAccumulated || !showAnnual;
+
+    if (showAccumulated) {
+      regions.forEach((r) => {
+        cogs.push({
+          id: `clearcut-accumulated-${r}-${year}`,
+          layerId: 'clearcut-accumulated',
+          name: `Standing clearcut (${year})`,
+          region: r,
+          year,
+          cogPath: `/cogs/clearcut-accumulated-ari/${r}_${year}.tif`,
+          tilePath: `/tiles/clearcut/${r}_${year}/{z}/{x}/{y}.png`,
+          url: `${blobBase}/cogs/clearcut-accumulated-ari/${r}_${year}.tif`,
+          tileUrl: `${blobBase}/tiles/clearcut/${r}_${year}/{z}/{x}/{y}.png`,
+          color: '#d97706',
+          opacity: 0.65,
+          paletteType: 'clearcut',
+        });
+      });
+    }
+
+    if (showAnnual) {
+      regions.forEach((r) => {
+        cogs.push({
+          id: `clearcut-annual-${r}-${year}`,
+          layerId: 'clearcut-annual',
+          name: `Annual clearcut (${year})`,
+          region: r,
+          year,
+          cogPath: `/cogs/clearcut-annual-ari/${r}_${year}.tif`,
+          tilePath: `/tiles/clearcut-annual-ari/${r}_${year}/{z}/{x}/{y}.png`,
+          url: `${blobBase}/cogs/clearcut-annual-ari/${r}_${year}.tif`,
+          tileUrl: `${blobBase}/tiles/clearcut-annual-ari/${r}_${year}/{z}/{x}/{y}.png`,
+          color: '#dc2626',
+          opacity: 0.75,
+          paletteType: 'clearcut-annual',
+        });
+      });
+    }
+  }
+
+  // Wildfire burned raster
+  if (hasWildfire) {
+    regions.forEach((r) => {
+      cogs.push({
+        id: `wildfire-${r}-${year}`,
+        layerId: 'wildfire-burned',
+        name: `Wildfire burned area (${year})`,
+        region: r,
+        year,
+        cogPath: `/cogs/wildfire-v3/${r}_${year}.tif`,
+        tilePath: `/tiles/wildfire/${r}_${year}/{z}/{x}/{y}.png`,
+        url: `${blobBase}/cogs/wildfire-v3/${r}_${year}.tif`,
+        tileUrl: `${blobBase}/tiles/wildfire/${r}_${year}/{z}/{x}/{y}.png`,
+        color: '#FF7F00',
+        opacity: 0.75,
+        paletteType: 'wildfire',
+      });
+    });
+  }
+
+  // Caribou habitat raster
+  if (hasCaribou) {
+    regions.forEach((r) => {
+      const isRange = CARIBOU_RANGE_IDS.has(r);
+      const prefix = isRange ? 'caribou-v1' : 'caribou-fmu-v1';
+      const cogPath = `/cogs/${prefix}/${r}_${year}.tif`;
+      const tilePath = isRange
+        ? `/tiles/wildlife/caribou-range/${r}_${year}/{z}/{x}/{y}.png`
+        : `/tiles/wildlife/caribou/${r}_${year}/{z}/{x}/{y}.png`;
+      cogs.push({
+        id: `caribou-${r}-${year}`,
+        layerId: 'caribou-habitat',
+        name: isRange ? `Caribou habitat (${titleCase(r)} Range)` : `Caribou habitat (${titleCase(r)})`,
+        region: r,
+        year,
+        cogPath,
+        tilePath,
+        url: `${blobBase}${cogPath}`,
+        tileUrl: `${blobBase}${tilePath}`,
+        color: '#21918c',
+        opacity: 0.65,
+        paletteType: 'caribou',
+      });
+    });
+  }
+
+  const hasRange = regions.some((r) => CARIBOU_RANGE_IDS.has(r));
+
+  const activeModuleNames = [];
+  if (hasClearcut) activeModuleNames.push('Clearcut Detection');
+  if (hasWildfire) activeModuleNames.push('Wildfire');
+  if (hasCaribou) activeModuleNames.push('Caribou Habitat');
+  if (hasAlerts) activeModuleNames.push('Disturbance Alerts');
+
+  const combinedModuleName = activeModuleNames.length > 1
+    ? activeModuleNames.join(' & ')
+    : (activeModuleNames[0] || ctx.module || 'Clearcut Detection');
+
   return {
     year,
-    module: ctx.module || null,
-    activeLayers: Array.isArray(ctx.activeLayers) ? ctx.activeLayers.slice(0, 12) : [],
+    module: combinedModuleName,
+    moduleId: ctx.moduleId || (activeModuleNames.length === 1 ? (hasWildfire ? 'wildfire' : hasCaribou ? 'wildlife' : 'clearcut') : 'multi'),
+    isWildfire: hasWildfire,
+    isClearcut: hasClearcut,
+    hasCaribou,
+    hasRange,
+    hasAlerts,
+    activeModules: activeModuleNames,
+    activeLayers: activeLayers.slice(0, 12),
     regions: perRegion.map((r) => r.summary),
     datasets,
     places,
     layers: {
       boundaries: perRegion.map((r) => r.layers.boundary).filter(Boolean),
-      patches: perRegion.flatMap((r) => r.layers.patches),
+      patches: hasClearcut ? perRegion.flatMap((r) => r.layers.patches) : [],
       alerts: perRegion.flatMap((r) => r.layers.alerts),
+      cogs,
     },
   };
 }

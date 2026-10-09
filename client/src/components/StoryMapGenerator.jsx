@@ -81,6 +81,18 @@ function StoryMapGenerator({ isOpen, onClose, context, onOpenLibrary }) {
               <dl className="story-context">
                 <dt>Area</dt>
                 <dd>{regions.length ? regions.map((r) => r.replace(/_/g, ' ')).join(', ') : 'No FMU selected'}</dd>
+                <dt>{([...new Set((context?.activeLayers || []).map((l) => l.module).filter(Boolean))].length > 1) ? 'Modules' : 'Module'}</dt>
+                <dd>
+                  {[...new Set((context?.activeLayers || []).map((l) => l.module).filter(Boolean))].join(', ')
+                    || context?.module
+                    || 'Clearcut Detection'}
+                </dd>
+                {Array.isArray(context?.activeLayers) && context.activeLayers.length > 1 && (
+                  <>
+                    <dt>Layers</dt>
+                    <dd>{context.activeLayers.map((l) => l.layer || l.layerId).filter(Boolean).join(', ')}</dd>
+                  </>
+                )}
                 <dt>Year</dt><dd>{context?.year ?? '—'}</dd>
                 {context?.drawing?.shapes?.length > 0 && (<><dt>Drawn area</dt><dd>Included</dd></>)}
               </dl>
