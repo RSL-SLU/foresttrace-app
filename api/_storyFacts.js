@@ -62,6 +62,32 @@ async function loadDataFile(rel) {
   }
 }
 
+// cogs/manifest.json (scripts/storage/generate-cog-manifest-vercel.js), cached
+// for a few minutes per instance. null when it can't be read.
+const MANIFEST_TTL_MS = 5 * 60 * 1000;
+let _manifest = null;
+let _manifestAt = 0;
+async function loadCogManifest(base) {
+  if (_manifest && Date.now() - _manifestAt < MANIFEST_TTL_MS) return _manifest;
+  try {
+    const res = await fetch(`${base}/cogs/manifest.json`, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return null;
+    _manifest = await res.json();
+    _manifestAt = Date.now();
+    return _manifest;
+  } catch {
+    return null;
+  }
+}
+
+/** Whether /cogs/<prefix>/<region>_<year>.tif is listed in the manifest. */
+function cogExists(manifest, cogPath) {
+  const m = cogPath.match(/^\/cogs\/([^/]+)\/([a-z0-9_]+)_(\d{4})\.tif$/);
+  if (!m) return false;
+  const [, prefix, region, year] = m;
+  return (manifest.prefixes?.[prefix]?.[region] || []).includes(Number(year));
+}
+
 const round = (n, d = 1) => Math.round(n * 10 ** d) / 10 ** d;
 
 function polygonsOf(geojson) {
@@ -398,9 +424,7 @@ async function buildStoryFacts(ctx = {}) {
           region: r,
           year,
           cogPath: `/cogs/clearcut-accumulated-ari/${r}_${year}.tif`,
-          tilePath: `/tiles/clearcut/${r}_${year}/{z}/{x}/{y}.png`,
           url: `${blobBase}/cogs/clearcut-accumulated-ari/${r}_${year}.tif`,
-          tileUrl: `${blobBase}/tiles/clearcut/${r}_${year}/{z}/{x}/{y}.png`,
           color: '#d97706',
           opacity: 0.65,
           paletteType: 'clearcut',
@@ -417,9 +441,7 @@ async function buildStoryFacts(ctx = {}) {
           region: r,
           year,
           cogPath: `/cogs/clearcut-annual-ari/${r}_${year}.tif`,
-          tilePath: `/tiles/clearcut-annual-ari/${r}_${year}/{z}/{x}/{y}.png`,
           url: `${blobBase}/cogs/clearcut-annual-ari/${r}_${year}.tif`,
-          tileUrl: `${blobBase}/tiles/clearcut-annual-ari/${r}_${year}/{z}/{x}/{y}.png`,
           color: '#dc2626',
           opacity: 0.75,
           paletteType: 'clearcut-annual',
@@ -438,9 +460,7 @@ async function buildStoryFacts(ctx = {}) {
         region: r,
         year,
         cogPath: `/cogs/wildfire-v3/${r}_${year}.tif`,
-        tilePath: `/tiles/wildfire/${r}_${year}/{z}/{x}/{y}.png`,
         url: `${blobBase}/cogs/wildfire-v3/${r}_${year}.tif`,
-        tileUrl: `${blobBase}/tiles/wildfire/${r}_${year}/{z}/{x}/{y}.png`,
         color: '#FF7F00',
         opacity: 0.75,
         paletteType: 'wildfire',
@@ -454,9 +474,6 @@ async function buildStoryFacts(ctx = {}) {
       const isRange = CARIBOU_RANGE_IDS.has(r);
       const prefix = isRange ? 'caribou-v1' : 'caribou-fmu-v1';
       const cogPath = `/cogs/${prefix}/${r}_${year}.tif`;
-      const tilePath = isRange
-        ? `/tiles/wildlife/caribou-range/${r}_${year}/{z}/{x}/{y}.png`
-        : `/tiles/wildlife/caribou/${r}_${year}/{z}/{x}/{y}.png`;
       cogs.push({
         id: `caribou-${r}-${year}`,
         layerId: 'caribou-habitat',
@@ -464,15 +481,18 @@ async function buildStoryFacts(ctx = {}) {
         region: r,
         year,
         cogPath,
-        tilePath,
         url: `${blobBase}${cogPath}`,
-        tileUrl: `${blobBase}${tilePath}`,
         color: '#21918c',
         opacity: 0.65,
         paletteType: 'caribou',
       });
     });
   }
+
+  // Only rasters that exist: a story listed every region x year, and each
+  // missing COG fell back to a PNG pyramid of 404s.
+  const manifest = await loadCogManifest(blobBase);
+  const existingCogs = manifest ? cogs.filter((c) => cogExists(manifest, c.cogPath)) : cogs;
 
   const hasRange = regions.some((r) => CARIBOU_RANGE_IDS.has(r));
 
@@ -504,7 +524,7 @@ async function buildStoryFacts(ctx = {}) {
       boundaries: perRegion.map((r) => r.layers.boundary).filter(Boolean),
       patches: hasClearcut ? perRegion.flatMap((r) => r.layers.patches) : [],
       alerts: perRegion.flatMap((r) => r.layers.alerts),
-      cogs,
+      cogs: existingCogs,
     },
   };
 }

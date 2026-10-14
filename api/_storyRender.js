@@ -267,7 +267,6 @@ function renderStoryHtml({ story, facts, author, createdAt, model }) {
 
     cogs.forEach(function (cog) {
       var targetUrl = (isLocal && cog.cogPath) ? (window.location.origin + cog.cogPath) : cog.url;
-      var tileTarget = (isLocal && cog.tilePath) ? (window.location.origin + cog.tilePath) : cog.tileUrl;
       var sourceId = 'cog-' + cog.id;
       var layerId = 'cog-layer-' + cog.id;
 
@@ -339,18 +338,6 @@ function renderStoryHtml({ story, facts, author, createdAt, model }) {
           source: sourceId,
           paint: { 'raster-opacity': cog.opacity || 0.75 }
         }, 'labels');
-      } else if (tileTarget) {
-        map.addSource(sourceId, {
-          type: 'raster',
-          tiles: [tileTarget],
-          tileSize: 256
-        });
-        map.addLayer({
-          id: layerId,
-          type: 'raster',
-          source: sourceId,
-          paint: { 'raster-opacity': cog.opacity || 0.75 }
-        }, 'labels');
       }
     });
 
@@ -362,35 +349,16 @@ function renderStoryHtml({ story, facts, author, createdAt, model }) {
     focusOn(page.initialPlace, false);
   });
 
+  // COGs only: a raster that fails to load is dropped, not swapped for a PNG
+  // pyramid, which for a missing region-year was a few hundred 404s.
   map.on('error', function (e) {
     if (e && e.sourceId && e.sourceId.indexOf('cog-') === 0) {
       var cogId = e.sourceId.replace(/^cog-/, '');
-      var cogs = page.layers.cogs || [];
-      var cog = cogs.find(function (c) { return c.id === cogId; });
-      if (cog && !cog._fellBack) {
-        cog._fellBack = true;
-        try {
-          if (map.getLayer('cog-layer-' + cog.id)) map.removeLayer('cog-layer-' + cog.id);
-          if (map.getSource('cog-' + cog.id)) map.removeSource('cog-' + cog.id);
-          var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-          var tileTarget = (isLocal && cog.tilePath) ? (window.location.origin + cog.tilePath) : cog.tileUrl;
-          if (tileTarget) {
-            var tileSourceId = 'tile-' + cog.id;
-            map.addSource(tileSourceId, {
-              type: 'raster',
-              tiles: [tileTarget],
-              tileSize: 256
-            });
-            map.addLayer({
-              id: 'tile-layer-' + cog.id,
-              type: 'raster',
-              source: tileSourceId,
-              paint: { 'raster-opacity': cog.opacity || 0.75 }
-            }, 'labels');
-          }
-        } catch (err) {
-          // ignore fallback errors
-        }
+      try {
+        if (map.getLayer('cog-layer-' + cogId)) map.removeLayer('cog-layer-' + cogId);
+        if (map.getSource('cog-' + cogId)) map.removeSource('cog-' + cogId);
+      } catch (err) {
+        // already gone
       }
     }
   });
