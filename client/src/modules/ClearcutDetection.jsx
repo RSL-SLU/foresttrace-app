@@ -28,9 +28,13 @@ const AI_STATUS_LEGEND = [
 
 const CLEARCUT_YEARS = [2010, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025];
 
-// Years that used Landsat 8 OLI only — not spectrally harmonized with HLS.
-// Values are not directly comparable to HLS years (2016+).
+// Pre-HLS-harmonized years: 2010 is Landsat 5 TM, 2015 is HLS L30 (Landsat 8)
+// with no Sentinel-2 yet. Values are not directly comparable to 2016+.
 const LANDSAT_ONLY_YEARS = new Set([2010, 2015]);
+
+// First year the AI status COGs (clearcut-status-v2 / -acc-v2) exist. The model
+// runs on HLS, which starts in 2013, so 2010 has official records only.
+const AI_FIRST_YEAR = 2015;
 
 // Fallback uncertainty used for years without validation notebooks (±15% HLS benchmark).
 const FALLBACK_UNCERTAINTY = 0.15;
@@ -584,6 +588,12 @@ function ClearcutDetection({ data }) {
             <p className="stat-sub" style={{ marginTop: clearcutSources.includes('ari') ? 8 : 0, marginBottom: 6 }}>
               <strong>AI Model Estimates (HLS Deep Learning):</strong>
             </p>
+            {selectedYear && Number(selectedYear) < AI_FIRST_YEAR && (
+              <p className="stat-sub data-note data-note--warn">
+                AI detections start in {AI_FIRST_YEAR}; {selectedYear} shows official harvest
+                records only.
+              </p>
+            )}
             {AI_STATUS_LEGEND.map(({ status, label }) => (
               <div className="legend-item" key={status}>
                 <span

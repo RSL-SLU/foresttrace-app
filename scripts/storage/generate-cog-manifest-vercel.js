@@ -111,7 +111,8 @@ async function rebuildManifestVercel({
           secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
         },
       });
-      const TILE_DIR = /^([a-z0-9]+)_(\d{4})$/;
+      // An optional product suffix is allowed: biomass folders are <region>_<year>_agb
+      const TILE_DIR = /^([a-z0-9]+)_(\d{4})(?:_[a-z]+)?$/;
       const layerDirs = await s3.send(new ListObjectsV2Command({
         Bucket: process.env.R2_BUCKET_NAME,
         Prefix: 'tiles/',

@@ -94,7 +94,7 @@ function DocumentationPage({ onBack }) {
               ['Primary sensor',    'Harmonized Landsat and Sentinel-2 (HLS v2), 30 m, 2016–2024.'],
               ['2025 sensor',       'Planet NICFI PlanetScope, 3 m (separate model and pipeline; see Satellite Imagery section).'],
               ['2015 baseline',     'Landsat 8 OLI only, 30 m; single-sensor, not directly comparable to HLS years.'],
-              ['Temporal range',    '2010–2025 (annual). Pre-HLS years (2010, 2015) use older sensors and are labelled in the in-app timeline accordingly.'],
+              ['Temporal range',    '2010–2025 (annual). 2010 (Landsat 5 TM) and 2015 (Landsat 8 only) predate the full HLS record and are labelled in the in-app timeline accordingly. AI status layers start in 2015; 2010 shows official harvest records only.'],
               ['Output',            'Binary clearcut mask per year, stored as PNG tiles (XYZ scheme, zoom 6–14), clipped to FMU boundaries.'],
               ['Accuracy',          'Per-year precision, recall, F1, and IoU are stored alongside area values. Typical F1: 0.77–0.89 across HLS years (2016–2024). Uncertainty bars in the timeline are asymmetric: lower bound from precision, upper from recall.'],
             ]} />
@@ -138,8 +138,9 @@ function DocumentationPage({ onBack }) {
 
             <p className="docs-subsection-title">Sensor comparability</p>
             <p>
-              2010 and 2015 used <strong>Landsat 8 OLI only</strong> and are not spectrally
-              harmonized with HLS (2016 onward). Their area estimates are not directly comparable to
+              2010 used <strong>Landsat 5 TM</strong> and 2015 used{' '}
+              <strong>Landsat 8 OLI only</strong> (HLS L30, before Sentinel-2 was available), so
+              neither matches the dual-sensor HLS record from 2016 onward. Their area estimates are not directly comparable to
               later years and are excluded from the trend fit. 2015 additionally serves as the
               baseline of the accumulated series, and 2010 has no adjacent year in the record
               (2011–2014 do not exist), so it can never be corroborated and stands alone.

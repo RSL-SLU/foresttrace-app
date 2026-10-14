@@ -38,8 +38,10 @@ function MapSourcesInfo({ onOpenDocumentation = null }) {
             <dd>Harmonized Landsat &amp; Sentinel-2 (HLS v2), 30 m — NASA Earthdata</dd>
             <dt>2025</dt>
             <dd>Planet NICFI PlanetScope, 3 m</dd>
-            <dt>2010, 2015</dt>
-            <dd>Landsat 8 OLI, 30 m — single sensor, not harmonized with HLS</dd>
+            <dt>2015</dt>
+            <dd>Landsat 8 OLI (HLS L30), 30 m — before Sentinel-2, single sensor</dd>
+            <dt>2010</dt>
+            <dd>Landsat 5 TM, 30 m — official harvest records only, no AI layer</dd>
             <dt>Labels</dt>
             <dd>Ontario MNRF Annual Report harvest blocks; FMU boundaries</dd>
             <dt>Model</dt>

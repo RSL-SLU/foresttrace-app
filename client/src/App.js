@@ -361,6 +361,8 @@ const MODULES = [
         id: 'biomass-density',
         name: 'Biomass Density',
         tileUrl: `${TILES_BASE_URL}/tiles/biomass/{region}_{year}_agb/{z}/{x}/{y}.png`,
+        // The original pyramid exists for 2010 only; later years are SCANFI
+        pngYears: [2010],
         mode: 'annual',
         tms: false,
       },
@@ -1579,6 +1581,11 @@ function App() {
 
           // COG-only layers (the ML outlines) have no PNG pyramid at all.
           if (!layer.tileUrl) return;
+
+          // The timeline moves every module, so a PNG layer with a known, short
+          // list of years must not ask for the others: biomass-density at 2021
+          // fired a full pyramid of 404s per FMU.
+          if (layer.pngYears && !layer.pngYears.includes(renderYear)) return;
 
           // Per region AND year: troutlake has clearcut tiles for 2020 and 2024
           // only, so a region-level check still asked for 2025.
