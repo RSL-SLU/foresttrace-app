@@ -567,7 +567,7 @@ async function buildStoryFacts(ctx = {}) {
           compares.push({
             id: `compare:clearcut:${r}`, topic: 'clearcut', region: r, placeId: placeOf(r),
             title: `Standing clearcut, ${before} and ${after}`,
-            caption: `Clearcuts still open within each year's five-year window (${ari ? 'official harvest inventory' : 'AI estimates'}). Drag to compare.`,
+            caption: `Clearcuts still open within each year's five-year window (${ari ? 'official harvest inventory' : 'AI estimates'}). Drag the divider on the map to compare.`,
             left: side(before), right: side(after),
           });
         }
@@ -581,7 +581,7 @@ async function buildStoryFacts(ctx = {}) {
           compares.push({
             id: `compare:habitat:${r}`, topic: 'habitat', region: r, placeId: placeOf(r),
             title: `Core caribou habitat, ${before} and ${after}`,
-            caption: 'Core habitat patches in each year; darker or brighter shades are larger patches. Drag to compare.',
+            caption: 'Core habitat patches in each year; darker or brighter shades are larger patches. Drag the divider on the map to compare.',
             left: { year: before, label: String(before), cog: caribouLayer(r, before, 'cmp-habitat') },
             right: { year: after, label: String(after), cog: caribouLayer(r, after, 'cmp-habitat') },
           });
@@ -597,7 +597,7 @@ async function buildStoryFacts(ctx = {}) {
           compares.push({
             id: `compare:fire:${r}`, topic: 'fire', region: r, placeId: placeOf(r),
             title: `Before and after the ${peak.y} fires`,
-            caption: `Right: area burned in ${peak.y} (NBAC). The imagery underneath is the current basemap, not imagery from ${peak.y}. Drag to compare.`,
+            caption: `Right: area burned in ${peak.y} (NBAC). The imagery underneath is the current basemap, not imagery from ${peak.y}. Drag the divider on the map to compare.`,
             left: { year: peak.y - 1, label: 'Before', cog: null },
             right: { year: peak.y, label: String(peak.y), cog: cogLayer(r, peak.y, 'wildfire-v3', {
               layerId: 'cmp-fire', color: '#facc15', opacity: 0.85, paletteType: 'wildfire',

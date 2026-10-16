@@ -96,6 +96,9 @@ function renderStoryHtml({ story, facts, author, createdAt, model }) {
     compares: sections.filter((s) => s.compare).map((s) => s.compare),
     places,
     initialPlace: firstFmu?.id || null,
+    // Opening zoom (Canada -> Ontario -> the story's area) lands here
+    heroPlace: places['area:all'] ? 'area:all' : (firstFmu?.id || null),
+    heroLabel: facts.regions.map((r) => r.name).join(' · '),
     charts,
     year: facts.year,
     layers: facts.layers,
@@ -185,11 +188,17 @@ function renderStoryHtml({ story, facts, author, createdAt, model }) {
   .cmp { position:relative; height:340px; background:#0d110a; }
   .cmp-map { position:absolute; inset:0; }
   .cmp-right { clip-path:inset(0 0 0 50%); }
-  .cmp-line { position:absolute; top:0; bottom:0; left:50%; width:2px; margin-left:-1px; background:#fff; box-shadow:0 0 0 1px rgba(0,0,0,.35); pointer-events:none; z-index:2; }
+  /* The divider is the control: a wide invisible grab strip around a 2px
+     line, with a round handle in the middle (drag, or arrow keys) */
+  .cmp-line { position:absolute; top:0; bottom:0; left:50%; width:28px; margin-left:-14px; z-index:3; cursor:ew-resize; touch-action:none; }
+  .cmp-line::before { content:''; position:absolute; top:0; bottom:0; left:13px; width:2px; background:#fff; box-shadow:0 0 0 1px rgba(0,0,0,.35); }
+  .cmp-handle { position:absolute; top:50%; left:50%; width:32px; height:32px; margin:-16px 0 0 -16px; border-radius:50%; background:#fff; box-shadow:0 1px 6px rgba(0,0,0,.45); display:grid; place-items:center; outline-offset:2px; }
+  .cmp-handle::before { content:'‹ ›'; font:600 15px/1 var(--f-mono); color:var(--ink-2); }
+  .cmp-handle:focus-visible { outline:2px solid var(--accent); }
+  .cmp.dragging, .cmp.dragging * { cursor:ew-resize; user-select:none; }
   .yr-tag { position:absolute; top:10px; z-index:2; font:500 .7rem/1 var(--f-mono); letter-spacing:.04em; color:#fff; background:rgba(13,17,10,.72); padding:5px 7px; border-radius:2px; pointer-events:none; }
   .yr-tag.l { left:10px; }
   .yr-tag.r { right:10px; }
-  .cmp-range { display:block; width:calc(100% - 28px); margin:10px 14px 2px; accent-color:var(--accent); }
   .back-matter { border-top:2px solid var(--ink); margin-top:24px; padding-top:18px; }
   .note-fold { border-bottom:1px solid var(--line); padding:12px 0; }
   .note-fold summary { cursor:pointer; font:650 1rem/1.3 var(--f-display); font-stretch:88%; list-style:none; }
@@ -207,6 +216,8 @@ function renderStoryHtml({ story, facts, author, createdAt, model }) {
   .next-card span:last-child { font-size:.85rem; color:var(--ink-2); }
   .legend { position:absolute; left:12px; bottom:28px; background:rgba(251,251,249,.94); border:1px solid var(--line); border-radius:3px; padding:8px 10px; font:12px/1.6 var(--f-body); max-width:280px; }
   .legend span { display:inline-block; width:12px; height:12px; border-radius:2px; margin-right:6px; vertical-align:-1px; }
+  .scale-tag { position:absolute; left:12px; top:38px; z-index:2; font:600 .72rem/1 var(--f-mono); letter-spacing:.08em; text-transform:uppercase; color:#fff; background:var(--accent); padding:6px 9px; border-radius:2px; transition:opacity .3s; }
+  .scale-tag[hidden] { display:block; opacity:0; }
   .sat-badge { position:absolute; left:12px; top:12px; z-index:2; font:.66rem/1 var(--f-mono); letter-spacing:.04em; text-transform:uppercase; color:#fff; background:rgba(13,17,10,.62); padding:5px 8px; border-radius:2px; }
   .tl { position:absolute; right:12px; bottom:28px; z-index:2; display:flex; align-items:center; gap:6px; background:rgba(251,251,249,.95); border:1px solid var(--line); border-radius:3px; padding:6px 8px; max-width:calc(100% - 320px); overflow-x:auto; }
   .tl button { font:500 .72rem/1 var(--f-mono); border:1px solid var(--line-2); background:transparent; color:var(--ink-2); padding:6px 8px; border-radius:2px; cursor:pointer; white-space:nowrap; }
@@ -261,13 +272,12 @@ ${sections.map((s, i) => `
         <figcaption class="plate-foot">${esc(s.chart.caption)} Source: ${esc(s.chartSource)}.</figcaption>
       </figure>` : ''}
       ${s.compare ? `<figure class="plate compare" id="${s.compare.el}">
-        <div class="plate-head"><span class="plate-title">${esc(s.compare.title)}</span><span class="plate-meta">drag to compare</span></div>
+        <div class="plate-head"><span class="plate-title">${esc(s.compare.title)}</span><span class="plate-meta">drag the divider</span></div>
         <div class="cmp">
           <div class="cmp-map cmp-left"></div><div class="cmp-map cmp-right"></div>
-          <div class="cmp-line"></div>
+          <div class="cmp-line"><span class="cmp-handle" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-label="Compare ${esc(s.compare.left.label)} and ${esc(s.compare.right.label)}: drag, or use the arrow keys"></span></div>
           <span class="yr-tag l">${esc(s.compare.left.label)}</span><span class="yr-tag r">${esc(s.compare.right.label)}</span>
         </div>
-        <input class="cmp-range" type="range" min="0" max="100" value="50" aria-label="Compare ${esc(s.compare.left.label)} and ${esc(s.compare.right.label)}">
         <figcaption class="plate-foot">${esc(s.compare.caption)}</figcaption>
       </figure>` : ''}
     </section>`).join('')}
@@ -288,6 +298,7 @@ ${sections.map((s, i) => `
   <div class="map-wrap">
     <div id="map" role="img" aria-label="Map of the area discussed in this story"></div>
     <span class="sat-badge">Esri World Imagery · ${esc(span)} data</span>
+    <span class="scale-tag" id="scale-tag" aria-live="polite">Canada</span>
     ${playerYears.length > 1 ? `<div class="tl" id="tl" role="group" aria-label="Year shown on the map">
       <button type="button" class="tl-play" id="tl-play" aria-label="Play years">▶</button>
       <button type="button" data-year="all" aria-pressed="true">All</button>
@@ -437,7 +448,7 @@ ${sections.map((s, i) => `
         { id: 'labels', type: 'raster', source: 'labels' }
       ]
     },
-    center: [-92.8, 49.8], zoom: 7, cooperativeGestures: true
+    center: [-96, 60], zoom: 2.4, cooperativeGestures: true
   });
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 
@@ -482,7 +493,15 @@ ${sections.map((s, i) => `
     map.addLayer({ id: 'alerts-line', type: 'line', source: 'alerts', paint: { 'line-color': '#ff2d95', 'line-width': 1.5 } }, 'labels');
     map.addLayer({ id: 'fmu', type: 'line', source: 'fmu', paint: { 'line-color': '#ffffff', 'line-width': 2 } }, 'labels');
     map.addLayer({ id: 'focus', type: 'line', source: 'focus', paint: { 'line-color': '#fde047', 'line-width': 3, 'line-dasharray': [2, 1] } }, 'labels');
-    focusOn(page.initialPlace, false);
+    // A marker for the story's area while the map is zoomed out
+    var hb = page.places[page.heroPlace] && page.places[page.heroPlace].bbox;
+    if (hb) {
+      map.addSource('hero-dot', { type: 'geojson', data: fc([{ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [(hb[0] + hb[2]) / 2, (hb[1] + hb[3]) / 2] } }]) });
+      map.addLayer({ id: 'hero-dot-halo', type: 'circle', source: 'hero-dot', paint: { 'circle-radius': 16, 'circle-color': '#fde047', 'circle-opacity': 0.25 } });
+      map.addLayer({ id: 'hero-dot', type: 'circle', source: 'hero-dot', paint: { 'circle-radius': 6, 'circle-color': '#fde047', 'circle-stroke-color': '#171a14', 'circle-stroke-width': 1.5 } });
+    }
+    heroReady = true;
+    updateHero();
   });
 
   // COGs only: a raster that fails to load is dropped, not swapped for a PNG
@@ -511,6 +530,77 @@ ${sections.map((s, i) => `
     if (src) src.setData(fc(wide ? [] : [bboxPolygon(b)]));
   }
 
+  // Opening zoom, tied to scrolling through the hero (title, lede, key stats,
+  // questions): Canada -> Ontario -> the story's area, the way the caribou
+  // story opens. Past the hero the steps take over. Scroll-linked rather than
+  // animated, so it never moves on its own (and respects reduced motion).
+  var heroReady = false;
+  var heroDone = false;
+  var heroEnd = document.querySelector('.step');
+  var tag = document.getElementById('scale-tag');
+  var CANADA = [[-141, 41.7], [-52.6, 70]];
+  var ONTARIO = [[-95.2, 41.7], [-74.3, 56.9]];
+  var heroCams = null;
+  var lerp = function (a, b, t) { return a + (b - a) * t; };
+  var ease = function (t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; };
+  function heroCameras() {
+    var b = page.places[page.heroPlace] && page.places[page.heroPlace].bbox;
+    if (!b) return null;
+    var pad = { top: 60, bottom: 60, left: 60, right: 60 };
+    var cam = function (bounds, maxZoom) {
+      var c = map.cameraForBounds(bounds, { padding: pad, maxZoom: maxZoom });
+      return c ? { lng: c.center.lng !== undefined ? c.center.lng : c.center[0], lat: c.center.lat !== undefined ? c.center.lat : c.center[1], zoom: c.zoom } : null;
+    };
+    var cams = [cam(CANADA, 4), cam(ONTARIO, 6), cam([[b[0], b[1]], [b[2], b[3]]], 9)];
+    return cams.every(Boolean) ? cams : null;
+  }
+  function heroProgress() {
+    if (!heroEnd) return 1;
+    // 0 at the top of the page, 1 once the end of the intro reaches mid-screen
+    var end = heroEnd.getBoundingClientRect().bottom + window.scrollY - window.innerHeight * 0.55;
+    return end > 0 ? Math.max(0, Math.min(1, window.scrollY / end)) : 1;
+  }
+  function updateHero() {
+    if (!heroReady) return;
+    var p = heroProgress();
+    if (p >= 1) {
+      if (!heroDone) {
+        heroDone = true;
+        current = null;
+        if (tag) tag.hidden = true;
+        if (map.getLayer('hero-dot')) { map.setLayoutProperty('hero-dot', 'visibility', 'none'); map.setLayoutProperty('hero-dot-halo', 'visibility', 'none'); }
+        focusOn(page.heroPlace, false);
+      }
+      return;
+    }
+    heroDone = false;
+    heroCams = heroCams || heroCameras();
+    if (!heroCams) return;
+    // First 40% of the hero: Canada -> Ontario; the rest: Ontario -> the area
+    var seg = p < 0.4 ? 0 : 1;
+    var t = ease(seg === 0 ? p / 0.4 : (p - 0.4) / 0.6);
+    var a = heroCams[seg];
+    var c = heroCams[seg + 1];
+    map.jumpTo({ center: [lerp(a.lng, c.lng, t), lerp(a.lat, c.lat, t)], zoom: lerp(a.zoom, c.zoom, t) });
+    current = null;
+    if (map.getLayer('hero-dot')) {
+      var show = p < 0.85 ? 'visible' : 'none';
+      map.setLayoutProperty('hero-dot', 'visibility', show);
+      map.setLayoutProperty('hero-dot-halo', 'visibility', show);
+    }
+    if (tag) {
+      tag.hidden = false;
+      tag.textContent = p < 0.25 ? 'Canada' : (p < 0.7 ? 'Ontario' : page.heroLabel);
+    }
+  }
+  var heroTick = false;
+  window.addEventListener('scroll', function () {
+    if (heroTick) return;
+    heroTick = true;
+    requestAnimationFrame(function () { heroTick = false; updateHero(); });
+  }, { passive: true });
+  window.addEventListener('resize', function () { heroCams = null; updateHero(); });
+
   // Scroll-driven: the step or beat (paragraph) in the middle of the
   // viewport sets the map, so one topic can visit several areas in turn
   var steps = Array.prototype.slice.call(document.querySelectorAll('.step'));
@@ -520,6 +610,7 @@ ${sections.map((s, i) => `
       if (!e.isIntersecting) return;
       var step = e.target.closest('.step');
       steps.forEach(function (s) { s.classList.toggle('active', s === step); });
+      if (step === heroEnd && !heroDone) return;   // the opening zoom drives the map here
       if (map.loaded()) focusOn(e.target.getAttribute('data-place') || (step && step.getAttribute('data-place')));
     });
   }, { rootMargin: '-45% 0px -45% 0px' });
@@ -569,15 +660,46 @@ ${sections.map((s, i) => `
     };
     link(left, right);
     link(right, left);
-    var range = root.querySelector('.cmp-range');
+    // Drag the divider on the map itself (pointer events cover mouse, touch
+    // and pen); the handle also takes arrow keys
+    var frame = root.querySelector('.cmp');
     var rightEl = root.querySelector('.cmp-right');
     var line = root.querySelector('.cmp-line');
-    var set = function () {
-      rightEl.style.clipPath = 'inset(0 0 0 ' + range.value + '%)';
-      line.style.left = range.value + '%';
+    var handle = root.querySelector('.cmp-handle');
+    var pos = 50;
+    var set = function (v) {
+      pos = Math.max(0, Math.min(100, v));
+      rightEl.style.clipPath = 'inset(0 0 0 ' + pos + '%)';
+      line.style.left = pos + '%';
+      handle.setAttribute('aria-valuenow', String(Math.round(pos)));
     };
-    range.addEventListener('input', set);
-    set();
+    var fromEvent = function (e) {
+      var r = frame.getBoundingClientRect();
+      set(((e.clientX - r.left) / r.width) * 100);
+    };
+    line.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      line.setPointerCapture(e.pointerId);
+      frame.classList.add('dragging');
+      fromEvent(e);
+    });
+    line.addEventListener('pointermove', function (e) {
+      if (line.hasPointerCapture(e.pointerId)) fromEvent(e);
+    });
+    var end = function (e) {
+      if (line.hasPointerCapture(e.pointerId)) line.releasePointerCapture(e.pointerId);
+      frame.classList.remove('dragging');
+    };
+    line.addEventListener('pointerup', end);
+    line.addEventListener('pointercancel', end);
+    handle.addEventListener('keydown', function (e) {
+      var step = e.shiftKey ? 10 : 2;
+      if (e.key === 'ArrowLeft') { set(pos - step); e.preventDefault(); }
+      else if (e.key === 'ArrowRight') { set(pos + step); e.preventDefault(); }
+      else if (e.key === 'Home') { set(0); e.preventDefault(); }
+      else if (e.key === 'End') { set(100); e.preventDefault(); }
+    });
+    set(50);
   }
   if ((page.compares || []).length) {
     var cmpObserver = new IntersectionObserver(function (entries) {
