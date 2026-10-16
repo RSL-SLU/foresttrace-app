@@ -64,7 +64,7 @@ function renderStoryHtml({ story, facts, author, createdAt, model }) {
     const c = s.chart;
     if (c.values) {
       return { canvasId: s.chartId, type: c.type, title: c.title, unit: c.unit, labels: c.labels, colors: c.colors || null,
-        series: [{ label: c.title, key: '', values: c.values }] };
+        horizontal: Boolean(c.horizontal), series: [{ label: c.title, key: '', values: c.values }] };
     }
     const ds = c.datasetIds.map((id) => datasets[id]);
     const labels = [...new Set(ds.flatMap((d) => d.labels))].sort();
@@ -146,7 +146,7 @@ function renderStoryHtml({ story, facts, author, createdAt, model }) {
   body { margin:0; font-family:var(--f-body); color:var(--ink); background:var(--ground); }
   .layout { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); }
   .story { padding:48px clamp(20px, 5vw, 64px) 96px; max-width:720px; justify-self:end; width:100%; }
-  .map-wrap { position:sticky; top:0; height:100vh; }
+  .map-wrap { position:sticky; top:0; height:100vh; background:#0b0f0a; }
   #map { position:absolute; inset:0; }
   .eyebrow { font:500 .72rem/1.4 var(--f-mono); letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); margin:0 0 12px; }
   .eyebrow b { color:var(--accent); font-weight:500; }
@@ -446,9 +446,12 @@ ${sections.map((s, i) => `
       layers: [
         { id: 'imagery', type: 'raster', source: 'imagery' },
         { id: 'labels', type: 'raster', source: 'labels' }
-      ]
+      ],
+      // Globe for the opening spin; MapLibre flattens it to Mercator as it zooms in
+      projection: { type: 'globe' },
+      sky: { 'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 5, 1, 7, 0] }
     },
-    center: [-96, 60], zoom: 2.4, cooperativeGestures: true
+    center: [-60, 40], zoom: 1.3, cooperativeGestures: true
   });
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 
@@ -541,6 +544,25 @@ ${sections.map((s, i) => `
   var CANADA = [[-141, 41.7], [-52.6, 70]];
   var ONTARIO = [[-95.2, 41.7], [-74.3, 56.9]];
   var heroCams = null;
+  // Globe stage: spins on its own until the reader scrolls (or touches the
+  // map); skipped under reduced motion. GLOBE.lng is wherever the spin is.
+  var GLOBE = { lng: -60, lat: 40, zoom: 1.3 };
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var spinning = false;
+  var userMoved = false;
+  function spin() {
+    if (!spinning) return;
+    GLOBE.lng = ((GLOBE.lng + 0.08 + 540) % 360) - 180;
+    map.jumpTo({ center: [GLOBE.lng, GLOBE.lat], zoom: GLOBE.zoom });
+    requestAnimationFrame(spin);
+  }
+  function setSpin(on) {
+    on = on && !reduceMotion && !userMoved;
+    if (on === spinning) return;
+    spinning = on;
+    if (on) requestAnimationFrame(spin);
+  }
+  map.on('dragstart', function () { userMoved = true; setSpin(false); });
   var lerp = function (a, b, t) { return a + (b - a) * t; };
   var ease = function (t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; };
   function heroCameras() {
@@ -552,7 +574,7 @@ ${sections.map((s, i) => `
       return c ? { lng: c.center.lng !== undefined ? c.center.lng : c.center[0], lat: c.center.lat !== undefined ? c.center.lat : c.center[1], zoom: c.zoom } : null;
     };
     var cams = [cam(CANADA, 4), cam(ONTARIO, 6), cam([[b[0], b[1]], [b[2], b[3]]], 9)];
-    return cams.every(Boolean) ? cams : null;
+    return cams.every(Boolean) ? [GLOBE].concat(cams) : null;
   }
   function heroProgress() {
     if (!heroEnd) return 1;
@@ -564,6 +586,7 @@ ${sections.map((s, i) => `
     if (!heroReady) return;
     var p = heroProgress();
     if (p >= 1) {
+      setSpin(false);
       if (!heroDone) {
         heroDone = true;
         current = null;
@@ -576,12 +599,22 @@ ${sections.map((s, i) => `
     heroDone = false;
     heroCams = heroCams || heroCameras();
     if (!heroCams) return;
-    // First 40% of the hero: Canada -> Ontario; the rest: Ontario -> the area
-    var seg = p < 0.4 ? 0 : 1;
-    var t = ease(seg === 0 ? p / 0.4 : (p - 0.4) / 0.6);
+    // Top of the page: the globe spins. Then, over the hero: globe -> Canada
+    // (first 30%), Canada -> Ontario (to 60%), Ontario -> the area (the rest)
+    setSpin(p === 0);
+    if (p === 0) {
+      if (tag) { tag.hidden = false; tag.textContent = 'Canada'; }
+      return;
+    }
+    var stops = [0, 0.3, 0.6, 1];
+    var seg = p < stops[1] ? 0 : (p < stops[2] ? 1 : 2);
+    var t = ease((p - stops[seg]) / (stops[seg + 1] - stops[seg]));
     var a = heroCams[seg];
     var c = heroCams[seg + 1];
-    map.jumpTo({ center: [lerp(a.lng, c.lng, t), lerp(a.lat, c.lat, t)], zoom: lerp(a.zoom, c.zoom, t) });
+    // Shortest way round from wherever the spin stopped
+    var aLng = a.lng;
+    if (seg === 0) { while (aLng - c.lng > 180) aLng -= 360; while (c.lng - aLng > 180) aLng += 360; }
+    map.jumpTo({ center: [lerp(aLng, c.lng, t), lerp(a.lat, c.lat, t)], zoom: lerp(a.zoom, c.zoom, t) });
     current = null;
     if (map.getLayer('hero-dot')) {
       var show = p < 0.85 ? 'visible' : 'none';
@@ -590,7 +623,7 @@ ${sections.map((s, i) => `
     }
     if (tag) {
       tag.hidden = false;
-      tag.textContent = p < 0.25 ? 'Canada' : (p < 0.7 ? 'Ontario' : page.heroLabel);
+      tag.textContent = p < 0.45 ? 'Canada' : (p < 0.8 ? 'Ontario' : page.heroLabel);
     }
   }
   var heroTick = false;
@@ -787,6 +820,22 @@ ${sections.map((s, i) => `
       return;
     }
     var multi = c.series.length > 1;
+    if (c.horizontal) {
+      // One bar per area, ranked: height grows with the list
+      el.parentNode.style.height = Math.max(240, c.labels.length * 18 + 50) + 'px';
+      new Chart(el, {
+        type: 'bar',
+        data: { labels: c.labels, datasets: [{ label: c.title, data: c.series[0].values, backgroundColor: '#1a7539' }] },
+        options: {
+          indexAxis: 'y', maintainAspectRatio: false,
+          plugins: { legend: { display: false },
+            tooltip: { callbacks: { label: function (ctx) { return ctx.parsed.x.toLocaleString('en-US') + ' ' + c.unit; } } } },
+          scales: { x: { beginAtZero: true, title: { display: true, text: c.unit },
+            ticks: { callback: function (v) { return Number(v).toLocaleString('en-US'); } } } }
+        }
+      });
+      return;
+    }
     new Chart(el, {
       type: c.type,
       data: { labels: c.labels, datasets: c.series.map(function (sr, i) {

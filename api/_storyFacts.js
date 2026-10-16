@@ -39,7 +39,11 @@ async function loadCaribouRange(rangeId) {
 
 const ROOT = path.resolve(__dirname, '..');
 const DAY = 24 * 60 * 60 * 1000;
+// AI stories cap the areas they write about (prompt size); framework stories
+// take every selected area. Map rasters stop at MAP_LAYER_REGIONS areas so an
+// all-of-Ontario story doesn't open a hundred COGs at once.
 const MAX_REGIONS = 6;
+const MAP_LAYER_REGIONS = 12;
 
 // Boundaries and patches are gitignored: on disk in development, on Vercel
 // Blob in production (same paths -- see scripts/storage/upload-data-vercel.js).
@@ -345,12 +349,12 @@ function parseYearRange(range, regions) {
  *                      module, activeLayers: [{module, layer, year}], drawing,
  *                      clearcutSources?, aiMinConfidence? }
  */
-async function buildStoryFacts(ctx = {}) {
+async function buildStoryFacts(ctx = {}, { maxRegions = MAX_REGIONS } = {}) {
   await loadFmuNames();
   const inputRegions = (Array.isArray(ctx.ranges) && ctx.ranges.length > 0)
     ? [...ctx.ranges, ...(Array.isArray(ctx.regions) ? ctx.regions : [])]
     : (Array.isArray(ctx.regions) ? ctx.regions : []);
-  // With more than MAX_REGIONS selected, keep the ones that have data for the
+  // With more than maxRegions selected, keep the ones that have data for the
   // modules on screen -- taking the first six alphabetically dropped Wabigoon
   // (the clearcut FMU) from a clearcut story with all of Ontario selected.
   const ctxText = [ctx.moduleId, ctx.module, ...(Array.isArray(ctx.activeLayers)
@@ -364,7 +368,7 @@ async function buildStoryFacts(ctx = {}) {
     .filter((r) => /^[a-z0-9_]+$/.test(r))
     .map((r, i) => ({ r, i, score: dataScore(r) }))
     .sort((a, b) => b.score - a.score || a.i - b.i)
-    .slice(0, MAX_REGIONS)
+    .slice(0, maxRegions)
     .map(({ r }) => r);
   const yearRange = parseYearRange(ctx.yearRange, regions);
   // A range story is told as of its last year; layers cover every year in it
@@ -449,6 +453,8 @@ async function buildStoryFacts(ctx = {}) {
   ).replace(/\/$/, '');
 
   const cogs = [];
+  // Regions come ranked by data for the modules on screen (above)
+  const mapRegions = regions.slice(0, MAP_LAYER_REGIONS);
   const span = yearRange ? `${yearRange[0]}–${yearRange[1]}` : String(year);
   const cogLayer = (r, y, prefix, extra) => ({
     id: `${extra.layerId}-${r}-${y}`,
@@ -469,7 +475,7 @@ async function buildStoryFacts(ctx = {}) {
     const showAnnual = Boolean(yearRange) || hasClearcutAnnual;
     const showAccumulated = !yearRange && (hasClearcutAccumulated || !showAnnual);
 
-    regions.forEach((r) => {
+    mapRegions.forEach((r) => {
       if (sources.includes('ari')) {
         if (showAccumulated) {
           cogs.push(cogLayer(r, year, 'clearcut-accumulated-ari', {
@@ -504,7 +510,7 @@ async function buildStoryFacts(ctx = {}) {
 
   // Wildfire burned raster
   if (hasWildfire) {
-    regions.forEach((r) => layerYears.forEach((y) => cogs.push(cogLayer(r, y, 'wildfire-v3', {
+    mapRegions.forEach((r) => layerYears.forEach((y) => cogs.push(cogLayer(r, y, 'wildfire-v3', {
       layerId: 'wildfire-burned', name: `Wildfire burned area (${y})`,
       color: '#facc15', opacity: 0.8, paletteType: 'wildfire',
     }))));
@@ -522,7 +528,7 @@ async function buildStoryFacts(ctx = {}) {
       color: '#21918c', opacity: 0.8, paletteType: 'caribou', singleHue: moduleCount > 1,
     });
   };
-  if (hasCaribou) regions.forEach((r) => cogs.push(caribouLayer(r, year)));
+  if (hasCaribou) mapRegions.forEach((r) => cogs.push(caribouLayer(r, year)));
 
   // Only rasters that exist: a story listed every region x year, and each
   // missing COG fell back to a PNG pyramid of 404s.
@@ -551,7 +557,7 @@ async function buildStoryFacts(ctx = {}) {
   const from = yearRange ? yearRange[0] : year - 5;
   const placeOf = (r) => (places.find((p) => p.id === `fmu:${r}` || p.id === `range:${r}`) || {}).id;
   if (manifest) {
-    regions.forEach((r) => {
+    mapRegions.forEach((r) => {
       if (hasClearcut) {
         const sources = Array.isArray(ctx.clearcutSources) ? ctx.clearcutSources : ['ari'];
         const ari = sources.includes('ari');

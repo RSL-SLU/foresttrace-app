@@ -351,14 +351,16 @@ async function handler(req, res) {
 
     if (req.method === 'POST' && action === 'generate') {
       const { context = {}, angle = '', audience = 'news' } = req.body || {};
-      const facts = await buildStoryFacts(context);
+      // No angle: the framework writes it, no model call, and it can cover
+      // every selected area. An angle: Claude, on at most six areas.
+      const useClaude = String(angle).trim().length > 0;
+      const facts = await buildStoryFacts(context, useClaude ? {} : { maxRegions: Infinity });
       if (!facts.regions.length || (!facts.datasets.length && !facts.places.length)) {
         return res.status(400).json({ error: 'Select at least one forest management unit with data on the map first.' });
       }
 
-      // No angle: the framework writes it, no model call. An angle: Claude,
-      // unless the same facts + angle + format were written before.
-      const useClaude = String(angle).trim().length > 0;
+      // Claude only for an angle, and not when the same facts + angle +
+      // format were written before
       let story;
       let usage = null;
       let engine = 'template';

@@ -198,13 +198,46 @@ function section(topic, heading, beats, extra = {}) {
   };
 }
 
-// Charts drawn from several datasets (one series per region)
-const multiChart = (seriesList, type, title, caption) => {
+// Up to this many areas get their own beat and their own chart series; past
+// it (a story over many FMUs) the top ones are described, the rest summed up,
+// and the chart becomes a ranked bar of the latest values.
+const MANY = 6;
+const SHOWN_WHEN_MANY = 3;
+
+/** The rows to describe one by one, and a summary beat for the others. */
+function capRows(rows, valueOf, noun, facts, unit = ha) {
+  if (rows.length <= MANY) return { shown: rows, rest: null };
+  const sorted = rows.slice().sort((a, b) => valueOf(b) - valueOf(a));
+  const others = sorted.slice(SHOWN_WHEN_MANY);
+  const vals = others.map(valueOf);
+  return {
+    shown: sorted.slice(0, SHOWN_WHEN_MANY),
+    rest: {
+      text: `The other ${others.length} areas each have between ${unit(Math.min(...vals))} and ${unit(Math.max(...vals))} of ${noun}, ${unit(vals.reduce((a, v) => a + v, 0))} together.`,
+      placeId: overviewPlace(facts),
+    },
+  };
+}
+
+// Charts drawn from several datasets (one series per region); with many
+// areas, a ranked horizontal bar of each area's latest value instead
+const multiChart = (seriesList, type, title, caption, names) => {
   const present = seriesList.filter(Boolean);
   if (!present.length) return null;
-  return present.length === 1
-    ? { datasetId: present[0].id, type, title, caption }
-    : { datasetIds: present.map((s) => s.id), type: 'line', title, caption };
+  if (present.length === 1) return { datasetId: present[0].id, type, title, caption };
+  if (present.length <= MANY) return { datasetIds: present.map((s) => s.id), type: 'line', title, caption };
+  const named = seriesList.map((s, i) => (s ? { s, name: names[i] } : null)).filter(Boolean);
+  const rows = named.map(({ s, name }) => ({ name, v: s.last.v, year: s.last.year })).sort((a, b) => b.v - a.v);
+  return {
+    type: 'bar',
+    horizontal: true,
+    title: `${title}, latest year by area`,
+    caption: `${caption} Latest year for each area (${[...new Set(rows.map((r) => r.year))].join(', ')}).`,
+    labels: rows.map((r) => r.name),
+    values: rows.map((r) => Math.round(r.v)),
+    unit: present[0].unit,
+    source: present[0].source,
+  };
 };
 
 // ── topics: one section each, across every region ───────────────────────────
@@ -227,15 +260,19 @@ const TOPICS = {
     const total = rows.reduce((a, r) => a + r.v, 0);
     if (!total) return null;
     const lead = rows[0];
+    // A donut stays readable with about six slices: the rest become "Other"
+    const slices = rows.length > MANY
+      ? rows.slice(0, MANY - 1).concat([{ name: `Other ${rows.length - MANY + 1} areas`, v: rows.slice(MANY - 1).reduce((a, r) => a + r.v, 0) }])
+      : rows;
     return section('overview', `${rows.length} areas at a glance`, [
-      { text: `This story follows ${list(rows.map((r) => r.name))}. ${lead.name} accounts for the largest share of ${noun}: ${ha(lead.v)}, ${pct((lead.v / total) * 100)} of the ${ha(total)} across all of them.`, placeId: overviewPlace(facts) },
+      { text: `${rows.length > MANY ? `Of the ${signals.length} forest management units in this story, ${rows.length} have ${noun} on record.` : `This story follows ${list(rows.map((r) => r.name))}.`} ${lead.name} accounts for the largest share: ${ha(lead.v)}, ${pct((lead.v / total) * 100)} of the ${ha(total)} across ${rows.length > 2 ? `all ${rows.length}` : 'both'}.`, placeId: overviewPlace(facts) },
     ], {
       chart: {
         type: 'doughnut',
         title: `Share of ${noun} by area`,
         caption: `Each slice is one area's ${noun}${key === 'fire' ? ' over the period' : `, ${lead.s.last.year}`}.`,
-        labels: rows.map((r) => r.name),
-        values: rows.map((r) => Math.round(r.v)),
+        labels: slices.map((r) => r.name),
+        values: slices.map((r) => Math.round(r.v)),
         unit: 'ha',
         source: lead.s.source,
       },
@@ -251,7 +288,8 @@ const TOPICS = {
     if (rows.length > 1 && total) {
       beats.push({ text: `${changeWords(total, `Across the ${rows.length} areas, standing clearcut area`)}. ${trendWords(total)}`.trim(), placeId: overviewPlace(facts) });
     }
-    rows.forEach((s) => {
+    const cappedCut = capRows(rows, (s) => s.standing.last.v, 'standing clearcut', facts);
+    cappedCut.shown.forEach((s) => {
       const own = rows.length > 1 ? clipTo(s.standing, total) : s.standing;
       beats.push({
         text: rows.length > 1
@@ -260,11 +298,12 @@ const TOPICS = {
         placeId: placeFor(facts, s.region.id),
       });
     });
+    if (cappedCut.rest) beats.push(cappedCut.rest);
     beats.push({ text: '“Standing” counts every clearing still visible within a five-year window: how much of the forest is open at once, not how much was cut in a single year.', placeId: placeFor(facts, lead.region.id) });
     const dir = (total || lead.standing).direction;
     const cmp = compareFor(facts, 'clearcut', lead.region.id);
     return section('clearcut', { flat: 'How much forest is open', mixed: 'Clearcutting rose and fell', up: 'Clearcutting expanded', down: 'Clearcutting eased' }[dir], beats, {
-      chart: multiChart(rows.map((s) => s.standing), 'bar', 'Standing clearcut area', 'Five-year rolling total of clearcut area detected by the AI model.'),
+      chart: multiChart(rows.map((s) => s.standing), 'bar', 'Standing clearcut area', 'Five-year rolling total of clearcut area detected by the AI model.', rows.map((s) => s.region.name)),
       compareId: cmp ? cmp.id : null,
     });
   },
@@ -272,10 +311,12 @@ const TOPICS = {
   newCuts(facts, signals) {
     const rows = signals.filter((s) => s.newCut);
     if (!rows.length) return null;
-    const beats = rows.map((s) => ({
+    const cappedNew = capRows(rows, (s) => s.newCut.peak.v, 'new clearcut in their peak year', facts);
+    const beats = cappedNew.shown.map((s) => ({
       text: `${rows.length > 1 ? `In ${s.region.name}, newly` : 'Newly'} detected clearcuts peaked at ${ha(s.newCut.peak.v)} in ${s.newCut.peak.year}; the quietest year was ${s.newCut.low.year}, at ${ha(s.newCut.low.v)}.`,
       placeId: placeFor(facts, s.region.id),
     }));
+    if (cappedNew.rest) beats.push(cappedNew.rest);
     // Zoom in on the single largest patch mapped, to show what a cut looks like
     const patches = facts.places.filter((p) => p.kind === 'clearcut_patch');
     const biggest = patches.sort((a, b) => (b.areaHa || 0) - (a.areaHa || 0))[0];
@@ -287,7 +328,7 @@ const TOPICS = {
       });
     }
     return section('newCuts', 'Where new cuts appeared', beats, {
-      chart: multiChart(rows.map((s) => s.newCut), 'bar', 'Newly detected clearcut area per year', 'Area first detected as clearcut in each year.'),
+      chart: multiChart(rows.map((s) => s.newCut), 'bar', 'Newly detected clearcut area per year', 'Area first detected as clearcut in each year.', rows.map((s) => s.region.name)),
     });
   },
 
@@ -301,17 +342,22 @@ const TOPICS = {
     const beats = [];
     if (rows.length > 1) {
       const sum = rows.reduce((a, s) => a + s.fire.total, 0);
-      beats.push({ text: `Wildfire burned ${ha(sum)} across ${list(rows.map((s) => s.region.name))}. ${sorted[0].region.name} burned the most.`, placeId: overviewPlace(facts) });
+      beats.push({ text: `Wildfire burned ${ha(sum)} across ${rows.length > MANY ? `${rows.length} areas` : list(rows.map((s) => s.region.name))}. ${sorted[0].region.name} burned the most.`, placeId: overviewPlace(facts) });
     }
-    sorted.forEach((s) => beats.push({
+    const cappedFire = capRows(sorted, (s) => s.fire.total, 'burned area', facts);
+    cappedFire.shown.forEach((s) => beats.push({
       text: rows.length > 1
         ? `${s.region.name}: ${ha(s.fire.total)} over ${period(s.fire)}; the worst year was ${s.fire.peak.year}, with ${ha(s.fire.peak.v)} burned.`
         : `Wildfire burned ${ha(s.fire.total)} in ${s.region.name} over ${period(s.fire)}, across ${s.fire.yearsWithFire} separate fire ${s.fire.yearsWithFire === 1 ? 'year' : 'years'}. The worst year was ${s.fire.peak.year}, with ${ha(s.fire.peak.v)} burned.`,
       placeId: placeFor(facts, s.region.id),
     }));
+    if (cappedFire.rest) beats.push(cappedFire.rest);
     const cmp = compareFor(facts, 'fire', sorted[0].region.id);
     return section('fire', 'Fire on the landscape', beats, {
-      chart: multiChart(rows.map((s) => s.fire), 'bar', 'Area burned per year', 'Burned area from the National Burned Area Composite (NBAC).'),
+      chart: rows.length > MANY
+        ? { type: 'bar', horizontal: true, title: 'Area burned by area', caption: 'Total burned area over the period, by forest management unit (NBAC).',
+          labels: sorted.map((s) => s.region.name), values: sorted.map((s) => Math.round(s.fire.total)), unit: 'ha', source: sorted[0].fire.source }
+        : multiChart(rows.map((s) => s.fire), 'bar', 'Area burned per year', 'Burned area from the National Burned Area Composite (NBAC).', rows.map((s) => s.region.name)),
       compareId: cmp ? cmp.id : null,
     });
   },
@@ -328,7 +374,8 @@ const TOPICS = {
     if (!rows.length) return null;
     const cut = rows.reduce((a, r) => a + r.cut, 0);
     const burned = rows.reduce((a, r) => a + r.burned, 0);
-    const beats = rows.map((r) => ({
+    const shownRows = rows.length > MANY ? rows.slice().sort((a, b) => (b.cut + b.burned) - (a.cut + a.burned)).slice(0, SHOWN_WHEN_MANY) : rows;
+    const beats = shownRows.map((r) => ({
       text: `${rows.length > 1 ? `${r.s.region.name}, ` : ''}${r.from}–${r.to}: newly detected clearcuts added ${ha(r.cut)} and wildfire burned ${ha(r.burned)}, so harvest made up ${pct((r.cut / (r.cut + r.burned)) * 100)} of the area disturbed in years with both.`,
       placeId: placeFor(facts, r.s.region.id),
     }));
@@ -356,7 +403,8 @@ const TOPICS = {
     if (rows.length > 1 && total) {
       beats.push({ text: `${changeWords(total, `Across the ${rows.length} areas, core caribou habitat`)}. ${trendWords(total)}`.trim(), placeId: overviewPlace(facts) });
     }
-    rows.forEach((s) => {
+    const cappedHab = capRows(rows, (s) => s.caribou.last.v, 'core habitat', facts);
+    cappedHab.shown.forEach((s) => {
       const own = rows.length > 1 ? clipTo(s.caribou, total) : s.caribou;
       beats.push({
         text: rows.length > 1
@@ -365,10 +413,11 @@ const TOPICS = {
         placeId: placeFor(facts, s.region.id),
       });
     });
+    if (cappedHab.rest) beats.push(cappedHab.rest);
     beats.push({ text: 'Core habitat is undisturbed forest in patches large enough to support caribou; small fragments are left out.', placeId: placeFor(facts, lead.region.id) });
     const cmp = compareFor(facts, 'habitat', lead.region.id);
     return section('habitat', (total || lead.caribou).direction === 'down' ? 'Habitat is shrinking' : 'Habitat over time', beats, {
-      chart: multiChart(rows.map((s) => s.caribou), 'line', 'Core caribou habitat', 'Area of core caribou habitat in each year.'),
+      chart: multiChart(rows.map((s) => s.caribou), 'line', 'Core caribou habitat', 'Area of core caribou habitat in each year.', rows.map((s) => s.region.name)),
       compareId: cmp ? cmp.id : null,
     });
   },
@@ -377,10 +426,12 @@ const TOPICS = {
     const rows = signals.filter((s) => s.alerts);
     if (!rows.length) return null;
     const alertPlace = facts.places.find((p) => p.kind === 'alert');
-    const beats = rows.map((s) => ({
+    const cappedAlerts = capRows(rows, (s) => s.alerts.last30Days, 'alerts in the last 30 days', facts, (n) => fmt(n));
+    const beats = cappedAlerts.shown.map((s) => ({
       text: `${rows.length > 1 ? `${s.region.name}: ` : `In ${s.region.name}, `}satellite alerts flagged ${fmt(s.alerts.last30Days)} disturbances in the last 30 days (${ha(s.alerts.areaHaLast30Days)}) and ${fmt(s.alerts.last90Days)} in the last 90; ${fmt(s.alerts.confirmed)} are confirmed by repeated vegetation loss.`,
       placeId: placeFor(facts, s.region.id),
     }));
+    if (cappedAlerts.rest) beats.push(cappedAlerts.rest);
     if (alertPlace) beats.push({ text: `Zoomed in: ${alertPlace.label.charAt(0).toLowerCase()}${alertPlace.label.slice(1)}.`, placeId: alertPlace.id });
     beats.push({
       text: rows.some((s) => s.alerts.demoData) ? 'These alerts are demonstration data, not real detections.' : 'Provisional alerts are seen only once or twice and may still clear.',
@@ -437,7 +488,7 @@ function keyFacts(recipe, t, multi) {
       ? `${series.change >= 0 ? '+' : '−'}${pct(series.changePct)} since ${series.first.year}` : '';
     out.push({ label, value: ha(series.last.v), sourceDatasetId: series.id, delta });
   };
-  const where = multi ? ', all areas' : '';
+  const where = multi ? ', all areas with data' : '';
   if (recipe === 'habitat') add(t.caribou, `core caribou habitat, ${t.caribou?.last.year}${where}`);
   if (recipe === 'watch' && t.alerts.length) {
     out.push({ label: `alerts in the last 30 days${where}`, value: fmt(t.alerts.reduce((a, x) => a + x.last30Days, 0)), sourceDatasetId: '', delta: '' });
@@ -455,19 +506,22 @@ function keyFacts(recipe, t, multi) {
   return out.slice(0, 3);
 }
 
-function headline(recipe, t, facts) {
-  const where = facts.regions.length > 1 ? `${facts.regions.length} forest areas` : facts.regions[0].name;
+function headline(recipe, t, facts, signals) {
+  const name = facts.regions[0].name;
+  const count = (key) => signals.filter((s) => s[key]).length;
+  const whereFor = (key) => (count(key) > 1 ? `${count(key)} forest areas` : (signals.find((s) => s[key]) || { region: { name } }).region.name);
+  const where = facts.regions.length > 1 ? `${facts.regions.length} forest areas` : name;
   if (recipe === 'habitat' && t.caribou) {
     return t.caribou.direction === 'down'
-      ? `${where} lost ${pct(t.caribou.changePct)} of core caribou habitat since ${t.caribou.first.year}`
-      : `Core caribou habitat in ${where}, ${period(t.caribou)}`;
+      ? `${whereFor('caribou')} lost ${pct(t.caribou.changePct)} of core caribou habitat since ${t.caribou.first.year}`
+      : `Core caribou habitat in ${whereFor('caribou')}, ${period(t.caribou)}`;
   }
   if (recipe === 'cumulative') return `Harvest and wildfire in ${where}, ${facts.span || facts.year}`;
   if (recipe === 'watch') return `${fmt(t.alerts.reduce((a, x) => a + x.last30Days, 0))} forest disturbance alerts in ${where} this month`;
   if (t.standing && t.standing.pts.length > 1 && t.standing.changePct !== null) {
-    return `Clearcut area in ${where} ${t.standing.change >= 0 ? 'up' : 'down'} ${pct(t.standing.changePct)} since ${t.standing.first.year}`;
+    return `Clearcut area in ${whereFor('standing')} ${t.standing.change >= 0 ? 'up' : 'down'} ${pct(t.standing.changePct)} since ${t.standing.first.year}`;
   }
-  if (t.fireTotal > 0) return `${ha(t.fireTotal)} burned in ${where}`;
+  if (t.fireTotal > 0) return `${ha(t.fireTotal)} burned in ${whereFor('fire')}`;
   return `Forest monitoring in ${where}, ${facts.span || facts.year}`;
 }
 
@@ -543,7 +597,7 @@ function writeStory(facts, { audience = 'news' } = {}) {
     engine: 'template',
     recipe,
     kicker: RECIPES[recipe].kicker,
-    title: headline(recipe, t, facts),
+    title: headline(recipe, t, facts, signals),
     dek: `${RECIPES[recipe].label} in ${list(facts.regions.map((r) => r.name))}, from ForestTrace satellite monitoring${facts.yearRange ? `, ${facts.span}` : ''}.`,
     lede: first ? first.paragraphs[0] : `ForestTrace monitoring data for ${list(facts.regions.map((r) => r.name))}.`,
     keyFacts: keyFacts(recipe, t, multi),
