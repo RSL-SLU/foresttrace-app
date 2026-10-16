@@ -1,8 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  SCAR_RAMP, rampCss, REGION_LABELS, REGION_MODEL_NOTES, reliabilityNotes, STATUS_COLORS,
-} from '../utils/borealLayers';
-import {
   ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ErrorBar,
   ReferenceArea, Cell,
 } from 'recharts';
@@ -19,22 +16,12 @@ import {
 import { DATA_BASE_URL } from '../config';
 import { getCogCoverage } from '../utils/clearcutCogCoverage';
 
-// AI status classes, in the order the legend lists them
-const AI_STATUS_LEGEND = [
-  { status: 1, label: 'Provisional — model detection only' },
-  { status: 2, label: 'Confirmed by a harvest (AR) record' },
-  { status: 4, label: 'Confirmed — model flagged it again in a later year' },
-];
-
 const CLEARCUT_YEARS = [2010, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025];
 
 // Pre-HLS-harmonized years: 2010 is Landsat 5 TM, 2015 is HLS L30 (Landsat 8)
 // with no Sentinel-2 yet. Values are not directly comparable to 2016+.
 const LANDSAT_ONLY_YEARS = new Set([2010, 2015]);
 
-// First year the AI status COGs (clearcut-status-v2 / -acc-v2) exist. The model
-// runs on HLS, which starts in 2013, so 2010 has official records only.
-const AI_FIRST_YEAR = 2015;
 
 // Fallback uncertainty used for years without validation notebooks (±15% HLS benchmark).
 const FALLBACK_UNCERTAINTY = 0.15;
@@ -487,7 +474,7 @@ function ClearcutDetection({ data }) {
         {trend && (
           <div style={{ fontSize: 11, marginTop: 4 }}>
             <span style={{ color: trendColor }}>
-              {trend.slope >= 0 ? '▲ Forest loss increasing' : '▼ Forest loss decreasing'}{' '}
+              Dashed line: {trend.slope >= 0 ? '▲ forest loss increasing' : '▼ forest loss decreasing'}{' '}
               · {Math.abs(trend.slope).toFixed(0)} ha/yr &nbsp;(R²={trend.rSquared.toFixed(2)})
             </span>
           </div>
@@ -532,18 +519,6 @@ function ClearcutDetection({ data }) {
                 />
                 <span className="switch-track" aria-hidden="true" />
               </label>
-              <div className="scar-legend" title="Stand biomass ÷ median biomass of same-age stands; below 0.5 is flagged">
-                <div className="scar-legend-bar" style={{ background: rampCss(SCAR_RAMP) }} />
-                <div className="scar-legend-labels">
-                  <span>0 (worst)</span>
-                  <span>0.25</span>
-                  <span>0.5</span>
-                </div>
-                <p className="stat-sub">
-                  Biomass relative to same-age stands (NRCan SCANFI 2015/2020/2025). Lighter: flagged at
-                  one snapshot only, which may be a transient bad year.
-                </p>
-              </div>
             </>
           )}
           <p className="stat-sub scar-caveat">
@@ -552,99 +527,6 @@ function ClearcutDetection({ data }) {
         </div>
       )}
 
-      {regions.some((r) => REGION_MODEL_NOTES[r]) && (
-        <div className="module-section">
-          <h3>Data Notes</h3>
-          {regions.filter((r) => REGION_MODEL_NOTES[r]).map((r) => (
-            <p key={r} className="stat-sub data-note">
-              <strong>{REGION_LABELS[r] || r}</strong>: {REGION_MODEL_NOTES[r]}
-            </p>
-          ))}
-          {reliabilityNotes(regions, selectedYear).map((note) => (
-            <p key={note} className="stat-sub data-note data-note--warn">{note}</p>
-          ))}
-        </div>
-      )}
-
-      <div className="module-section">
-        <h3>Legend &amp; Color Guide</h3>
-        {clearcutSources.includes('ari') && (
-          <>
-            <p className="stat-sub" style={{ marginBottom: 6 }}>
-              <strong>Official Inventory (ARI Ground Truth):</strong>
-            </p>
-            <div className="legend-item">
-              <span className="legend-color amber" />
-              <span>ARI Accumulated Clearcuts (5-year window)</span>
-            </div>
-            <div className="legend-item">
-              <span className="legend-color red" />
-              <span>ARI Annual Clearcuts (harvested this year)</span>
-            </div>
-          </>
-        )}
-        {clearcutSources.includes('ml') && (
-          <>
-            <p className="stat-sub" style={{ marginTop: clearcutSources.includes('ari') ? 8 : 0, marginBottom: 6 }}>
-              <strong>AI Model Estimates (HLS Deep Learning):</strong>
-            </p>
-            {selectedYear && Number(selectedYear) < AI_FIRST_YEAR && (
-              <p className="stat-sub data-note data-note--warn">
-                AI detections start in {AI_FIRST_YEAR}; {selectedYear} shows official harvest
-                records only.
-              </p>
-            )}
-            {AI_STATUS_LEGEND.map(({ status, label }) => (
-              <div className="legend-item" key={status}>
-                <span
-                  className="legend-color status-outline"
-                  style={{ borderColor: `rgb(${STATUS_COLORS[status].join(',')})` }}
-                />
-                <span>{label}</span>
-              </div>
-            ))}
-            <p className="stat-sub status-legend-note">
-              Outlined. Provisional outlines fade with the model’s confidence; confirmed ones are
-              solid. Click a stand to read its status.
-            </p>
-            {data?.aiStatus && (
-              <div className="confidence-filter">
-                <label htmlFor="ai-min-confidence">
-                  Hide provisional below <strong>{data.aiStatus.minConfidence}%</strong> confidence
-                </label>
-                <input
-                  id="ai-min-confidence"
-                  type="range"
-                  min="0"
-                  max="90"
-                  step="10"
-                  value={data.aiStatus.minConfidence}
-                  onChange={(e) => data.aiStatus.setMinConfidence(Number(e.target.value))}
-                />
-                <small>Confirmed detections always stay visible.</small>
-              </div>
-            )}
-          </>
-        )}
-        {clearcutSources.length === 0 && (
-          <p className="stat-sub" style={{ fontStyle: 'italic', color: '#888' }}>
-            No clearcut source selected.
-          </p>
-        )}
-        <div className="legend-item" style={{ marginTop: 8 }}>
-          <span
-            style={{
-              display: 'inline-block',
-              width: 16,
-              height: 0,
-              borderTop: '2px dashed #888',
-              marginRight: 6,
-              verticalAlign: 'middle',
-            }}
-          />
-          <span>Annual clearcut trend (red = increasing · green = decreasing)</span>
-        </div>
-      </div>
     </div>
   );
 }

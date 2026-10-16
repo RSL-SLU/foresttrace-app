@@ -21,6 +21,7 @@ import DocumentationPage from './pages/DocumentationPage';
 import MapSourcesInfo from './components/MapSourcesInfo';
 import MapTimeline from './components/MapTimeline';
 import MapDisplayOptions from './components/MapDisplayOptions';
+import MapLegend from './components/MapLegend';
 import ClearcutDetection from './modules/ClearcutDetection';
 import BiomassModule from './modules/BiomassModule';
 import WildfireModule from './modules/WildfireModule';
@@ -37,8 +38,10 @@ import { handleLocateUser } from './utils/mapUtils';
 import { CLEARCUT_SENSOR_SUBFOLDER_YEARS, DEFAULT_CLEARCUT_SENSOR, getRegionsWithClearcutData } from './utils/clearcutAreaStats';
 import { createEmptyBiomassHistogram } from './utils/biomassHistogram';
 import { getFireYearsForRegions } from './utils/wildfireYears';
-import { WILDFIRE_CLASSES, WILDFIRE_CLASS_ID, WILDFIRE_VISIBLE_CLASSES } from './utils/wildfireClasses';
-import { CARIBOU_CLASSES, CARIBOU_VISIBLE_CLASSES } from './utils/caribouClasses';
+import {
+  WILDFIRE_CLASSES, WILDFIRE_CLASS_ID, WILDFIRE_VISIBLE_CLASSES, wildfireColorFor,
+} from './utils/wildfireClasses';
+import { CARIBOU_CLASSES, CARIBOU_VISIBLE_CLASSES, caribouClassesFor } from './utils/caribouClasses';
 import { getFmusForRanges, rangeColor, CARIBOU_RANGES } from './utils/caribouStats';
 import {
   TILES_BASE_URL, DATA_BASE_URL, COG_BASE_URL,
@@ -50,6 +53,7 @@ import { summarizeDrawing } from './utils/drawnShapeContext';
 import { getCogCoverage, getTileCoverage, getStaticCogCoverage } from './utils/clearcutCogCoverage';
 import {
   ariColorFn, statusColorFn, scarsColorFn, scanfiColorFn,
+  REGION_LABELS, REGION_MODEL_NOTES, reliabilityNotes,
 } from './utils/borealLayers';
 import { fetchAlerts, triageAlert, ageDays, ageColor, geometryBounds } from './utils/alerts';
 import { computeClearcutDrawingPresence } from './utils/clearcutDrawingStats';
@@ -386,7 +390,7 @@ const MODULES = [
         id: 'wildfire-burned',
         name: 'Burned Area',
         tileUrl: `${TILES_BASE_URL}/tiles/wildfire/{region}_{year}/{z}/{x}/{y}.png`,
-        color: '#FF7F00',
+        color: '#292524',
         mode: 'annual',
         tms: false,
         // Wildfire carries its own class table rather than borrowing clearcut's:
@@ -795,6 +799,12 @@ function App() {
   }, []);
   const [biomassHistogram, setBiomassHistogram] = useState(createEmptyBiomassHistogram());
   const [rasterOpacity, setRasterOpacity] = useState(1);
+  // Per-module share of rasterOpacity (0-1, default 1), set from the
+  // expandable list in MapDisplayOptions when several modules are drawn.
+  const [moduleOpacity, setModuleOpacity] = useState({});
+  const handleModuleOpacityChange = useCallback((moduleId, value) => {
+    setModuleOpacity((prev) => ({ ...prev, [moduleId]: value }));
+  }, []);
   const [selectedModuleId, setSelectedModuleId] = useState(MODULES[0]?.id);
   const selectedModule = useMemo(
     () => MODULES.find((m) => m.id === selectedModuleId) ?? MODULES[0],
@@ -982,6 +992,12 @@ function App() {
     if (selected.includes('logging-scars')) clearcut.push('logging-scars');
     return { ...activeLayers, clearcut };
   }, [activeLayers, clearcutSources]);
+
+  // Two or more modules drawn at once. Each module keeps one hue family then;
+  // the one multi-hue ramp, caribou's viridis, switches to single-hue teal
+  // (caribouClasses.js) so it stops overlapping alerts, biomass and scars.
+  const multiModule = MODULES
+    .filter((module) => (effectiveActiveLayers[module.id] || []).length > 0).length > 1;
 
   // ---- Disturbance Alerts ----------------------------------------------
   // Loaded from /api/alerts while the module is open or its layer is on, and
@@ -1486,6 +1502,7 @@ function App() {
               c.variant ? c.variant(layerOptions) : null,
             ].filter(Boolean).join('-');
             cogLayers.push({
+              moduleId: module.id,
               id: c.yearIndependent ? `${variant}-${region}` : `${layer.id}-${region}-${renderYear}`,
               url: `${fileUrl}?v=${variant}`,
               opacity: c.yearIndependent ? undefined : layerOpacity,
@@ -1559,14 +1576,24 @@ function App() {
             // color carries the layer's identity, not the class's: accumulated and
             // annual are both class 2 in the raster, so without it they'd paint the
             // same and the two layers would be indistinguishable when stacked.
+            // Colours that change without the raster changing (caribou's teal
+            // ramp alongside other modules, wildfire's basemap colour) go into
+            // the id and URL: MapLibre caches drawn tiles per source, so a new
+            // colour function alone left the old colours on screen.
+            let paletteKey;
+            if (layer.id === 'caribou-habitat' && multiModule) paletteKey = 'single-hue';
+            if (layer.id === 'wildfire-burned') paletteKey = basemapMode;
             cogLayers.push({
-              id: `${layer.id}-${region}-${renderYear}`,
-              url: cogUrl,
-              color: layer.color,
+              moduleId: module.id,
+              id: `${layer.id}-${region}-${renderYear}${paletteKey ? `-${paletteKey}` : ''}`,
+              url: paletteKey ? `${cogUrl}${cogUrl.includes('?') ? '&' : '?'}v=${paletteKey}` : cogUrl,
+              // Wildfire's colour follows the basemap (wildfireClasses.js)
+              color: layer.id === 'wildfire-burned' ? wildfireColorFor(basemapMode) : layer.color,
               opacity: layerOpacity,
               // All undefined for clearcut, which falls back to its own palette
               // and class 2. Wildfire supplies its own table and paints class 1.
-              palette: layer.cogPalette,
+              palette: layer.id === 'caribou-habitat' ? caribouClassesFor(multiModule) : layer.cogPalette,
+              paletteKey,
               visibleClasses: layer.cogClasses,
               colorClass: layer.cogColorClass,
               // Layer id for the outline pass, which paints in that layer's
@@ -1621,12 +1648,18 @@ function App() {
             // no paint setting can avoid. Remove-and-add tears the old tiles
             // down with their layer, so nothing is left pointing at a freed
             // texture.
+            moduleId: module.id,
             id: `${layer.id}-${region}-${renderYear}`,
             opacity: layerOpacity,
             // Routed through the tint protocol for the layers whose PNGs are a
             // flat intensity ramp that <RasterTileLayer> recolors on Leaflet.
             // Clearcut is excluded: it gets its color from the COG palette.
-            tileUrl: TINTED_LAYER_IDS.has(layer.id) ? tintedTileUrl(layer.id, tileUrl) : tileUrl,
+            // Wildfire PNGs are baked orange; tinted to the basemap's wildfire
+            // colour so they match the COGs. Not in TINTED_LAYER_IDS, which
+            // would also lift the missing-tile check above.
+            tileUrl: layer.id === 'wildfire-burned'
+              ? tintedTileUrl(basemapMode === 'satellite' ? 'wildfire-burned-satellite' : 'wildfire-burned', tileUrl)
+              : (TINTED_LAYER_IDS.has(layer.id) ? tintedTileUrl(layer.id, tileUrl) : tileUrl),
             tms: layer.tms !== undefined ? layer.tms : true,
           });
         });
@@ -1636,7 +1669,7 @@ function App() {
 
     return { rasterLayers, cogLayers, vectorLayers };
   }, [effectiveActiveLayers, rasterRegions, caribouRasterRegions, selectedRanges, layerOptions,
-      moduleYears, selectedYear, cogCoverageByPrefix,
+      moduleYears, selectedYear, cogCoverageByPrefix, multiModule, basemapMode,
       clearcutRegions, tileCoverage, playing, timelineYears]);
 
   // What the AI agent needs to answer "what's in here" across every layer the
@@ -1652,6 +1685,26 @@ function App() {
     })))
   ), [effectiveActiveLayers, moduleYears, selectedYear]);
 
+  // Modules with a raster or COG layer on the map: the ones an opacity slider
+  // can act on (alerts are vector features and keep their own styling).
+  const opacityModules = useMemo(() => MODULES.filter((module) => (
+    (effectiveActiveLayers[module.id] || []).some((layerId) => {
+      const layer = module.layers?.find((l) => l.id === layerId);
+      return layer && (layer.cog || layer.tileUrl || layer.cogAuthoritative);
+    })
+  )).map(({ id, name, icon }) => ({ id, name, icon })), [effectiveActiveLayers]);
+
+  // Data notes for the selected FMUs, shown in the map's Sources popup
+  const dataNotes = useMemo(() => {
+    const regions = selectedFMUs.length ? selectedFMUs : ['wabigoon'];
+    return [
+      ...regions.filter((r) => REGION_MODEL_NOTES[r]).map((r) => ({
+        key: `model-${r}`, label: REGION_LABELS[r] || r, text: REGION_MODEL_NOTES[r],
+      })),
+      ...reliabilityNotes(regions, selectedYear).map((text) => ({ key: text, text, warn: true })),
+    ];
+  }, [selectedFMUs, selectedYear]);
+
   const moduleData = {
     percentage: clearcutPercent,
     biomassHistogram,
@@ -1664,6 +1717,8 @@ function App() {
     // The regions the habitat layer is actually drawing, so the panel's numbers
     // describe what is on the map rather than the FMU selection behind it.
     caribouRegions: caribouRasterRegions,
+    // Panel swatches follow the map's caribou ramp (teal when combined)
+    caribouSingleHue: multiModule,
     // Lets the clearcut module narrow its chart to regions the map can draw.
     useCogClearcut: USE_COG,
     drawingStats,
@@ -1914,6 +1969,9 @@ function App() {
             <MapDisplayOptions
               opacity={rasterOpacity}
               onOpacityChange={setRasterOpacity}
+              modules={opacityModules}
+              moduleOpacity={moduleOpacity}
+              onModuleOpacityChange={handleModuleOpacityChange}
               extra={selectedModule?.id === 'clearcut' ? (
                 <label
                   htmlFor="inspect-harvest-toggle"
@@ -1944,7 +2002,21 @@ function App() {
             />
           </div>
 
-          <MapSourcesInfo onOpenDocumentation={() => setActivePage('documentation')} />
+          {/* Bottom-right column: the legend for whatever is drawn, then the
+              Sources pill. One stack, so the Sources popup opening upward
+              pushes the legend up rather than covering it. */}
+          <div className="map-corner">
+            <MapLegend
+              layers={effectiveActiveLayers}
+              year={selectedYear}
+              minConfidence={aiMinConfidence}
+              onMinConfidenceChange={setAiMinConfidence}
+              scarsPersistentOnly={scarsPersistentOnly}
+              caribouSingleHue={multiModule}
+              basemapMode={basemapMode}
+            />
+            <MapSourcesInfo onOpenDocumentation={() => setActivePage('documentation')} notes={dataNotes} />
+          </div>
 
           <button
             className="basemap-toggle-btn"
@@ -2012,6 +2084,7 @@ function App() {
                 cogLayers={maplibreLayers.cogLayers}
                 vectorLayers={maplibreLayers.vectorLayers}
                 rasterOpacity={rasterOpacity}
+                moduleOpacity={moduleOpacity}
                 mapRef={mapRef}
                 onMapReady={() => setMapReady(true)}
                 onDrawChange={setDrawnFeatures}
@@ -2123,7 +2196,7 @@ function App() {
                       }
                       onBiomassHistogramUpdate={setBiomassHistogram}
                       onLoadingChange={handleLoadingChange}
-                      opacity={rasterOpacity}
+                      opacity={rasterOpacity * (moduleOpacity[module.id] ?? 1)}
                       tileUrl={tileUrl}
                       layerId={layer.id}
                       region={region}

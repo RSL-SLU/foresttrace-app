@@ -146,7 +146,18 @@ function series(byYear, pick = (v) => v) {
   return { labels: years, values: years.map((y) => round(Number(pick(byYear[y])) || 0)) };
 }
 
-const titleCase = (id) => id.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+// Display names from the official FMU index ("Trout Lake", not "Troutlake"),
+// without the trailing "Forest"; ids not in it fall back to title case.
+// The index is gitignored like the boundaries, so it loads the same way
+// (disk in development, Blob in production), once per instance.
+let FMU_NAMES = null;
+async function loadFmuNames() {
+  if (FMU_NAMES) return;
+  const index = await loadDataFile('data/regions/ontario-index.json');
+  FMU_NAMES = Object.fromEntries((index?.areas || []).map((a) => [a.id, a.name.replace(/ Forest$/, '')]));
+}
+const titleCase = (id) => FMU_NAMES?.[id]
+  || id.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 async function regionFacts(region, year, alertsCol) {
   const name = titleCase(region);
@@ -313,11 +324,29 @@ async function regionFacts(region, year, alertsCol) {
   return { summary, datasets, places, layers };
 }
 
+// FMUs that can have a story over a range of years (one FMU at a time), and
+// the years each has data for. Mirrored in client StoryMapGenerator.jsx.
+const RANGE_STORY_YEARS = {
+  wabigoon: [2010, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025],
+  troutlake: [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025],
+};
+
+/** [from, to] when the request is a valid range for a single eligible FMU, else null. */
+function parseYearRange(range, regions) {
+  if (!Array.isArray(range) || range.length !== 2 || regions.length !== 1) return null;
+  const years = RANGE_STORY_YEARS[regions[0]];
+  const [from, to] = range.map(Number);
+  if (!years || !years.includes(from) || !years.includes(to) || from >= to) return null;
+  return [from, to];
+}
+
 /**
- * @param {object} ctx  from the client: { regions: string[], year, module,
- *                      activeLayers: [{module, layer, year}], drawing }
+ * @param {object} ctx  from the client: { regions: string[], year, yearRange?,
+ *                      module, activeLayers: [{module, layer, year}], drawing,
+ *                      clearcutSources?, aiMinConfidence? }
  */
 async function buildStoryFacts(ctx = {}) {
+  await loadFmuNames();
   const inputRegions = (Array.isArray(ctx.ranges) && ctx.ranges.length > 0)
     ? [...ctx.ranges, ...(Array.isArray(ctx.regions) ? ctx.regions : [])]
     : (Array.isArray(ctx.regions) ? ctx.regions : []);
@@ -337,7 +366,12 @@ async function buildStoryFacts(ctx = {}) {
     .sort((a, b) => b.score - a.score || a.i - b.i)
     .slice(0, MAX_REGIONS)
     .map(({ r }) => r);
-  const year = Number(ctx.year) || new Date().getFullYear() - 1;
+  const yearRange = parseYearRange(ctx.yearRange, regions);
+  // A range story is told as of its last year; layers cover every year in it
+  const year = yearRange ? yearRange[1] : (Number(ctx.year) || new Date().getFullYear() - 1);
+  const layerYears = yearRange
+    ? RANGE_STORY_YEARS[regions[0]].filter((y) => y >= yearRange[0] && y <= yearRange[1])
+    : [year];
 
   let alertsCol = null;
   if (getMongoUri()) {
@@ -345,7 +379,13 @@ async function buildStoryFacts(ctx = {}) {
   }
 
   const perRegion = await Promise.all(regions.map((r) => regionFacts(r, year, alertsCol)));
-  const datasets = perRegion.flatMap((r) => r.datasets);
+  // Yearly series are trimmed to the range so the charts and the prose stay on
+  // the period asked about; monthly series (alerts) are left as they are.
+  const datasets = perRegion.flatMap((r) => r.datasets).map((d) => {
+    if (!yearRange || !d.labels.every((l) => /^\d{4}$/.test(l))) return d;
+    const keep = d.labels.map((l) => Number(l) >= yearRange[0] && Number(l) <= yearRange[1]);
+    return { ...d, labels: d.labels.filter((_, i) => keep[i]), values: d.values.filter((_, i) => keep[i]) };
+  }).filter((d) => d.labels.length > 0);
   const places = perRegion.flatMap((r) => r.places);
 
   const drawing = ctx.drawing;
@@ -409,85 +449,80 @@ async function buildStoryFacts(ctx = {}) {
   ).replace(/\/$/, '');
 
   const cogs = [];
+  const span = yearRange ? `${yearRange[0]}–${yearRange[1]}` : String(year);
+  const cogLayer = (r, y, prefix, extra) => ({
+    id: `${extra.layerId}-${r}-${y}`,
+    region: r,
+    year: y,
+    cogPath: `/cogs/${prefix}/${r}_${y}.tif`,
+    url: `${blobBase}/cogs/${prefix}/${r}_${y}.tif`,
+    ...extra,
+  });
 
-  // Clearcut rasters (accumulated and/or annual)
+  // Clearcut rasters: the sources (official inventory / AI model) and the AI
+  // confidence threshold are the ones set on the map. A range story draws the
+  // annual layer of every year in the range, which together show all cuts in
+  // the period; a single-year story draws what the map had on.
   if (hasClearcut) {
-    const showAnnual = hasClearcutAnnual;
-    const showAccumulated = hasClearcutAccumulated || !showAnnual;
+    const sources = Array.isArray(ctx.clearcutSources) ? ctx.clearcutSources : ['ari'];
+    const minConfidence = Math.min(100, Math.max(0, Number(ctx.aiMinConfidence) || 0));
+    const showAnnual = Boolean(yearRange) || hasClearcutAnnual;
+    const showAccumulated = !yearRange && (hasClearcutAccumulated || !showAnnual);
 
-    if (showAccumulated) {
-      regions.forEach((r) => {
-        cogs.push({
-          id: `clearcut-accumulated-${r}-${year}`,
-          layerId: 'clearcut-accumulated',
-          name: `Standing clearcut (${year})`,
-          region: r,
-          year,
-          cogPath: `/cogs/clearcut-accumulated-ari/${r}_${year}.tif`,
-          url: `${blobBase}/cogs/clearcut-accumulated-ari/${r}_${year}.tif`,
-          color: '#d97706',
-          opacity: 0.65,
-          paletteType: 'clearcut',
-        });
-      });
-    }
-
-    if (showAnnual) {
-      regions.forEach((r) => {
-        cogs.push({
-          id: `clearcut-annual-${r}-${year}`,
-          layerId: 'clearcut-annual',
-          name: `Annual clearcut (${year})`,
-          region: r,
-          year,
-          cogPath: `/cogs/clearcut-annual-ari/${r}_${year}.tif`,
-          url: `${blobBase}/cogs/clearcut-annual-ari/${r}_${year}.tif`,
-          color: '#dc2626',
-          opacity: 0.75,
-          paletteType: 'clearcut-annual',
-        });
-      });
-    }
+    regions.forEach((r) => {
+      if (sources.includes('ari')) {
+        if (showAccumulated) {
+          cogs.push(cogLayer(r, year, 'clearcut-accumulated-ari', {
+            layerId: 'clearcut-accumulated', name: `Standing clearcut (${year})`,
+            color: '#d97706', opacity: 0.65, paletteType: 'clearcut',
+          }));
+        }
+        if (showAnnual) {
+          layerYears.forEach((y) => cogs.push(cogLayer(r, y, 'clearcut-annual-ari', {
+            layerId: 'clearcut-annual', name: `Annual clearcut (${y})`,
+            color: '#dc2626', opacity: 0.75, paletteType: 'clearcut-annual',
+          })));
+        }
+      }
+      if (sources.includes('ml')) {
+        if (showAccumulated) {
+          cogs.push(cogLayer(r, year, 'clearcut-status-acc-v2', {
+            layerId: 'clearcut-ml-accumulated', name: `AI clearcut estimate, 5-year window (${year})`,
+            opacity: 0.85, paletteType: 'ai-status', minConfidence, viewYear: year,
+          }));
+        }
+        if (showAnnual) {
+          // Status as known at the story's last year, as the map would show it then
+          layerYears.forEach((y) => cogs.push(cogLayer(r, y, 'clearcut-status-v2', {
+            layerId: 'clearcut-ml-annual', name: `AI clearcut estimate (${y})`,
+            opacity: 0.85, paletteType: 'ai-status', minConfidence, viewYear: year,
+          })));
+        }
+      }
+    });
   }
 
   // Wildfire burned raster
   if (hasWildfire) {
-    regions.forEach((r) => {
-      cogs.push({
-        id: `wildfire-${r}-${year}`,
-        layerId: 'wildfire-burned',
-        name: `Wildfire burned area (${year})`,
-        region: r,
-        year,
-        cogPath: `/cogs/wildfire-v3/${r}_${year}.tif`,
-        url: `${blobBase}/cogs/wildfire-v3/${r}_${year}.tif`,
-        color: '#FF7F00',
-        opacity: 0.75,
-        paletteType: 'wildfire',
-      });
-    });
+    regions.forEach((r) => layerYears.forEach((y) => cogs.push(cogLayer(r, y, 'wildfire-v3', {
+      layerId: 'wildfire-burned', name: `Wildfire burned area (${y})`,
+      color: '#facc15', opacity: 0.8, paletteType: 'wildfire',
+    }))));
   }
 
-  // Caribou habitat raster
-  if (hasCaribou) {
-    regions.forEach((r) => {
-      const isRange = CARIBOU_RANGE_IDS.has(r);
-      const prefix = isRange ? 'caribou-v1' : 'caribou-fmu-v1';
-      const cogPath = `/cogs/${prefix}/${r}_${year}.tif`;
-      cogs.push({
-        id: `caribou-${r}-${year}`,
-        layerId: 'caribou-habitat',
-        name: isRange ? `Caribou habitat (${titleCase(r)} Range)` : `Caribou habitat (${titleCase(r)})`,
-        region: r,
-        year,
-        cogPath,
-        url: `${blobBase}${cogPath}`,
-        color: '#21918c',
-        opacity: 0.65,
-        paletteType: 'caribou',
-      });
+  // Caribou habitat raster: habitat is a state, not an event, so one year --
+  // the last -- even in a range story. Same ramp as the web app: viridis on
+  // its own, single-hue teal alongside other modules (caribouClasses.js).
+  const moduleCount = [hasClearcut, hasWildfire, hasCaribou, hasAlerts].filter(Boolean).length;
+  const caribouLayer = (r, y, id) => {
+    const isRange = CARIBOU_RANGE_IDS.has(r);
+    return cogLayer(r, y, isRange ? 'caribou-v1' : 'caribou-fmu-v1', {
+      layerId: id || 'caribou-habitat',
+      name: isRange ? `Caribou habitat (${titleCase(r)} Range)` : `Caribou habitat (${titleCase(r)})`,
+      color: '#21918c', opacity: 0.8, paletteType: 'caribou', singleHue: moduleCount > 1,
     });
-  }
+  };
+  if (hasCaribou) regions.forEach((r) => cogs.push(caribouLayer(r, year)));
 
   // Only rasters that exist: a story listed every region x year, and each
   // missing COG fell back to a PNG pyramid of 404s.
@@ -495,6 +530,83 @@ async function buildStoryFacts(ctx = {}) {
   const existingCogs = manifest ? cogs.filter((c) => cogExists(manifest, c.cogPath)) : cogs;
 
   const hasRange = regions.some((r) => CARIBOU_RANGE_IDS.has(r));
+
+  // One place framing every selected area, for overview steps
+  if (regions.length > 1) {
+    const boxes = places.filter((p) => p.kind === 'fmu' || p.kind === 'range').map((p) => p.bbox).filter(Boolean);
+    if (boxes.length > 1) {
+      places.unshift({
+        id: 'area:all', kind: 'overview', label: 'All selected areas',
+        bbox: [Math.min(...boxes.map((b) => b[0])), Math.min(...boxes.map((b) => b[1])),
+          Math.max(...boxes.map((b) => b[2])), Math.max(...boxes.map((b) => b[3]))],
+      });
+    }
+  }
+
+  // Before/after pairs for the compare slider: the same place in two years,
+  // from rasters the manifest lists. The story framework picks which to show.
+  const compares = [];
+  const yearsOf = (prefix, r) => (manifest?.prefixes?.[prefix]?.[r] || []).slice().sort((a, b) => a - b);
+  const atOrBefore = (list, y) => [...list].reverse().find((v) => v <= y);
+  const from = yearRange ? yearRange[0] : year - 5;
+  const placeOf = (r) => (places.find((p) => p.id === `fmu:${r}` || p.id === `range:${r}`) || {}).id;
+  if (manifest) {
+    regions.forEach((r) => {
+      if (hasClearcut) {
+        const sources = Array.isArray(ctx.clearcutSources) ? ctx.clearcutSources : ['ari'];
+        const ari = sources.includes('ari');
+        const prefix = ari ? 'clearcut-accumulated-ari' : 'clearcut-status-acc-v2';
+        const list = yearsOf(prefix, r);
+        const after = atOrBefore(list, year);
+        const before = atOrBefore(list, from) ?? list.find((v) => v >= from);
+        if (before && after && before < after) {
+          const side = (y) => ({ year: y, label: String(y), cog: cogLayer(r, y, prefix, ari
+            ? { layerId: 'cmp-clearcut', color: '#d97706', opacity: 0.8, paletteType: 'clearcut' }
+            : { layerId: 'cmp-clearcut', opacity: 0.85, paletteType: 'ai-status', viewYear: y,
+              minConfidence: Math.min(100, Math.max(0, Number(ctx.aiMinConfidence) || 0)) }) });
+          compares.push({
+            id: `compare:clearcut:${r}`, topic: 'clearcut', region: r, placeId: placeOf(r),
+            title: `Standing clearcut, ${before} and ${after}`,
+            caption: `Clearcuts still open within each year's five-year window (${ari ? 'official harvest inventory' : 'AI estimates'}). Drag to compare.`,
+            left: side(before), right: side(after),
+          });
+        }
+      }
+      if (hasCaribou) {
+        const isRange = CARIBOU_RANGE_IDS.has(r);
+        const list = yearsOf(isRange ? 'caribou-v1' : 'caribou-fmu-v1', r);
+        const after = atOrBefore(list, year);
+        const before = (yearRange ? atOrBefore(list, yearRange[0]) : null) ?? list[0];
+        if (before && after && before < after) {
+          compares.push({
+            id: `compare:habitat:${r}`, topic: 'habitat', region: r, placeId: placeOf(r),
+            title: `Core caribou habitat, ${before} and ${after}`,
+            caption: 'Core habitat patches in each year; darker or brighter shades are larger patches. Drag to compare.',
+            left: { year: before, label: String(before), cog: caribouLayer(r, before, 'cmp-habitat') },
+            right: { year: after, label: String(after), cog: caribouLayer(r, after, 'cmp-habitat') },
+          });
+        }
+      }
+      if (hasWildfire) {
+        // The worst fire year in the story's period that has a raster
+        const fireYears = yearsOf('wildfire-v3', r).filter((y) => y <= year && (!yearRange || y >= yearRange[0]));
+        const peak = fireYears
+          .map((y) => ({ y, ha: wildfireStats[r]?.[y]?.areaHa || 0 }))
+          .sort((a, b) => b.ha - a.ha)[0];
+        if (peak && peak.ha > 0) {
+          compares.push({
+            id: `compare:fire:${r}`, topic: 'fire', region: r, placeId: placeOf(r),
+            title: `Before and after the ${peak.y} fires`,
+            caption: `Right: area burned in ${peak.y} (NBAC). The imagery underneath is the current basemap, not imagery from ${peak.y}. Drag to compare.`,
+            left: { year: peak.y - 1, label: 'Before', cog: null },
+            right: { year: peak.y, label: String(peak.y), cog: cogLayer(r, peak.y, 'wildfire-v3', {
+              layerId: 'cmp-fire', color: '#facc15', opacity: 0.85, paletteType: 'wildfire',
+            }) },
+          });
+        }
+      }
+    });
+  }
 
   const activeModuleNames = [];
   if (hasClearcut) activeModuleNames.push('Clearcut Detection');
@@ -508,6 +620,11 @@ async function buildStoryFacts(ctx = {}) {
 
   return {
     year,
+    yearRange,
+    span,
+    clearcutSources: hasClearcut ? (Array.isArray(ctx.clearcutSources) ? ctx.clearcutSources : ['ari']) : undefined,
+    aiMinConfidence: hasClearcut && Array.isArray(ctx.clearcutSources) && ctx.clearcutSources.includes('ml')
+      ? Math.min(100, Math.max(0, Number(ctx.aiMinConfidence) || 0)) : undefined,
     module: combinedModuleName,
     moduleId: ctx.moduleId || (activeModuleNames.length === 1 ? (hasWildfire ? 'wildfire' : hasCaribou ? 'wildlife' : 'clearcut') : 'multi'),
     isWildfire: hasWildfire,
@@ -526,6 +643,7 @@ async function buildStoryFacts(ctx = {}) {
       alerts: perRegion.flatMap((r) => r.layers.alerts),
       cogs: existingCogs,
     },
+    compares,
   };
 }
 

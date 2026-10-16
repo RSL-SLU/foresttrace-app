@@ -61,7 +61,7 @@ body.dark-mode .alert-stat-value {
 .alert-badge--confirmed { background: #7c3aed; color: #fff; }
 .alert-badge--provisional { background: transparent; color: inherit; border: 1px dashed currentColor; }
 .alert-badge--triage { background: rgba(47, 143, 91, 0.18); color: #2f8f5b; }
-.alert-badge--fire { background: rgba(255, 127, 0, 0.18); color: #c25e00; }
+.alert-badge--fire { background: rgba(41, 37, 36, 0.14); color: #292524; }
 .alert-badge--demo { background: #f59e0b; color: #1f1300; }
 
 body.dark-mode .alert-badge--triage { color: #9fdcb9; }

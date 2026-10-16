@@ -387,7 +387,7 @@ body.dark-mode .resize-handle--active::after {
 
 /* Wildfire variant — green would read as "healthy" for a burn statistic. */
 .stat-fill--fire {
-  background: linear-gradient(90deg, #a34700, #ff7f00);
+  background: linear-gradient(90deg, #1c1917, #57534e);
 }
 
 .no-data {
@@ -569,11 +569,11 @@ body.dark-mode .resize-handle--active::after {
 
 /* Wildfire — must track FIRE_COLOR / FIRE_COLOR_ACTIVE in WildfireModule.jsx */
 .legend-color.fire {
-  background: #ff7f00;
+  background: #57534e;
 }
 
 .legend-color.fire-active {
-  background: #a34700;
+  background: #1c1917;
 }
 
 /* Caribou core-patch size ramp.
@@ -1551,3 +1551,66 @@ body.dark-mode .ai-locked-link { color: #9fdcb9; }
 .data-note { margin-bottom: 8px; line-height: 1.45; }
 .data-note-region { text-transform: capitalize; }
 .data-note--warn { padding: 6px 8px; border-radius: 6px; background: rgba(245, 158, 11, 0.14); }
+
+/* Wildfire is charcoal (wildfireClasses.js), which disappears on a dark
+   panel: lighter stone greys for its chart bars and stat bar in dark mode.
+   CSS fill outranks the SVG fill attribute recharts sets. */
+body.dark-mode .fire-bar { fill: #a8a29e; }
+body.dark-mode .fire-bar--active { fill: #f5f5f4; }
+body.dark-mode .stat-fill--fire { background: linear-gradient(90deg, #78716c, #d6d3d1); }
+
+/* Right panel scrollbars: same look as the province list and the map legend
+   (map.css .fmu-selector-list / .map-legend-body). Any of the three can be
+   the one that scrolls, depending on the module. */
+.module-panel-container,
+.module-panel,
+.module-content {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(85, 124, 98, 0.85) rgba(224, 235, 224, 0.7);
+}
+
+.module-panel-container::-webkit-scrollbar,
+.module-panel::-webkit-scrollbar,
+.module-content::-webkit-scrollbar {
+  width: 10px;
+}
+
+.module-panel-container::-webkit-scrollbar-track,
+.module-panel::-webkit-scrollbar-track,
+.module-content::-webkit-scrollbar-track {
+  background: rgba(224, 235, 224, 0.75);
+  border-radius: 10px;
+}
+
+.module-panel-container::-webkit-scrollbar-thumb,
+.module-panel::-webkit-scrollbar-thumb,
+.module-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(92, 138, 108, 0.95) 0%, rgba(70, 109, 84, 0.95) 100%);
+  border: 2px solid rgba(224, 235, 224, 0.75);
+  border-radius: 10px;
+}
+
+.module-panel-container::-webkit-scrollbar-thumb:hover,
+.module-panel::-webkit-scrollbar-thumb:hover,
+.module-content::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(106, 150, 120, 0.95) 0%, rgba(76, 118, 92, 0.95) 100%);
+}
+
+body.dark-mode .module-panel-container,
+body.dark-mode .module-panel,
+body.dark-mode .module-content {
+  scrollbar-color: rgba(95, 145, 112, 0.95) rgba(34, 45, 40, 0.8);
+}
+
+body.dark-mode .module-panel-container::-webkit-scrollbar-track,
+body.dark-mode .module-panel::-webkit-scrollbar-track,
+body.dark-mode .module-content::-webkit-scrollbar-track {
+  background: rgba(34, 45, 40, 0.8);
+}
+
+body.dark-mode .module-panel-container::-webkit-scrollbar-thumb,
+body.dark-mode .module-panel::-webkit-scrollbar-thumb,
+body.dark-mode .module-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(95, 145, 112, 0.95) 0%, rgba(68, 109, 82, 0.95) 100%);
+  border-color: rgba(34, 45, 40, 0.8);
+}

@@ -8,8 +8,12 @@ import { useEffect, useRef, useState } from 'react';
  * there for whoever goes looking without taxing everyone who doesn't. The long
  * form -- accumulation rule, comparability, training data -- lives in
  * Documentation; this is the pointer.
+ *
+ * `notes` are the per-FMU data notes for the current selection ({ key, label,
+ * text, warn }), kept here rather than in the module panel: they qualify the
+ * sources, so they sit with them.
  */
-function MapSourcesInfo({ onOpenDocumentation = null }) {
+function MapSourcesInfo({ onOpenDocumentation = null, notes = [] }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
 
@@ -47,6 +51,17 @@ function MapSourcesInfo({ onOpenDocumentation = null }) {
             <dt>Model</dt>
             <dd>6-class U-Net; accumulated = seen in two consecutive years of a 5-year window</dd>
           </dl>
+          {notes.length > 0 && (
+            <>
+              <p className="map-sources-title map-sources-title--section">Data notes</p>
+              {notes.map((n) => (
+                <p key={n.key} className={`map-sources-note${n.warn ? ' map-sources-note--warn' : ''}`}>
+                  {n.label && <strong>{n.label}: </strong>}
+                  {n.text}
+                </p>
+              ))}
+            </>
+          )}
           {onOpenDocumentation && (
             <button
               type="button"
@@ -72,6 +87,7 @@ function MapSourcesInfo({ onOpenDocumentation = null }) {
         onClick={() => setOpen((v) => !v)}
       >
         <span aria-hidden="true">🪓</span> Sources
+        {notes.some((n) => n.warn) && <span className="map-sources-dot" title="Data notes for this selection" />}
       </button>
     </div>
   );

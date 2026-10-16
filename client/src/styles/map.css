@@ -824,11 +824,20 @@ body.dark-mode .toolbar button {
    Sits above the basemap attribution rather than beside it: the attribution
    belongs to whoever supplied the basemap, and conflating it with what the
    clearcut layers were derived from would misattribute both. */
-.map-sources {
+/* Bottom-right column holding the map legend and the sources balloon */
+.map-corner {
   position: absolute;
   right: 10px;
   bottom: 34px;
   z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: calc(100% - 20px);
+}
+
+.map-sources {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -1100,12 +1109,13 @@ body.dark-mode .map-draw-btn--ask {
 .map-bottom-controls {
   position: absolute;
   /* Centred and bounded rather than edge-to-edge: the drawing tools stack at
-     the bottom left (expanding to ~112px on hover) and the zoom control sits
-     below them, so a full-width bar ran straight through both. The reserved
-     300px leaves ~150px of clearance each side at any map width. */
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(640px, calc(100% - 300px));
+     the bottom left (expanding to ~112px on hover) with the zoom control
+     below them, and the legend column (260px) sits bottom right, so the bar
+     keeps ~150px clear on the left and 290px on the right, capped at 640px. */
+  left: 150px;
+  right: 290px;
+  max-width: 640px;
+  margin: 0 auto;
   bottom: 68px;
   z-index: 25;
   display: flex;
@@ -1438,7 +1448,207 @@ body.dark-mode .timeline-bound-year:hover {
   background: rgba(76, 175, 114, 0.15);
 }
 
-/* Clear of the timeline now occupying the bottom strip. */
-.map-sources {
-  bottom: 34px;
+/* ── Map legend (MapLegend), bottom-right corner above the Sources pill ── */
+.map-legend {
+  width: 260px;
+  max-width: 100%;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  font-size: 12px;
+  color: #333;
+}
+
+.map-legend-summary {
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #555;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* One group per drawn layer, stacked; scrolls when many modules are on */
+.map-legend-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 12px 10px;
+  max-height: min(45vh, 420px);
+  overflow-y: auto;
+}
+
+.map-legend-group { min-width: 0; }
+
+.map-legend-ramp { height: 10px; border-radius: 4px; }
+
+.map-legend-ramp-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 3px;
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+.map-legend-note-muted { margin: 4px 0 0; font-size: 11px; opacity: 0.75; line-height: 1.35; }
+
+.map-legend-heading {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+.map-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 3px 0;
+}
+
+.map-legend-item .legend-color { width: 14px; height: 14px; }
+
+.map-legend-note { margin: 2px 0; color: #92400e; }
+
+.map-legend-confidence {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+}
+
+.map-legend-confidence input[type="range"] { width: 100%; accent-color: #4caf50; }
+.map-legend-confidence small { opacity: 0.75; line-height: 1.35; }
+
+/* ── Opacity bar: wrapper + per-module sliders (MapDisplayOptions) ── */
+.map-display-options-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.map-display-options .slider { flex: 1; min-width: 80px; }
+
+.map-display-options-expand {
+  flex: none;
+  padding: 3px 10px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+  background: transparent;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  color: inherit;
+}
+
+.map-display-options-expand:hover,
+.map-display-options-expand[aria-expanded='true'] {
+  background: rgba(47, 143, 91, 0.1);
+}
+
+.map-display-options-modules {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+}
+
+.map-display-options-module {
+  display: grid;
+  grid-template-columns: 150px 1fr 40px;
+  align-items: center;
+  gap: 10px;
+}
+
+.map-display-options-module .map-display-options-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.map-display-options-value {
+  font-size: 11px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
+/* ── Data notes in the Sources popup (MapSourcesInfo) ── */
+.map-sources-title--section { margin-top: 10px; }
+
+.map-sources-note { margin: 0 0 6px; }
+
+.map-sources-note--warn {
+  padding: 4px 6px;
+  border-left: 3px solid #d97706;
+  background: rgba(217, 119, 6, 0.08);
+}
+
+.map-sources-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 5px;
+  border-radius: 50%;
+  background: #d97706;
+  vertical-align: middle;
+}
+
+body.dark-mode .map-legend,
+body.dark-mode .map-display-options-modules {
+  background: rgba(30, 30, 30, 0.94);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+  color: #e0e0e0;
+}
+
+body.dark-mode .map-legend-summary { color: #bbb; }
+body.dark-mode .map-legend-note { color: #fbbf24; }
+body.dark-mode .map-display-options-expand { border-color: rgba(255, 255, 255, 0.2); color: #e0e0e0; }
+body.dark-mode .map-sources-note--warn { background: rgba(217, 119, 6, 0.15); }
+
+/* Legend scrollbar: same look as the province list (.fmu-selector-list) */
+.map-legend-body {
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(85, 124, 98, 0.85) rgba(224, 235, 224, 0.7);
+}
+
+.map-legend-body::-webkit-scrollbar {
+  width: 10px;
+}
+
+.map-legend-body::-webkit-scrollbar-track {
+  background: rgba(224, 235, 224, 0.75);
+  border-radius: 10px;
+}
+
+.map-legend-body::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(92, 138, 108, 0.95) 0%, rgba(70, 109, 84, 0.95) 100%);
+  border: 2px solid rgba(224, 235, 224, 0.75);
+  border-radius: 10px;
+}
+
+.map-legend-body::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(106, 150, 120, 0.95) 0%, rgba(76, 118, 92, 0.95) 100%);
+}
+
+body.dark-mode .map-legend-body {
+  scrollbar-color: rgba(95, 145, 112, 0.95) rgba(34, 45, 40, 0.8);
+}
+
+body.dark-mode .map-legend-body::-webkit-scrollbar-track {
+  background: rgba(34, 45, 40, 0.8);
+}
+
+body.dark-mode .map-legend-body::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(95, 145, 112, 0.95) 0%, rgba(68, 109, 82, 0.95) 100%);
+  border-color: rgba(34, 45, 40, 0.8);
+}
+
+/* Dark legend card: a light ring on filled swatches so dark colours
+   (wildfire charcoal, the deepest caribou teal) stay visible */
+body.dark-mode .map-legend .legend-color:not(.status-outline) {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.45);
 }

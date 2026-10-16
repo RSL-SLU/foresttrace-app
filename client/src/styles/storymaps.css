@@ -183,3 +183,33 @@ body.dark-mode .ai-story-btn:hover { background: rgba(74, 222, 128, 0.24); }
   word-break: break-all;
 }
 body.dark-mode .story-url { color: #9fdcb9; }
+
+/* Year note and year-range picker (StoryMapGenerator) */
+.story-year-note {
+  margin: 10px 0 4px;
+  padding: 8px 10px;
+  border-left: 3px solid #2f8f5b;
+  background: rgba(47, 143, 91, 0.08);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.story-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.story-range select {
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  background: inherit;
+  color: inherit;
+  font: inherit;
+}
+
+body.dark-mode .story-year-note { background: rgba(47, 143, 91, 0.16); }
+body.dark-mode .story-range select { border-color: rgba(255, 255, 255, 0.25); }

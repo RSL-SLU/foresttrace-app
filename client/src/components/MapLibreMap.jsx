@@ -473,6 +473,8 @@ function DrawingTools({ onCreate, onChange, onAsk, proposedFeatures, enabled, mo
  * order, which is what makes that window wide enough to hit. These are
  * semi-transparent data overlays, so the fade bought us nothing anyway.
  */
+const EMPTY_OPACITY = {};
+
 const RASTER_PAINT = (opacity) => ({
   'raster-opacity': opacity,
   'raster-resampling': 'nearest',
@@ -736,6 +738,8 @@ function MapLibreMap({
   cogLayers = [],
   vectorLayers = [],
   rasterOpacity = 0.5,
+  // Per-module share of rasterOpacity ({ moduleId: 0-1 }); layers carry moduleId
+  moduleOpacity = EMPTY_OPACITY,
   onShapeCreate = null,
   onDrawChange = null,
   onAskAboutDrawing = null,
@@ -878,7 +882,7 @@ function MapLibreMap({
   // indistinguishable when stacked. Falls back to the palette when a layer
   // declares no color.
   const cogSignature = cogLayers
-    .map((l) => `${l.url}:${l.color || ''}:${l.outline || ''}:${l.subtractUrl || ''}`)
+    .map((l) => `${l.url}:${l.color || ''}:${l.outline || ''}:${l.subtractUrl || ''}:${l.paletteKey || ''}`)
     .join('|');
   useMemo(() => {
     cogLayers.forEach((layer) => {
@@ -1007,7 +1011,7 @@ function MapLibreMap({
             type="raster"
             // opacity 0 marks a buffered year: mounted so its tiles load, not
             // drawn until the timeline reaches it.
-            paint={RASTER_PAINT(layer.opacity ?? rasterOpacity)}
+            paint={RASTER_PAINT(layer.opacity ?? rasterOpacity * (moduleOpacity[layer.moduleId] ?? 1))}
           />
         </Source>
       ))}
@@ -1025,7 +1029,7 @@ function MapLibreMap({
           <Layer
             id={`cog-layer-${layer.id}`}
             type="raster"
-            paint={RASTER_PAINT(layer.opacity ?? rasterOpacity)}
+            paint={RASTER_PAINT(layer.opacity ?? rasterOpacity * (moduleOpacity[layer.moduleId] ?? 1))}
           />
         </Source>
       ))}

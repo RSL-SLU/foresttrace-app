@@ -14,8 +14,21 @@
 
 export const WILDFIRE_CLASSES = {
   0: { name: 'unburned', color: null }, // nodata -- always transparent
-  1: { name: 'burned', color: '#FF7F00' },
+  // Colour follows the basemap (wildfireColorFor); alpha is shared
+  1: { name: 'burned', color: '#292524', alpha: 200 },
 };
+
+/**
+ * Burned-area colour for the current basemap. No single colour works on both
+ * and stays clear of the other modules (clearcut amber/red, alerts
+ * pink/violet): charcoal reads on the light map but vanishes into dark forest
+ * on imagery, and yellow is the reverse.
+ */
+export const WILDFIRE_COLORS = { light: '#292524', satellite: '#facc15' };
+
+export function wildfireColorFor(basemapMode) {
+  return WILDFIRE_COLORS[basemapMode] || WILDFIRE_COLORS.light;
+}
 
 /** The burned class -- the one the layer's own color overrides. */
 export const WILDFIRE_CLASS_ID = 1;

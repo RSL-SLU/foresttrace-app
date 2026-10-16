@@ -8,7 +8,7 @@
 const DAY = 24 * 60 * 60 * 1000;
 
 // By age since first detection. Pink-to-violet so alerts never read as the
-// clearcut (amber/red) or wildfire (orange) layers they may sit on top of.
+// clearcut (amber/red) or wildfire (charcoal) layers they may sit on top of.
 export const ALERT_AGE_BUCKETS = [
   { maxDays: 7, label: 'Last 7 days', color: '#ff2d95' },
   { maxDays: 30, label: '8–30 days', color: '#c026d3' },

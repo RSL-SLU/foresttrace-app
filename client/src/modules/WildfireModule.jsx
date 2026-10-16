@@ -10,8 +10,8 @@ const WILDFIRE_YEARS = [
   2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025,
 ];
 
-const FIRE_COLOR = '#FF7F00';
-const FIRE_COLOR_ACTIVE = '#A34700';
+const FIRE_COLOR = '#57534e';
+const FIRE_COLOR_ACTIVE = '#1c1917';
 
 const fmt = (n) => Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
@@ -209,6 +209,9 @@ function WildfireModule({ data }) {
                     <Cell
                       key={row.year}
                       fill={row.year === selectedYear ? FIRE_COLOR_ACTIVE : FIRE_COLOR}
+                      // Dark mode lightens these via CSS (layout.css): charcoal
+                      // bars vanish on a dark panel
+                      className={row.year === selectedYear ? 'fire-bar fire-bar--active' : 'fire-bar'}
                     />
                   ))}
                 </Bar>
@@ -226,19 +229,9 @@ function WildfireModule({ data }) {
 
       {hasData && (
         <div className="module-section">
-          <h3>Legend</h3>
-          <div className="legend-item">
-            <span className="legend-color fire" />
-            <span>Burned Area</span>
-          </div>
-          <div className="legend-item">
-            <span className="legend-color fire-active" />
-            <span>Selected year</span>
-          </div>
-          <div className="legend-item">
-            <span>Year slider</span>
-            <strong>skips years with no fire</strong>
-          </div>
+          <p className="stat-sub">
+            Darker bar: the selected year. The year timeline skips years with no fire.
+          </p>
         </div>
       )}
 

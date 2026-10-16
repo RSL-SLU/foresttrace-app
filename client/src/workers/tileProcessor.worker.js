@@ -137,14 +137,17 @@ function processPixels(layerId, pixels, coords, width = 256, height = 256) {
       continue;
     }
 
-    if (layerId === 'wildfire-burned') {
+    if (layerId === 'wildfire-burned' || layerId === 'wildfire-burned-satellite') {
       if (a > 0 && r > 200) redCount += 1;
       if (a === 0) continue;
-      const intensity = r / 255;
-      // Fire orange (#FF7F00), kept clear of clearcut's red.
-      pixels[i]     = Math.round(255 * intensity);
-      pixels[i + 1] = Math.round(127 * intensity);
-      pixels[i + 2] = 0;
+      // WILDFIRE_COLORS (wildfireClasses.js): charcoal #292524 on the light
+      // map, yellow #facc15 on satellite (the -satellite variant). The
+      // source intensity sets the alpha.
+      const satellite = layerId === 'wildfire-burned-satellite';
+      pixels[i]     = satellite ? 250 : 41;
+      pixels[i + 1] = satellite ? 204 : 37;
+      pixels[i + 2] = satellite ? 21 : 36;
+      pixels[i + 3] = Math.round(200 * (r / 255));
       continue;
     }
 

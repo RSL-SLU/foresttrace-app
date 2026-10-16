@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import AlertImagery from '../components/AlertImagery';
 import {
-  ALERT_AGE_BUCKETS, TRIAGE_LABELS, ageColor, formatDate, relativeDays,
+  TRIAGE_LABELS, formatDate, relativeDays,
 } from '../utils/alerts';
 import '../styles/alerts.css';
 
@@ -254,24 +254,6 @@ function DisturbanceAlerts({ data }) {
             Show {Math.min(LIST_PAGE, features.length - shown)} more
           </button>
         )}
-      </div>
-
-      <div className="module-section">
-        <h3>Legend</h3>
-        {ALERT_AGE_BUCKETS.map((b) => (
-          <div className="legend-item" key={b.label}>
-            <span className="legend-color" style={{ background: ageColor(b.maxDays === Infinity ? 999 : b.maxDays), opacity: 0.85 }} />
-            <span>{b.label}</span>
-          </div>
-        ))}
-        <div className="legend-item">
-          <span className="alert-legend-line" />
-          <span>Confirmed (repeated vegetation loss)</span>
-        </div>
-        <div className="legend-item">
-          <span className="alert-legend-line alert-legend-line--dashed" />
-          <span>Provisional (seen once or twice)</span>
-        </div>
       </div>
     </div>
   );

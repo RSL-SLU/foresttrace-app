@@ -7,12 +7,17 @@ const {
 } = require('./_db');
 const { buildStoryFacts } = require('./_storyFacts');
 const { renderStoryHtml } = require('./_storyRender');
+const { writeStory, decorateStory } = require('./_storyFramework');
 const { renderStoryThumbnail } = require('./_storyThumb');
 const { ensureUsername, slugBase } = require('./_usernames');
 
 /**
- * Story maps for journalists: Claude writes a story from the data on screen,
- * the server renders it into a self-contained HTML page and stores it in
+ * Story maps for journalists, from the data on screen. Two engines:
+ *   - the story map framework (api/_storyFramework.js) writes the story from
+ *     the facts alone: instant, free, every figure exact. The default.
+ *   - Claude, only when the author gives an angle; identical requests reuse
+ *     an earlier result (cacheKey) instead of calling the model again.
+ * Either way the server renders a self-contained HTML page and stores it in
  * MongoDB (`story_maps`), owned by the user.
  *
  *   POST /api/storymaps?action=generate { context, angle, audience }   signed in
@@ -31,8 +36,10 @@ const { ensureUsername, slugBase } = require('./_usernames');
  * from api/_storyFacts.js, and the page escapes all model text.
  */
 
-const MODEL = 'claude-sonnet-5';
-const DAILY_LIMIT = 10;          // per user; bounds cost and abuse
+// Angle-driven stories only; the default path makes no model call
+const MODEL = 'claude-haiku-5-5';
+const MODEL_NAME = 'Claude Haiku 5.5 (Anthropic)';
+const DAILY_LIMIT = 10;          // Claude stories per user per day; bounds cost and abuse
 const DAY = 24 * 60 * 60 * 1000;
 const AUDIENCES = {
   news: 'a news article for a general audience (inverted pyramid, short paragraphs, plain language)',
@@ -78,6 +85,8 @@ Accuracy rules -- these come before style:
 - "Standing clearcut area" is a 5-year rolling total; "newly detected clearcut" is new area per year. Do not mix them up.
 - If alert data is marked demo data, say clearly that alerts are demonstration data and not real detections.
 - If the data cannot support the author's angle, say so plainly instead of stretching it.
+- Time frame: without YEAR_RANGE the story is about YEAR_ON_MAP; earlier years are context only. With YEAR_RANGE [first, last] the story covers that period: describe how things changed from the first to the last year, and do not discuss years outside it.
+- If AI_MIN_CONFIDENCE_ON_MAP is given, the map hides provisional AI detections below that confidence; mention it where the map is described.
 
 Structure:
 - Refer to DATASETS and PLACES only by their exact ids. Each section's placeId must be a PLACES id; chart.datasetId must be a DATASETS id, or chart must be null. Choose a chart only where it supports the section.
@@ -129,6 +138,11 @@ function uncheckedFigures(story, facts) {
 async function generateStory({ facts, angle, audience }) {
   const forModel = {
     YEAR_ON_MAP: facts.year,
+    ...(facts.yearRange ? { YEAR_RANGE: facts.yearRange } : {}),
+    ...(facts.clearcutSources ? {
+      CLEARCUT_MAP_SOURCES: facts.clearcutSources.map((x) => (x === 'ml' ? 'AI model estimates' : 'official harvest inventory (ARI)')),
+    } : {}),
+    ...(facts.aiMinConfidence ? { AI_MIN_CONFIDENCE_ON_MAP: facts.aiMinConfidence } : {}),
     MODULE: facts.module,
     ACTIVE_LAYERS: facts.activeLayers,
     SUMMARY: facts.regions,
@@ -165,6 +179,24 @@ async function generateStory({ facts, angle, audience }) {
 
 const newSlug = () => crypto.randomBytes(9).toString('base64url');
 
+// Same facts (numbers, places, layers), angle and format -> same story, so a
+// repeat request can reuse an earlier Claude result. Facts are hashed, not
+// the client context, so two maps that resolve to the same data share it.
+function storyCacheKey(facts, angle, audience) {
+  const essence = {
+    model: MODEL,
+    year: facts.year,
+    yearRange: facts.yearRange,
+    module: facts.module,
+    datasets: facts.datasets.map((d) => [d.id, d.labels, d.values]),
+    places: facts.places.map((p) => p.id),
+    cogs: facts.layers.cogs.map((c) => c.id),
+    angle: angle.trim().toLowerCase(),
+    audience,
+  };
+  return crypto.createHash('sha256').update(JSON.stringify(essence)).digest('hex');
+}
+
 // "Clearcut and Wildfire Analysis on Wabigoon" -> "clearcut-and-wildfire-analysis-on-wabigoon",
 // unique among the user's stories (-2, -3, ... on a repeat title).
 async function uniqueUrlSlug(stories, userId, title) {
@@ -200,7 +232,8 @@ function servePage(doc, req) {
   return doc.html
     .split('__FT_STORY_URL__').join(attr(url))
     .split('__FT_IMAGE_URL__').join(attr(image))
-    .split('__FT_PUBLIC__').join(doc.isPublic ? 'true' : 'false');
+    .split('__FT_PUBLIC__').join(doc.isPublic ? 'true' : 'false')
+    .split('__FT_ORIGIN__').join(attr(origin));
 }
 
 // The public story a request names: /stories/<username>/<slug>, or an old ?slug= link
@@ -317,18 +350,38 @@ async function handler(req, res) {
     }
 
     if (req.method === 'POST' && action === 'generate') {
-      const recent = await stories.countDocuments({ userId: user.id, createdAt: { $gte: new Date(Date.now() - DAY) } });
-      if (recent >= DAILY_LIMIT) {
-        return res.status(429).json({ error: `Limit of ${DAILY_LIMIT} story maps per day reached. Try again tomorrow.` });
-      }
-
       const { context = {}, angle = '', audience = 'news' } = req.body || {};
       const facts = await buildStoryFacts(context);
       if (!facts.regions.length || (!facts.datasets.length && !facts.places.length)) {
         return res.status(400).json({ error: 'Select at least one forest management unit with data on the map first.' });
       }
 
-      const { story, usage } = await generateStory({ facts, angle: String(angle), audience });
+      // No angle: the framework writes it, no model call. An angle: Claude,
+      // unless the same facts + angle + format were written before.
+      const useClaude = String(angle).trim().length > 0;
+      let story;
+      let usage = null;
+      let engine = 'template';
+      const cacheKey = useClaude ? storyCacheKey(facts, String(angle), audience) : null;
+      if (!useClaude) {
+        story = writeStory(facts, { audience });
+      } else {
+        const cached = await stories.findOne({ cacheKey }, { projection: { story: 1 }, sort: { createdAt: -1 } });
+        if (cached?.story) {
+          story = cached.story;
+          engine = 'claude-cached';
+        } else {
+          const recent = await stories.countDocuments({
+            userId: user.id, engine: 'claude', createdAt: { $gte: new Date(Date.now() - DAY) },
+          });
+          if (recent >= DAILY_LIMIT) {
+            return res.status(429).json({ error: `Limit of ${DAILY_LIMIT} AI-written story maps per day reached. Leave the angle empty to build one from the data, or try again tomorrow.` });
+          }
+          ({ story, usage } = await generateStory({ facts, angle: String(angle), audience }));
+          story = decorateStory(story, facts);
+          engine = 'claude';
+        }
+      }
       const createdAt = new Date();
 
       const users = await getCollection('users');
@@ -348,7 +401,7 @@ async function handler(req, res) {
         }
       }
       const html = renderStoryHtml({
-        story, facts, createdAt, model: 'Claude Sonnet 5 (Anthropic)',
+        story, facts, createdAt, model: MODEL_NAME,
         author: user.name || 'ForestTrace user',
       });
       const doc = {
@@ -364,9 +417,11 @@ async function handler(req, res) {
         isPublic: false,
         html,
         story,
-        context: { regions: facts.regions.map((r) => r.id), year: facts.year, module: facts.module, moduleId: facts.moduleId, angle, audience },
-        reviewNotes: uncheckedFigures(story, facts),
-        model: MODEL,
+        context: { regions: facts.regions.map((r) => r.id), year: facts.year, yearRange: facts.yearRange, module: facts.module, moduleId: facts.moduleId, angle, audience },
+        reviewNotes: engine === 'template' ? [] : uncheckedFigures(story, facts),
+        engine,
+        cacheKey,
+        model: engine === 'template' ? null : MODEL,
         usage: usage ? { input: usage.input_tokens, output: usage.output_tokens } : null,
         createdAt,
         updatedAt: createdAt,

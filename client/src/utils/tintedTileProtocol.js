@@ -14,10 +14,11 @@ import { processTile } from './tileWorkerClient';
  * renderers stay pixel-identical for free, and there's one place to change a
  * color.
  *
- * NOT used for clearcut or wildfire. Those layers are on COGs, where class IDs
- * survive to draw time and coloring is a palette lookup rather than a tint of a
- * pre-flattened PNG. Biomass is the last layer left here: its PNGs encode a
- * 16-bit value across R/G, which is a decode, not a palette lookup.
+ * NOT used for clearcut. Clearcut is on COGs, where class IDs survive to draw
+ * time and coloring is a palette lookup rather than a tint of a pre-flattened
+ * PNG. Biomass is here because its PNGs encode a 16-bit value across R/G, which
+ * is a decode, not a palette lookup. Wildfire's PNG fallback (region-years
+ * with no COG) is tinted too, to the basemap's colour, via App.js directly.
  */
 
 /** Layers that need the tint and have no COG product yet. */

@@ -172,6 +172,10 @@ function ForestryAIAgent({
     module: selectedModule?.name || selectedModule?.id,
     activeLayers: moduleData?.activeLayerSummary,
     drawing: drawingContext || undefined,
+    // The story map draws clearcuts from the same sources, and hides the same
+    // low-confidence AI detections, as the map does now
+    clearcutSources: moduleData?.clearcutSources,
+    aiMinConfidence: moduleData?.aiStatus?.minConfidence,
   };
 
   return (

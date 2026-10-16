@@ -3,9 +3,9 @@ import {
   BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import {
-  getCoreHabitatPerYear, getSizeBreakdown, getRangeNames,
-  RAMP_STOPS, RAMP_TICKS, CARIBOU_RANGES,
+  getCoreHabitatPerYear, getSizeBreakdown, getRangeNames, CARIBOU_RANGES,
 } from '../utils/caribouStats';
+import { caribouClassesFor } from '../utils/caribouClasses';
 
 // The outputs_v3 MSPA source covers 2015-2025. Listing the real years here
 // keeps the chart honest rather than padding it with years never assessed.
@@ -308,35 +308,14 @@ function CaribouHabitatModule({ data }) {
       {!loading && assessed && binTotal > 0 && (
         <div className="module-section">
           <h3>Core Patch Size ({selectedYear})</h3>
-          {/* Raster values 1-19 are ordinal size classes, so they are counted
-              and grouped — never averaged into a "mean class", which would be
-              meaningless. Large contiguous patches are what support a herd.
-
-              Hard colour stops rather than a smooth blend: the four bins are
-              discrete classes, and a continuous gradient would imply the map
-              carries values between them, which it does not. */}
-          <div className="habitat-ramp">
-            <div
-              className="habitat-ramp-bar"
-              style={{ background: `linear-gradient(to right, ${RAMP_STOPS.join(', ')})` }}
-            />
-            <div className="habitat-ramp-ticks">
-              {RAMP_TICKS.map((tick) => (
-                <span
-                  key={tick.label}
-                  style={{ left: `${tick.pct}%` }}
-                  data-edge={tick.pct === 0 ? 'start' : (tick.pct === 100 ? 'end' : undefined)}
-                >
-                  {tick.label}
-                </span>
-              ))}
-            </div>
-          </div>
-
+          {/* Raster values are ordinal size classes, so they are counted and
+              grouped — never averaged into a "mean class". The colour key is
+              in the map legend (MapLegend); swatches here follow the map's
+              current ramp (teal when other modules are on). */}
           <div className="habitat-shares">
-            {bins.map((bin) => (
+            {bins.map((bin, i) => (
               <span key={bin.key}>
-                <i style={{ background: bin.color, opacity: (bin.alpha ?? 200) / 255 }} />
+                <i style={{ background: data?.caribouSingleHue ? caribouClassesFor(true)[i + 1].color : bin.color, opacity: (bin.alpha ?? 200) / 255 }} />
                 <em>{bin.label}</em>
                 <strong>{((bin.areaHa / binTotal) * 100).toFixed(0)}%</strong>
               </span>

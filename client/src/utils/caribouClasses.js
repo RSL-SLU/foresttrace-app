@@ -43,3 +43,24 @@ export const CARIBOU_VISIBLE_CLASSES = [1, 2, 3, 4, 5];
 
 /** Outside the range -- never assessed. */
 export const CARIBOU_NODATA = 255;
+
+/**
+ * Single-hue (teal) version of the same five classes, used whenever another
+ * module is on the map too. Viridis runs purple -> blue -> green -> yellow,
+ * which collides with alerts (pink/violet), SCANFI biomass (yellow-green) and
+ * logging scars (blue); teal is the one family none of them use. Darker =
+ * larger patch; alpha per class as in CARIBOU_CLASSES.
+ */
+export const CARIBOU_CLASSES_SINGLE_HUE = {
+  0: { name: 'In range, not core', color: null },
+  1: { name: '< 100 ha', color: '#b2dfdb', alpha: 70 },
+  2: { name: '100 - 500 ha', color: '#80cbc4', alpha: 200 },
+  3: { name: '500 - 1,000 ha', color: '#26a69a', alpha: 200 },
+  4: { name: '1,000 - 10,000 ha', color: '#00897b', alpha: 200 },
+  5: { name: '> 10,000 ha', color: '#004d40', alpha: 200 },
+};
+
+/** The caribou class table to draw with: viridis alone, teal alongside other modules. */
+export function caribouClassesFor(singleHue) {
+  return singleHue ? CARIBOU_CLASSES_SINGLE_HUE : CARIBOU_CLASSES;
+}

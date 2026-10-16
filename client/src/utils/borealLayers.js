@@ -72,6 +72,17 @@ export const STATUS_COLORS = {
 };
 const PROVISIONAL_ALPHA = [0.15, 0.95];
 
+// AI status classes, in the order the legend lists them
+export const AI_STATUS_LEGEND = [
+  { status: 1, label: 'Provisional — model detection only' },
+  { status: 2, label: 'Confirmed by a harvest (AR) record' },
+  { status: 4, label: 'Confirmed — model flagged it again in a later year' },
+];
+
+// First year the AI status COGs (clearcut-status-v2 / -acc-v2) exist. The model
+// runs on HLS, which starts in 2013, so 2010 has official records only.
+export const AI_FIRST_YEAR = 2015;
+
 /** STATUS as known in `year`: 0 none, 1/2/4, or null for no data / reserved. */
 export function statusAsOf(values, year) {
   const [status, , , confirmationYear] = values;
