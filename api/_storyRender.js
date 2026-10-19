@@ -13,11 +13,47 @@ const MAPLIBRE = 'https://cdn.jsdelivr.net/npm/maplibre-gl@5/dist';
 const CHARTJS = 'https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js';
 const COG_PROTOCOL = 'https://cdn.jsdelivr.net/npm/@geomatico/maplibre-cog-protocol@0.9.2/dist/index.js';
 
+// ForestTrace and SLU + Remote Sensing Lab logos, embedded (scripts/data/build-story-brand.js)
+const { BRAND_BG, FORESTTRACE_LOGO, SLU_RSL_LOGO } = require('./_storyBrand');
+
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 }[c]));
 
 const jsonForScript = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
+
+// Basemap imagery by year, so a before/after or a year range shows the ground
+// as it was: Sentinel-2 cloudless yearly mosaics (EOX, 2016 and 2018-2024, the
+// same source the web app uses), the nearest earlier mosaic for other years,
+// and current Esri imagery from 2025.
+const EOX_YEARS = [2016, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
+const ESRI_TILES = 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+// side 'after' takes the first mosaic at or after the year (so an "after the
+// fire" view never shows imagery from before it); otherwise the nearest earlier.
+function imageryFor(year, side = 'before') {
+  const y = Number(year);
+  if (!y || y >= 2025 || (side === 'after' && y > EOX_YEARS[EOX_YEARS.length - 1])) {
+    return { label: 'Esri World Imagery (current)', year: 'current', tiles: [ESRI_TILES], attribution: 'Esri, Maxar, Earthstar Geographics' };
+  }
+  const pick = side === 'after'
+    ? EOX_YEARS.find((v) => v >= y)
+    : ([...EOX_YEARS].reverse().find((v) => v <= y) || EOX_YEARS[0]);
+  const layer = pick === 2016 ? 's2cloudless_3857' : `s2cloudless-${pick}_3857`;
+  return {
+    label: `Sentinel-2 cloudless ${pick}`,
+    year: pick,
+    tiles: [`https://tiles.maps.eox.at/wmts/1.0.0/${layer}/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg`],
+    attribution: `Sentinel-2 cloudless ${pick} by EOX IT Services GmbH (contains modified Copernicus Sentinel data)`,
+  };
+}
+
+// Map sub-legends, one per story topic, shown while that step is read
+const CARIBOU_CLASSES = [
+  ['< 100 ha', '#440154', '#b2dfdb', 0.3], ['100 – 500 ha', '#3b528b', '#80cbc4', 0.8],
+  ['500 – 1,000 ha', '#21918c', '#26a69a', 0.8], ['1,000 – 10,000 ha', '#5ec962', '#00897b', 0.8],
+  ['> 10,000 ha', '#fde725', '#004d40', 0.8],
+];
+const ALERT_AGES = [['Last 7 days', '#ff2d95'], ['8–30 days', '#c026d3'], ['31–90 days', '#7c3aed'], ['Older', '#64748b']];
 
 function renderStoryHtml({ story, facts, author, createdAt, model }) {
   // Legend helpers: which raster layers made it onto the map, and the period
@@ -90,15 +126,67 @@ function renderStoryHtml({ story, facts, author, createdAt, model }) {
   const playerYears = [...new Set((facts.layers.cogs || [])
     .filter((c) => PER_YEAR.includes(c.layerId)).map((c) => c.year))].sort((a, b) => a - b);
 
+  // Imagery for the story year, each player year, and each compare side
+  const baseImagery = imageryFor(facts.year);
+  const imageryByYear = Object.fromEntries(playerYears.map((y) => [y, imageryFor(y)]));
+  const compareList = sections.filter((s) => s.compare).map((s) => ({
+    ...s.compare,
+    left: { ...s.compare.left, imagery: imageryFor(s.compare.left.year) },
+    right: { ...s.compare.right, imagery: imageryFor(s.compare.right.year, 'after') },
+  }));
+  const fills = sections.filter((s) => s.regionFill).map((s) => s.regionFill);
+  const usesEox = [baseImagery, ...Object.values(imageryByYear), ...compareList.flatMap((c) => [c.left.imagery, c.right.imagery])]
+    .some((im) => im.year !== 'current');
+
+  const swatch = (color, label, opacity = 1) => `<div><span style="background:${color};opacity:${opacity}"></span>${esc(label)}</div>`;
+  const caribouTeal = (facts.layers.cogs || []).some((c) => c.paletteType === 'caribou' && c.singleHue);
+  const aiOn = hasCog('clearcut-ml-annual') || hasCog('clearcut-ml-accumulated');
+  function topicLegend(sec) {
+    const cmpAi = sec.compare && sec.compare.left.cog && sec.compare.left.cog.paletteType === 'ai-status';
+    const clearcutItems = () => [
+      (hasCog('clearcut-accumulated') || (sec.compare && !cmpAi)) ? swatch('#d97706', 'Standing clearcut (official inventory)') : '',
+      hasCog('clearcut-annual') ? swatch('#dc2626', 'Clearcut in that year') : '',
+      (aiOn || cmpAi) ? swatch('#f59e0b', 'AI estimate, provisional') + swatch('#991b1b', 'AI estimate, confirmed by harvest record') + swatch('#7e22ce', 'AI estimate, confirmed by persistence') : '',
+    ].join('');
+    switch (sec.topic) {
+      case 'habitat':
+        return `<p class="leg-title">Core caribou habitat · patch size</p>${CARIBOU_CLASSES.map(([label, viridis, teal, op]) => swatch(caribouTeal ? teal : viridis, label, op)).join('')}<p class="leg-note">Larger patches support caribou; the faint class is speckle.</p>`;
+      case 'clearcut':
+      case 'newCuts':
+        return `<p class="leg-title">Clearcuts</p>${clearcutItems()}`;
+      case 'fire':
+        return `<p class="leg-title">Wildfire</p>${swatch('#facc15', 'Burned area (NBAC)')}`;
+      case 'combined':
+        return `<p class="leg-title">Harvest and fire</p>${clearcutItems()}${swatch('#facc15', 'Burned area (NBAC)')}`;
+      case 'alerts':
+        return `<p class="leg-title">Disturbance alerts · age</p>${ALERT_AGES.map(([l, c]) => swatch(c, l)).join('')}`;
+      case 'overview':
+        return sec.chart && sec.chart.colors
+          ? `<p class="leg-title">Areas (as in the chart)</p>${sec.chart.labels.map((l, i) => swatch(sec.chart.colors[i], l, 0.75)).join('')}`
+          : '';
+      default:
+        return '';
+    }
+  }
+
+  // More than three areas: say how many instead of listing every name in
+  // the eyebrow, the map tag and the image description (the charts list them)
+  const names = facts.regions.map((r) => r.name);
+  const areaSummary = names.length > 3 ? `${names.length} forest management units` : names.join(', ');
+
   const page = {
+    imagery: baseImagery,
+    imageryByYear,
+    fills,
+    regionLabels: facts.regions.filter((r) => r.labelPoint).map((r) => ({ id: r.id, name: r.name, point: r.labelPoint })),
     playerYears,
     perYearLayers: PER_YEAR,
-    compares: sections.filter((s) => s.compare).map((s) => s.compare),
+    compares: compareList,
     places,
     initialPlace: firstFmu?.id || null,
     // Opening zoom (Canada -> Ontario -> the story's area) lands here
     heroPlace: places['area:all'] ? 'area:all' : (firstFmu?.id || null),
-    heroLabel: facts.regions.map((r) => r.name).join(' · '),
+    heroLabel: names.length > 3 ? `${names.length} FMUs` : names.join(' · '),
     charts,
     year: facts.year,
     layers: facts.layers,
@@ -121,7 +209,7 @@ function renderStoryHtml({ story, facts, author, createdAt, model }) {
 <meta property="og:image" content="__FT_IMAGE_URL__">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Satellite map of ${esc(facts.regions.map((r) => r.name).join(", "))} with the areas discussed in the story">
+<meta property="og:image:alt" content="Satellite map of ${esc(areaSummary)} with the areas discussed in the story">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${esc(story.title)}">
 <meta name="twitter:description" content="${esc(story.dek)}">
@@ -199,6 +287,29 @@ function renderStoryHtml({ story, facts, author, createdAt, model }) {
   .yr-tag { position:absolute; top:10px; z-index:2; font:500 .7rem/1 var(--f-mono); letter-spacing:.04em; color:#fff; background:rgba(13,17,10,.72); padding:5px 7px; border-radius:2px; pointer-events:none; }
   .yr-tag.l { left:10px; }
   .yr-tag.r { right:10px; }
+  /* compare slider on the main map */
+  .map-after { position:absolute; inset:0; clip-path:inset(0 0 0 50%); z-index:1; }
+  .map-after[hidden], .cmp-line[hidden], .yr-tag[hidden] { display:none; }
+  .map-wrap .yr-tag { top:66px; z-index:4; }
+  .cmp-hint { font-size:.95rem; line-height:1.55; color:var(--ink-2); background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--accent); padding:10px 12px; margin:18px 0 0; }
+  .cmp-hint .eyebrow { display:block; margin:0 0 4px; }
+  /* legends: per-topic sub-legend above the general one */
+  .legend-stack { position:absolute; left:12px; bottom:28px; z-index:4; display:flex; flex-direction:column; gap:8px; max-width:280px; }
+  .legend-stack .legend { position:static; }
+  .topic-legend { background:rgba(251,251,249,.96); border:1px solid var(--line); border-left:3px solid var(--accent); border-radius:3px; padding:8px 10px; font:12px/1.6 var(--f-body); }
+  .topic-legend span { display:inline-block; width:12px; height:12px; border-radius:2px; margin-right:6px; vertical-align:-1px; }
+  .leg-title { font:600 .66rem/1.3 var(--f-mono); letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); margin:0 0 4px; }
+  .leg-note { font-size:.75rem; line-height:1.35; color:var(--ink-3); margin:4px 0 0; }
+  /* FMU names, shown once zoomed in */
+  .fmu-label { font:600 .68rem/1.1 var(--f-mono); letter-spacing:.08em; text-transform:uppercase; color:#fff; text-shadow:0 0 3px rgba(0,0,0,.95), 0 0 8px rgba(0,0,0,.7); pointer-events:none; white-space:nowrap; opacity:0; transition:opacity .3s; }
+  .fmu-label.on { opacity:1; }
+  .map-wrap.globe { background:#0b0f0a; }
+  /* brand card: ForestTrace | Saint Louis University + Remote Sensing Lab */
+  .brand-card { position:absolute; right:10px; bottom:34px; z-index:4; display:flex; align-items:center; gap:10px; padding:6px 10px; border:1px solid var(--line); border-radius:3px; box-shadow:0 1px 6px rgba(0,0,0,.25); }
+  .brand-card img { display:block; height:44px; width:auto; }
+  .brand-card a { display:block; border-radius:2px; }
+  .brand-card a:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .brand-rule { width:1px; height:36px; background:var(--line-2); }
   .back-matter { border-top:2px solid var(--ink); margin-top:24px; padding-top:18px; }
   .note-fold { border-bottom:1px solid var(--line); padding:12px 0; }
   .note-fold summary { cursor:pointer; font:650 1rem/1.3 var(--f-display); font-stretch:88%; list-style:none; }
@@ -219,7 +330,7 @@ function renderStoryHtml({ story, facts, author, createdAt, model }) {
   .scale-tag { position:absolute; left:12px; top:38px; z-index:2; font:600 .72rem/1 var(--f-mono); letter-spacing:.08em; text-transform:uppercase; color:#fff; background:var(--accent); padding:6px 9px; border-radius:2px; transition:opacity .3s; }
   .scale-tag[hidden] { display:block; opacity:0; }
   .sat-badge { position:absolute; left:12px; top:12px; z-index:2; font:.66rem/1 var(--f-mono); letter-spacing:.04em; text-transform:uppercase; color:#fff; background:rgba(13,17,10,.62); padding:5px 8px; border-radius:2px; }
-  .tl { position:absolute; right:12px; bottom:28px; z-index:2; display:flex; align-items:center; gap:6px; background:rgba(251,251,249,.95); border:1px solid var(--line); border-radius:3px; padding:6px 8px; max-width:calc(100% - 320px); overflow-x:auto; }
+  .tl { position:absolute; right:12px; bottom:104px; z-index:2; display:flex; align-items:center; gap:6px; background:rgba(251,251,249,.95); border:1px solid var(--line); border-radius:3px; padding:6px 8px; max-width:calc(100% - 320px); overflow-x:auto; }
   .tl button { font:500 .72rem/1 var(--f-mono); border:1px solid var(--line-2); background:transparent; color:var(--ink-2); padding:6px 8px; border-radius:2px; cursor:pointer; white-space:nowrap; }
   .tl button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#fff; }
   .tl .tl-play { width:30px; padding:6px 0; }
@@ -235,7 +346,13 @@ function renderStoryHtml({ story, facts, author, createdAt, model }) {
     .map-wrap { position:sticky; top:0; height:42vh; z-index:2; order:-1; }
     .story { padding-top:28px; justify-self:stretch; }
     .step { min-height:40vh; }
-    .tl { left:12px; right:12px; max-width:none; bottom:8px; }
+    /* Phone: card bottom-left (the legends are hidden here), year player
+       above it, imagery credit collapsed to its (i) button */
+    .brand-card { left:8px; right:auto; bottom:8px; gap:6px; padding:4px 6px; }
+    .brand-card img { height:24px; }
+    .brand-rule { height:20px; }
+    .tl { left:8px; right:8px; max-width:none; bottom:52px; }
+    .sat-badge { max-width:calc(100% - 64px); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .legend { display:none; }
   }
 </style>
@@ -243,7 +360,7 @@ function renderStoryHtml({ story, facts, author, createdAt, model }) {
 <body>
 <div class="layout">
   <main class="story">
-    <p class="eyebrow"><b>${esc(story.kicker || 'ForestTrace story map')}</b> · ${esc(facts.regions.map((r) => r.name).join(', '))} · ${esc(span)}</p>
+    <p class="eyebrow"><b>${esc(story.kicker || 'ForestTrace story map')}</b> · ${esc(areaSummary)} · ${esc(span)}</p>
     <h1>${esc(story.title)}</h1>
     <p class="dek">${esc(story.dek)}</p>
     <div class="byline">${esc(author)} · ${esc(date)} · Data: ForestTrace, Remote Sensing Lab, Saint Louis University</div>
@@ -262,7 +379,7 @@ function renderStoryHtml({ story, facts, author, createdAt, model }) {
       </ol>` : ''}
     </section>
 ${sections.map((s, i) => `
-    <section class="step" id="step-${i + 1}" data-place="${esc(s.placeId || '')}">
+    <section class="step" id="step-${i + 1}" data-step="${i + 1}" data-topic="${esc(s.topic || '')}" data-place="${esc(s.placeId || '')}"${s.compare ? ` data-compare="${compareList.findIndex((c) => c.id === s.compare.id)}"` : ''}${s.regionFill ? ` data-fill="${fills.indexOf(s.regionFill)}"` : ''}>
       <span class="step-no" data-n="${i + 1}">Step ${i + 1} of ${sections.length}</span>
       <h2>${esc(s.heading)}</h2>
       ${(s.beats || s.paragraphs.map((p) => ({ text: p }))).map((b) => `<p class="beat"${b.placeId && places[b.placeId] ? ` data-place="${esc(b.placeId)}"` : ''}>${esc(b.text)}</p>`).join('\n      ')}
@@ -271,21 +388,13 @@ ${sections.map((s, i) => `
         <div class="chart-box"><canvas id="${s.chartId}"></canvas></div>
         <figcaption class="plate-foot">${esc(s.chart.caption)} Source: ${esc(s.chartSource)}.</figcaption>
       </figure>` : ''}
-      ${s.compare ? `<figure class="plate compare" id="${s.compare.el}">
-        <div class="plate-head"><span class="plate-title">${esc(s.compare.title)}</span><span class="plate-meta">drag the divider</span></div>
-        <div class="cmp">
-          <div class="cmp-map cmp-left"></div><div class="cmp-map cmp-right"></div>
-          <div class="cmp-line"><span class="cmp-handle" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-label="Compare ${esc(s.compare.left.label)} and ${esc(s.compare.right.label)}: drag, or use the arrow keys"></span></div>
-          <span class="yr-tag l">${esc(s.compare.left.label)}</span><span class="yr-tag r">${esc(s.compare.right.label)}</span>
-        </div>
-        <figcaption class="plate-foot">${esc(s.compare.caption)}</figcaption>
-      </figure>` : ''}
+      ${s.compare ? `<p class="cmp-hint"><span class="eyebrow">On the map</span> ${esc(s.compare.title)}: drag the divider to compare <b>${esc(s.compare.left.label)}</b> and <b>${esc(s.compare.right.label)}</b>, each over imagery from its year. ${esc(s.compare.caption.replace(/ Drag the divider on the map to compare\.$/, ''))}</p>` : ''}
     </section>`).join('')}
 
     <div class="back-matter">
       <details class="note-fold" id="how" open><summary>How this was made</summary><p>${esc(story.methodology)}</p></details>
       ${story.caveats.length ? `<details class="note-fold" id="caveats"><summary>Caveats</summary><ul>${story.caveats.map((c) => `<li>${esc(c)}</li>`).join('')}</ul></details>` : ''}
-      <details class="note-fold" id="sources"><summary>Sources</summary><ul>${usedSources.map((src) => `<li>${esc(src)}</li>`).join('')}<li>Basemap imagery: Esri, Maxar, Earthstar Geographics</li></ul></details>
+      <details class="note-fold" id="sources"><summary>Sources</summary><ul>${usedSources.map((src) => `<li>${esc(src)}</li>`).join('')}<li>Basemap imagery: Esri, Maxar, Earthstar Geographics${usesEox ? '; Sentinel-2 cloudless yearly mosaics by EOX IT Services GmbH (contains modified Copernicus Sentinel data)' : ''}</li></ul></details>
       <nav class="next-band" aria-label="More">
         <a class="next-card" href="#how"><span class="eyebrow">Method</span><b>How the figures were made</b><span>Data sources and processing behind every number.</span></a>
         ${story.caveats.length ? '<a class="next-card" href="#caveats"><span class="eyebrow">Limits</span><b>What the data can’t tell you</b><span>Caveats to keep in mind before citing these figures.</span></a>' : ''}
@@ -297,13 +406,18 @@ ${sections.map((s, i) => `
   </main>
   <div class="map-wrap">
     <div id="map" role="img" aria-label="Map of the area discussed in this story"></div>
-    <span class="sat-badge">Esri World Imagery · ${esc(span)} data</span>
+    <div id="map-after" class="map-after" hidden></div>
+    <div class="cmp-line" id="cmp-line" hidden><span class="cmp-handle" id="cmp-handle" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-label="Compare years: drag, or use the arrow keys"></span></div>
+    <span class="yr-tag l" id="yr-l" hidden></span><span class="yr-tag r" id="yr-r" hidden></span>
+    <span class="sat-badge" id="sat-badge">Imagery: ${esc(baseImagery.label)} · data ${esc(span)}</span>
     <span class="scale-tag" id="scale-tag" aria-live="polite">Canada</span>
     ${playerYears.length > 1 ? `<div class="tl" id="tl" role="group" aria-label="Year shown on the map">
       <button type="button" class="tl-play" id="tl-play" aria-label="Play years">▶</button>
       <button type="button" data-year="all" aria-pressed="true">All</button>
       ${playerYears.map((y) => `<button type="button" data-year="${y}" aria-pressed="false">${y}</button>`).join('')}
     </div>` : ''}
+    <div class="legend-stack">
+    ${sections.map((sec, i) => { const html = topicLegend(sec); return html ? `<div class="topic-legend" data-step="${i + 1}" hidden>${html}</div>` : ''; }).join('')}
     <div class="legend">
       ${facts.isWildfire ? `<div><span style="background:rgba(250,204,21,.85)"></span>Wildfire burned area (${esc(span)})</div>` : ''}
       ${hasCog('clearcut-accumulated') || (facts.isClearcut && facts.layers.patches.length) ? `<div><span style="background:rgba(217,119,6,.75)"></span>Standing clearcut (${esc(facts.year)})</div>` : ''}
@@ -312,6 +426,12 @@ ${sections.map((s, i) => `
       ${facts.hasCaribou ? `<div><span style="background:rgba(33,145,140,.8)"></span>Caribou habitat</div>` : ''}
       ${facts.layers.alerts.length ? '<div><span style="background:rgba(255,45,149,.75)"></span>Disturbance alerts (last 90 days)</div>' : ''}
       <div><span style="background:transparent;border:2px solid #fff"></span>Forest management unit</div>
+    </div>
+    </div>
+    <div class="brand-card" style="background:${BRAND_BG}">
+      <a href="__FT_ORIGIN__/" target="_blank" rel="noopener" title="Explore the data on ForestTrace"><img src="${FORESTTRACE_LOGO}" alt="ForestTrace"></a>
+      <span class="brand-rule" aria-hidden="true"></span>
+      <img src="${SLU_RSL_LOGO}" alt="Remote Sensing Lab, Saint Louis University">
     </div>
   </div>
 </div>
@@ -432,14 +552,35 @@ ${sections.map((s, i) => `
     }
   }
 
+  // The opening globe only with GPU-accelerated WebGL: a context that refuses
+  // a major performance caveat, not a known software renderer, a device with
+  // memory to spare, and no reduced-motion preference. Everyone else gets the
+  // flat Canada -> Ontario -> area zoom.
+  var GLOBE_OK = (function () {
+    try {
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
+      if (navigator.deviceMemory && navigator.deviceMemory < 4) return false;
+      var c = document.createElement('canvas');
+      var opts = { failIfMajorPerformanceCaveat: true };
+      var gl = c.getContext('webgl2', opts) || c.getContext('webgl', opts);
+      if (!gl) return false;
+      var info = gl.getExtension('WEBGL_debug_renderer_info');
+      var renderer = info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : '';
+      var lose = gl.getExtension('WEBGL_lose_context');
+      if (lose) lose.loseContext();
+      return !/swiftshader|llvmpipe|softpipe|software|basic render|microsoft basic/i.test(renderer);
+    } catch (e) {
+      return false;
+    }
+  })();
+
   var map = new maplibregl.Map({
     container: 'map',
     attributionControl: { compact: true },
     style: {
       version: 8,
       sources: {
-        imagery: { type: 'raster', tileSize: 256, attribution: 'Esri, Maxar, Earthstar Geographics',
-          tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'] },
+        imagery: { type: 'raster', tileSize: 256, attribution: page.imagery.attribution, tiles: page.imagery.tiles },
         labels: { type: 'raster', tileSize: 256,
           tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'] }
       },
@@ -448,9 +589,28 @@ ${sections.map((s, i) => `
         { id: 'labels', type: 'raster', source: 'labels' }
       ]
     },
-    center: [-96, 60], zoom: 2.4, cooperativeGestures: true
+    center: GLOBE_OK ? [-60, 40] : [-96, 60], zoom: GLOBE_OK ? 1.3 : 2.4, cooperativeGestures: true
   });
+  if (GLOBE_OK) {
+    document.querySelector('.map-wrap').classList.add('globe');
+    // MapLibre flattens the globe to Mercator as it zooms in, so the steps
+    // after the opening are unaffected
+    map.on('style.load', function () {
+      if (map.setProjection) map.setProjection({ type: 'globe' });
+      if (map.setSky) map.setSky({ 'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 5, 1, 7, 0] });
+    });
+  }
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+  // On narrow screens the expanded credit runs under the year player and the
+  // brand card: start it collapsed (its (i) button still opens it)
+  if (window.matchMedia && window.matchMedia('(max-width: 860px)').matches) {
+    map.once('load', function () {
+      document.querySelectorAll('.maplibregl-ctrl-attrib.maplibregl-compact-show').forEach(function (el) {
+        el.classList.remove('maplibregl-compact-show');
+        el.removeAttribute('open');
+      });
+    });
+  }
 
   function bboxPolygon(b) {
     return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]], [b[0], b[1]]]] } };
@@ -458,6 +618,8 @@ ${sections.map((s, i) => `
 
   map.on('load', function () {
     map.addSource('fmu', { type: 'geojson', data: fc(page.layers.boundaries) });
+    // Overview fills (each area in its chart colour), under every data layer
+    map.addLayer({ id: 'fmu-fill', type: 'fill', source: 'fmu', paint: { 'fill-color': '#9ca3af', 'fill-opacity': 0, 'fill-opacity-transition': { duration: 700, delay: 0 } } }, 'labels');
     map.addSource('patches', { type: 'geojson', data: fc(page.layers.patches) });
     map.addSource('alerts', { type: 'geojson', data: fc(page.layers.alerts) });
     map.addSource('focus', { type: 'geojson', data: fc([]) });
@@ -500,8 +662,11 @@ ${sections.map((s, i) => `
       map.addLayer({ id: 'hero-dot-halo', type: 'circle', source: 'hero-dot', paint: { 'circle-radius': 16, 'circle-color': '#fde047', 'circle-opacity': 0.25 } });
       map.addLayer({ id: 'hero-dot', type: 'circle', source: 'hero-dot', paint: { 'circle-radius': 6, 'circle-color': '#fde047', 'circle-stroke-color': '#171a14', 'circle-stroke-width': 1.5 } });
     }
+    addLabels(map);
+    mapReady = true;
     heroReady = true;
     updateHero();
+    if (pendingStep) { var p0 = pendingStep; pendingStep = null; applyStep(p0); }
   });
 
   // COGs only: a raster that fails to load is dropped, not swapped for a PNG
@@ -519,10 +684,21 @@ ${sections.map((s, i) => `
   });
 
   var current = null;
+  // The FMU a place belongs to: the FMU/range itself or a clearcut patch in
+  // it; null for overviews, alerts and drawn areas (no single FMU)
+  var focusRegion = null;
+  function regionOfPlace(placeId, place) {
+    if (!place) return null;
+    if (place.kind === 'fmu' || place.kind === 'range' || place.kind === 'clearcut_patch') return placeId.split(':')[1];
+    return null;
+  }
   function focusOn(placeId, animate) {
     var place = page.places[placeId];
     if (!place || !place.bbox || placeId === current) return;
     current = placeId;
+    focusRegion = regionOfPlace(placeId, place);
+    showLabelFor(focusRegion);
+    updateCompare();
     var b = place.bbox;
     var wide = place.kind === 'fmu' || place.kind === 'range' || place.kind === 'overview';
     map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 60, maxZoom: wide ? 9 : 13, duration: animate === false ? 0 : 1600 });
@@ -541,6 +717,24 @@ ${sections.map((s, i) => `
   var CANADA = [[-141, 41.7], [-52.6, 70]];
   var ONTARIO = [[-95.2, 41.7], [-74.3, 56.9]];
   var heroCams = null;
+  // Globe stage (capable GPUs only): spins until the reader scrolls or drags
+  // the map. GLOBE.lng is wherever the spin has got to.
+  var GLOBE = { lng: -60, lat: 40, zoom: 1.3 };
+  var spinning = false;
+  var userMoved = false;
+  function spin() {
+    if (!spinning) return;
+    GLOBE.lng = ((GLOBE.lng + 0.08 + 540) % 360) - 180;
+    map.jumpTo({ center: [GLOBE.lng, GLOBE.lat], zoom: GLOBE.zoom });
+    requestAnimationFrame(spin);
+  }
+  function setSpin(on) {
+    on = on && GLOBE_OK && !userMoved;
+    if (on === spinning) return;
+    spinning = on;
+    if (on) requestAnimationFrame(spin);
+  }
+  map.on('dragstart', function () { userMoved = true; setSpin(false); });
   var lerp = function (a, b, t) { return a + (b - a) * t; };
   var ease = function (t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; };
   function heroCameras() {
@@ -552,7 +746,8 @@ ${sections.map((s, i) => `
       return c ? { lng: c.center.lng !== undefined ? c.center.lng : c.center[0], lat: c.center.lat !== undefined ? c.center.lat : c.center[1], zoom: c.zoom } : null;
     };
     var cams = [cam(CANADA, 4), cam(ONTARIO, 6), cam([[b[0], b[1]], [b[2], b[3]]], 9)];
-    return cams.every(Boolean) ? cams : null;
+    if (!cams.every(Boolean)) return null;
+    return GLOBE_OK ? [GLOBE].concat(cams) : cams;
   }
   function heroProgress() {
     if (!heroEnd) return 1;
@@ -564,6 +759,7 @@ ${sections.map((s, i) => `
     if (!heroReady) return;
     var p = heroProgress();
     if (p >= 1) {
+      setSpin(false);
       if (!heroDone) {
         heroDone = true;
         current = null;
@@ -574,14 +770,26 @@ ${sections.map((s, i) => `
       return;
     }
     heroDone = false;
+    showLabelFor(null);   // no FMU names during the opening
     heroCams = heroCams || heroCameras();
     if (!heroCams) return;
-    // First 40% of the hero: Canada -> Ontario; the rest: Ontario -> the area
-    var seg = p < 0.4 ? 0 : 1;
-    var t = ease(seg === 0 ? p / 0.4 : (p - 0.4) / 0.6);
+    // Globe: spins at the top, then globe -> Canada (30%), Canada -> Ontario
+    // (to 60%), Ontario -> the area. Flat: Canada -> Ontario (40%) -> area.
+    setSpin(p === 0);
+    if (GLOBE_OK && p === 0) {
+      if (tag) { tag.hidden = false; tag.textContent = 'Canada'; }
+      return;
+    }
+    var stops = GLOBE_OK ? [0, 0.3, 0.6, 1] : [0, 0.4, 1];
+    var seg = 0;
+    while (seg < stops.length - 2 && p >= stops[seg + 1]) seg += 1;
+    var t = ease((p - stops[seg]) / (stops[seg + 1] - stops[seg]));
     var a = heroCams[seg];
     var c = heroCams[seg + 1];
-    map.jumpTo({ center: [lerp(a.lng, c.lng, t), lerp(a.lat, c.lat, t)], zoom: lerp(a.zoom, c.zoom, t) });
+    // From the globe, take the shortest way round from wherever the spin stopped
+    var aLng = a.lng;
+    if (a === GLOBE) { while (aLng - c.lng > 180) aLng -= 360; while (c.lng - aLng > 180) aLng += 360; }
+    map.jumpTo({ center: [lerp(aLng, c.lng, t), lerp(a.lat, c.lat, t)], zoom: lerp(a.zoom, c.zoom, t) });
     current = null;
     if (map.getLayer('hero-dot')) {
       var show = p < 0.85 ? 'visible' : 'none';
@@ -590,7 +798,7 @@ ${sections.map((s, i) => `
     }
     if (tag) {
       tag.hidden = false;
-      tag.textContent = p < 0.25 ? 'Canada' : (p < 0.7 ? 'Ontario' : page.heroLabel);
+      tag.textContent = p < (GLOBE_OK ? 0.45 : 0.25) ? 'Canada' : (p < (GLOBE_OK ? 0.8 : 0.7) ? 'Ontario' : page.heroLabel);
     }
   }
   var heroTick = false;
@@ -610,110 +818,226 @@ ${sections.map((s, i) => `
       if (!e.isIntersecting) return;
       var step = e.target.closest('.step');
       steps.forEach(function (s) { s.classList.toggle('active', s === step); });
+      applyStep(step);
       if (step === heroEnd && !heroDone) return;   // the opening zoom drives the map here
-      if (map.loaded()) focusOn(e.target.getAttribute('data-place') || (step && step.getAttribute('data-place')));
+      if (mapReady) focusOn(e.target.getAttribute('data-place') || (step && step.getAttribute('data-place')));
     });
   }, { rootMargin: '-45% 0px -45% 0px' });
   steps.concat(beats).forEach(function (s) { observer.observe(s); });
 
-  // Compare plates: two synced maps, the right one clipped by the slider.
-  // Built when scrolled near, so a long story doesn't start four maps at once.
-  function initCompare(cmp) {
-    var root = document.getElementById(cmp.el);
-    if (!root || root.getAttribute('data-ready')) return;
-    root.setAttribute('data-ready', '1');
-    var place = page.places[cmp.placeId];
-    var b = place && place.bbox;
-    var make = function (container, side) {
-      var m = new maplibregl.Map({
-        container: container,
-        style: { version: 8, sources: { imagery: { type: 'raster', tileSize: 256,
-          tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'] } },
-          layers: [{ id: 'imagery', type: 'raster', source: 'imagery' }] },
-        bounds: b ? [[b[0], b[1]], [b[2], b[3]]] : undefined,
-        fitBoundsOptions: { padding: 24 },
-        attributionControl: false,
-        cooperativeGestures: true
-      });
-      m.on('load', function () {
-        if (side.cog) {
-          var url = cogUrlOf(side.cog);
-          registerColor(side.cog, url);
-          m.addSource('c', { type: 'raster', url: 'cog://' + url, tileSize: 256 });
-          m.addLayer({ id: 'c', type: 'raster', source: 'c', paint: { 'raster-opacity': side.cog.opacity || 0.8 } });
-        }
-        m.addSource('fmu', { type: 'geojson', data: fc(page.layers.boundaries) });
-        m.addLayer({ id: 'fmu', type: 'line', source: 'fmu', paint: { 'line-color': '#ffffff', 'line-width': 1.5 } });
-      });
-      return m;
-    };
-    var left = make(root.querySelector('.cmp-left'), cmp.left);
-    var right = make(root.querySelector('.cmp-right'), cmp.right);
-    var syncing = false;
-    var link = function (a, c) {
-      a.on('move', function () {
-        if (syncing) return;
-        syncing = true;
-        c.jumpTo({ center: a.getCenter(), zoom: a.getZoom(), bearing: a.getBearing(), pitch: a.getPitch() });
-        syncing = false;
-      });
-    };
-    link(left, right);
-    link(right, left);
-    // Drag the divider on the map itself (pointer events cover mouse, touch
-    // and pen); the handle also takes arrow keys
-    var frame = root.querySelector('.cmp');
-    var rightEl = root.querySelector('.cmp-right');
-    var line = root.querySelector('.cmp-line');
-    var handle = root.querySelector('.cmp-handle');
-    var pos = 50;
-    var set = function (v) {
-      pos = Math.max(0, Math.min(100, v));
-      rightEl.style.clipPath = 'inset(0 0 0 ' + pos + '%)';
-      line.style.left = pos + '%';
-      handle.setAttribute('aria-valuenow', String(Math.round(pos)));
-    };
-    var fromEvent = function (e) {
-      var r = frame.getBoundingClientRect();
-      set(((e.clientX - r.left) / r.width) * 100);
-    };
-    line.addEventListener('pointerdown', function (e) {
-      e.preventDefault();
-      line.setPointerCapture(e.pointerId);
-      frame.classList.add('dragging');
-      fromEvent(e);
+  // FMU names at their centres: only the FMU the story is looking at, so
+  // overviews and zoomed-out views stay free of overlapping names
+  var wrap = document.querySelector('.map-wrap');
+  function addLabels(m) {
+    (page.regionLabels || []).forEach(function (r) {
+      var wrapper = document.createElement('div');
+      var el = document.createElement('div');
+      el.className = 'fmu-label' + (r.id === focusRegion && heroDone ? ' on' : '');
+      el.setAttribute('data-id', r.id);
+      el.textContent = r.name;
+      wrapper.appendChild(el);
+      new maplibregl.Marker({ element: wrapper }).setLngLat(r.point).addTo(m);
     });
-    line.addEventListener('pointermove', function (e) {
-      if (line.hasPointerCapture(e.pointerId)) fromEvent(e);
-    });
-    var end = function (e) {
-      if (line.hasPointerCapture(e.pointerId)) line.releasePointerCapture(e.pointerId);
-      frame.classList.remove('dragging');
-    };
-    line.addEventListener('pointerup', end);
-    line.addEventListener('pointercancel', end);
-    handle.addEventListener('keydown', function (e) {
-      var step = e.shiftKey ? 10 : 2;
-      if (e.key === 'ArrowLeft') { set(pos - step); e.preventDefault(); }
-      else if (e.key === 'ArrowRight') { set(pos + step); e.preventDefault(); }
-      else if (e.key === 'Home') { set(0); e.preventDefault(); }
-      else if (e.key === 'End') { set(100); e.preventDefault(); }
-    });
-    set(50);
   }
-  if ((page.compares || []).length) {
-    var cmpObserver = new IntersectionObserver(function (entries) {
-      entries.forEach(function (e) {
-        if (!e.isIntersecting) return;
-        var cmp = page.compares.find(function (c) { return c.el === e.target.id; });
-        if (cmp) initCompare(cmp);
-        cmpObserver.unobserve(e.target);
-      });
-    }, { rootMargin: '300px 0px' });
-    page.compares.forEach(function (c) {
-      var el = document.getElementById(c.el);
-      if (el) cmpObserver.observe(el);
+  function showLabelFor(regionId) {
+    document.querySelectorAll('.fmu-label').forEach(function (el) {
+      el.classList.toggle('on', Boolean(regionId) && el.getAttribute('data-id') === regionId && heroDone);
     });
+  }
+
+  function setImagery(m, im) {
+    var src = m.getSource('imagery');
+    if (src && src.setTiles) src.setTiles(im.tiles);
+  }
+  var badge = document.getElementById('sat-badge');
+  function setBadge(text) { if (badge) badge.textContent = text; }
+
+  function addCog(m, cog, key) {
+    var url = cogUrlOf(cog);
+    registerColor(cog, url);
+    if (m.getSource('cog-' + key)) return;
+    m.addSource('cog-' + key, { type: 'raster', url: 'cog://' + url, tileSize: 256 });
+    m.addLayer({ id: 'cog-layer-' + key, type: 'raster', source: 'cog-' + key, paint: { 'raster-opacity': cog.opacity || 0.8 } }, m.getLayer('labels') ? 'labels' : undefined);
+  }
+  function removeCog(m, key) {
+    if (m.getLayer('cog-layer-' + key)) m.removeLayer('cog-layer-' + key);
+    if (m.getSource('cog-' + key)) m.removeSource('cog-' + key);
+  }
+
+  // Year shown by the player ('all' = every year); kept so a compare can
+  // hand the map back exactly as it found it
+  var tlYear = 'all';
+  function applyYear(y) {
+    tlYear = y;
+    if (cmpState) return;
+    (page.layers.cogs || []).forEach(function (c) {
+      if (page.perYearLayers.indexOf(c.layerId) < 0) return;
+      var id = 'cog-layer-' + c.id;
+      if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', (y === 'all' || c.year === Number(y)) ? 'visible' : 'none');
+    });
+    var im = y === 'all' ? page.imagery : (page.imageryByYear[y] || page.imagery);
+    setImagery(map, im);
+    setBadge('Imagery: ' + im.label + (y === 'all' ? '' : ' · data ' + y));
+  }
+
+  // Compare slider on the main map, while a step that compares years is
+  // read: the main map shows the "before" year (its imagery and layer), an
+  // overlay map clipped by the divider shows the "after" year, kept in step.
+  var afterEl = document.getElementById('map-after');
+  var cmpLine = document.getElementById('cmp-line');
+  var cmpHandle = document.getElementById('cmp-handle');
+  var yrL = document.getElementById('yr-l');
+  var yrR = document.getElementById('yr-r');
+  var cmpState = null;
+  var cmpPos = 50;
+  function setCmp(v) {
+    cmpPos = Math.max(0, Math.min(100, v));
+    afterEl.style.clipPath = 'inset(0 0 0 ' + cmpPos + '%)';
+    cmpLine.style.left = cmpPos + '%';
+    cmpHandle.setAttribute('aria-valuenow', String(Math.round(cmpPos)));
+  }
+  // The story layers a compare replaces: the same product as the compared
+  // one. Everything else stays on both sides as context.
+  var COMPARED = {
+    habitat: ['caribou-habitat'],
+    clearcut: ['clearcut-accumulated', 'clearcut-annual', 'clearcut-ml-accumulated', 'clearcut-ml-annual'],
+    fire: ['wildfire-burned'],
+  };
+  var isCompared = function (cmp, c) { return (COMPARED[cmp.topic] || []).indexOf(c.layerId) >= 0; };
+  // A context layer belongs on a side only if its data existed by that side's
+  // year: a 2021 burn must not appear on a 2016 view
+  var YEARLESS_VECTORS = ['patches', 'alerts-fill', 'alerts-line'];
+  var upTo = function (c, year) { return !c.year || !Number(year) || c.year <= Number(year); };
+  var isShown = function (c) {
+    return page.perYearLayers.indexOf(c.layerId) < 0 || tlYear === 'all' || c.year === Number(tlYear);
+  };
+  function enterCompare(cmp) {
+    if (!cmp || (cmpState && cmpState.cmp === cmp)) return;
+    exitCompare();
+    (page.layers.cogs || []).forEach(function (c) {
+      var hide = isCompared(cmp, c) || !upTo(c, cmp.left.year);
+      if (hide && map.getLayer('cog-layer-' + c.id)) map.setLayoutProperty('cog-layer-' + c.id, 'visibility', 'none');
+    });
+    // The story-year clearcut patches and recent alerts are from after the
+    // "before" year too; hidden for the comparison
+    YEARLESS_VECTORS.forEach(function (id) { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', 'none'); });
+    setImagery(map, cmp.left.imagery);
+    if (cmp.left.cog) addCog(map, cmp.left.cog, 'cmp-left');
+    afterEl.hidden = false;
+    var after = new maplibregl.Map({
+      container: afterEl,
+      style: { version: 8, sources: { imagery: { type: 'raster', tileSize: 256, tiles: cmp.right.imagery.tiles } },
+        layers: [{ id: 'imagery', type: 'raster', source: 'imagery' }] },
+      center: map.getCenter(), zoom: map.getZoom(), attributionControl: false, cooperativeGestures: true
+    });
+    after.on('load', function () {
+      (page.layers.cogs || []).forEach(function (c) {
+        if (!isCompared(cmp, c) && isShown(c) && upTo(c, cmp.right.year)) addCog(after, c, 'ctx-' + c.id);
+      });
+      if (cmp.right.cog) addCog(after, cmp.right.cog, 'cmp-right');
+      after.addSource('fmu', { type: 'geojson', data: fc(page.layers.boundaries) });
+      after.addLayer({ id: 'fmu', type: 'line', source: 'fmu', paint: { 'line-color': '#ffffff', 'line-width': 2 } });
+      addLabels(after);
+    });
+    var syncing = false;
+    var onMain = function () {
+      if (syncing) return;
+      syncing = true;
+      after.jumpTo({ center: map.getCenter(), zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() });
+      syncing = false;
+    };
+    after.on('move', function () {
+      if (syncing) return;
+      syncing = true;
+      map.jumpTo({ center: after.getCenter(), zoom: after.getZoom(), bearing: after.getBearing(), pitch: after.getPitch() });
+      syncing = false;
+    });
+    map.on('move', onMain);
+    cmpLine.hidden = false;
+    yrL.hidden = false;
+    yrR.hidden = false;
+    yrL.textContent = cmp.left.label + ' · imagery ' + cmp.left.imagery.year;
+    yrR.textContent = cmp.right.label + ' · imagery ' + cmp.right.imagery.year;
+    setBadge('Imagery: ' + cmp.left.imagery.label + ' | ' + cmp.right.imagery.label);
+    cmpState = { cmp: cmp, after: after, onMain: onMain };
+    setCmp(50);
+  }
+  function exitCompare() {
+    if (!cmpState) return;
+    map.off('move', cmpState.onMain);
+    cmpState.after.remove();
+    cmpState = null;
+    afterEl.hidden = true;
+    cmpLine.hidden = true;
+    yrL.hidden = true;
+    yrR.hidden = true;
+    removeCog(map, 'cmp-left');
+    YEARLESS_VECTORS.forEach(function (id) { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', 'visible'); });
+    (page.layers.cogs || []).forEach(function (c) {
+      if (map.getLayer('cog-layer-' + c.id)) map.setLayoutProperty('cog-layer-' + c.id, 'visibility', 'visible');
+    });
+    applyYear(tlYear);
+  }
+  // Drag the divider (mouse, touch, pen), or arrow keys on the handle
+  var fromPointer = function (e) {
+    var r = wrap.getBoundingClientRect();
+    setCmp(((e.clientX - r.left) / r.width) * 100);
+  };
+  cmpLine.addEventListener('pointerdown', function (e) {
+    e.preventDefault();
+    cmpLine.setPointerCapture(e.pointerId);
+    wrap.classList.add('dragging');
+    fromPointer(e);
+  });
+  cmpLine.addEventListener('pointermove', function (e) {
+    if (cmpLine.hasPointerCapture(e.pointerId)) fromPointer(e);
+  });
+  var endDrag = function (e) {
+    if (cmpLine.hasPointerCapture(e.pointerId)) cmpLine.releasePointerCapture(e.pointerId);
+    wrap.classList.remove('dragging');
+  };
+  cmpLine.addEventListener('pointerup', endDrag);
+  cmpLine.addEventListener('pointercancel', endDrag);
+  cmpHandle.addEventListener('keydown', function (e) {
+    var stepBy = e.shiftKey ? 10 : 2;
+    if (e.key === 'ArrowLeft') { setCmp(cmpPos - stepBy); e.preventDefault(); }
+    else if (e.key === 'ArrowRight') { setCmp(cmpPos + stepBy); e.preventDefault(); }
+    else if (e.key === 'Home') { setCmp(0); e.preventDefault(); }
+    else if (e.key === 'End') { setCmp(100); e.preventDefault(); }
+  });
+
+  // What a step brings to the map besides its places: its sub-legend, the
+  // overview's area colours (faded in and out) and a year comparison
+  var activeStep = null;
+  var pendingStep = null;
+  // Set once the style and layers are in; map.loaded() is false whenever
+  // tiles are still arriving, which would park steps indefinitely
+  var mapReady = false;
+  function applyStep(step) {
+    if (!mapReady) { pendingStep = step; return; }
+    if (step === activeStep) return;
+    activeStep = step;
+    var n = step ? step.getAttribute('data-step') : null;
+    document.querySelectorAll('.topic-legend').forEach(function (el) { el.hidden = el.getAttribute('data-step') !== n; });
+    var fi = step ? step.getAttribute('data-fill') : null;
+    var fill = fi !== null && fi !== '' ? page.fills[Number(fi)] : null;
+    if (map.getLayer('fmu-fill')) {
+      var pairs = fill ? Object.keys(fill).reduce(function (a, k) { return a.concat([k, fill[k]]); }, []) : [];
+      if (pairs.length) // Areas without data for the chart stay unfilled (outline only); grey is
+      // for the ones folded into the chart's "Other" slice
+      map.setPaintProperty('fmu-fill', 'fill-color', ['match', ['get', 'regionId']].concat(pairs, ['rgba(0, 0, 0, 0)']));
+      map.setPaintProperty('fmu-fill', 'fill-opacity', pairs.length ? 0.45 : 0);
+    }
+    var ci = step ? step.getAttribute('data-compare') : null;
+    stepCompare = ci !== null && ci !== '' ? page.compares[Number(ci)] : null;
+    updateCompare();
+  }
+  // A step's compare is on only while the map is on its FMU (the beat about
+  // that area), not during the step's overview of every area
+  var stepCompare = null;
+  function updateCompare() {
+    if (stepCompare && heroDone && current === stepCompare.placeId) enterCompare(stepCompare);
+    else exitCompare();
   }
 
   var palette = { clearcut_accumulated: '#d97706', clearcut_new: '#dc2626', clearcut_accuracy: '#2f8f5b', wildfire_area: '#ca8a04', caribou_core: '#21918c', alerts_monthly: '#c026d3' };
@@ -733,11 +1057,7 @@ ${sections.map((s, i) => `
       tl.querySelectorAll('[data-year]').forEach(function (b) {
         b.setAttribute('aria-pressed', String(b.getAttribute('data-year') === String(y)));
       });
-      (page.layers.cogs || []).forEach(function (c) {
-        if (page.perYearLayers.indexOf(c.layerId) < 0) return;
-        var id = 'cog-layer-' + c.id;
-        if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', (y === 'all' || c.year === Number(y)) ? 'visible' : 'none');
-      });
+      applyYear(y);
     };
     tl.addEventListener('click', function (e) {
       var b = e.target.closest('button');

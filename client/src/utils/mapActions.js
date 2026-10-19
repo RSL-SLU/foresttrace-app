@@ -13,10 +13,17 @@
  *   highlight_patches the clearcut patches matching a query -- largest first, or
  *                     above a size threshold -- drawn from the published patch
  *                     vectors. The model chooses the region, year and query;
- *                     the geometry comes from the data. This is deliberately
- *                     the only way the agent draws a shape tied to a specific
- *                     place: a generic FMU outline says nothing a query didn't
- *                     already ask for, so there is no "outline this region" action.
+ *                     the geometry comes from the data.
+ *   highlight_layer   the same for every other module, from the app's own COGs
+ *                     (cogFinder.js): largest burned areas, harvest blocks, AI
+ *                     clearcuts, core caribou habitat patches, logging scars.
+ *   highlight_alerts  disturbance alerts already loaded in the app (largest,
+ *                     newest, or confirmed only).
+ *
+ * These finders are the only way the agent draws a shape tied to a specific
+ * place: a generic FMU outline says nothing a query didn't already ask for, so
+ * there is no "outline this region" action. A finder with no region falls back
+ * to the FMUs selected on the map, and with no year to the year on the map.
  *
  * Everything below is validation of untrusted model output: bounds, size, and
  * count are all capped, and anything failing is dropped rather than corrected,
@@ -24,6 +31,7 @@
  */
 
 import { DATA_BASE_URL } from '../config';
+import { findInCog, FINDER_LAYERS } from './cogFinder';
 
 // Ontario plus a wide margin. A coordinate outside this is a hallucination or a
 // lat/lon swap, and both should be refused rather than drawn.
@@ -226,6 +234,78 @@ async function patchRings(shape) {
   return rings;
 }
 
+// Finders over several FMUs read one raster each; past this they'd be slow
+const MAX_FINDER_REGIONS = 6;
+
+/** Regions a finder runs over: the one it names, else the FMUs on the map. */
+function finderRegions(shape, ctx) {
+  if (shape.region) return [regionKey(shape.region)].filter(Boolean);
+  return (ctx.regions || []).map(regionKey).filter(Boolean).slice(0, MAX_FINDER_REGIONS);
+}
+
+const fmtHa = (ha) => `${Math.round(ha).toLocaleString('en-US')} ha`;
+
+/**
+ * highlight_layer: the largest areas of a module's layer, from its COGs, over
+ * every region asked about, ranked together. Returns { rings, labels, error }.
+ */
+async function layerRings(shape, ctx) {
+  const layer = FINDER_LAYERS[shape.layer];
+  if (!layer) return { rings: [], error: `unknown layer "${shape.layer}" (use ${Object.keys(FINDER_LAYERS).join(', ')})` };
+  const regions = finderRegions(shape, ctx);
+  if (!regions.length) return { rings: [], error: 'no region given and no FMU selected on the map' };
+  const year = Number.isFinite(Number(shape.year)) && shape.year !== null && shape.year !== '' ? Number(shape.year) : Number(ctx.year);
+  const count = Math.min(Math.max(Number(shape.count) || 5, 1), 25);
+  const results = await Promise.all(regions.map((region) => findInCog({ ...shape, region, year, count })
+    .then((r) => ({ ...r, region }))));
+  const found = results.flatMap((r) => r.found.map((f) => ({ ...f, region: r.region })))
+    .sort((a, b) => b.ha - a.ha)
+    .slice(0, count);
+  if (!found.length) {
+    const why = results.map((r) => r.error).filter(Boolean)[0];
+    return { rings: [], error: why || `no ${layer.noun} found for ${regions.join(', ')}${layer.needsYear ? ` ${year}` : ''}` };
+  }
+  return {
+    rings: found.map((f) => f.ring),
+    labels: found.map((f) => `${layer.noun}, ${fmtHa(f.ha)}${layer.needsYear ? ` (${year})` : ''}`),
+  };
+}
+
+/**
+ * highlight_alerts: alerts the app has loaded (signed in, last 180 days),
+ * filtered to the region(s), ranked largest or newest first.
+ */
+function alertRings(shape, ctx) {
+  const all = Array.isArray(ctx.alerts) ? ctx.alerts : [];
+  if (!all.length) return { rings: [], error: 'no disturbance alerts loaded (sign in and open Disturbance Alerts)' };
+  const regions = shape.region ? finderRegions(shape, ctx) : null;
+  const days = Number(shape.days) > 0 ? Number(shape.days) : null;
+  const now = Date.now();
+  const picked = all.filter((f) => {
+    const p = f.properties || {};
+    if (regions && !regions.includes(regionKey(p.region))) return false;
+    if (shape.confirmedOnly && p.status !== 'confirmed') return false;
+    if (days && now - new Date(p.firstDetected).getTime() > days * 86400000) return false;
+    return true;
+  });
+  const byNewest = shape.sortBy === 'newest';
+  picked.sort((a, b) => (byNewest
+    ? new Date(b.properties.firstDetected) - new Date(a.properties.firstDetected)
+    : (b.properties.areaHa || 0) - (a.properties.areaHa || 0)));
+  const count = Math.min(Math.max(Number(shape.count) || 5, 1), 25);
+  const rings = [];
+  const labels = [];
+  picked.slice(0, count).forEach((f) => {
+    const g = f.geometry;
+    const featureRings = g?.type === 'Polygon' ? [g.coordinates[0]] : g?.type === 'MultiPolygon' ? g.coordinates.map((p) => p[0]) : [];
+    featureRings.forEach((ring) => {
+      rings.push(ring);
+      labels.push(`${f.properties.status === 'confirmed' ? 'Confirmed' : 'Provisional'} alert, ${fmtHa(f.properties.areaHa || 0)}, ${String(f.properties.firstDetected).slice(0, 10)}`);
+    });
+  });
+  return rings.length ? { rings, labels } : { rings: [], error: 'no alerts match that query' };
+}
+
 /** Ids the assistant may query with highlight_patches. Falls back to what's loaded if the fetch fails. */
 export async function availableRegionIds(regionsData) {
   const overview = await loadOverview();
@@ -241,7 +321,7 @@ export async function availableRegionIds(regionsData) {
  *   reason to show the user -- a refusal the reader can see beats geometry that
  *   quietly never appeared.
  */
-export async function actionToFeatures(action) {
+export async function actionToFeatures(action, ctx = {}) {
   if (!action || typeof action !== 'object') return { features: [], rejected: null };
 
   const shapes = Array.isArray(action.shapes) ? action.shapes : [action];
@@ -252,6 +332,8 @@ export async function actionToFeatures(action) {
   const features = [];
   for (const shape of shapes) {
     let rings = [];
+    let labels = null;
+    let finderError = null;
     switch (shape?.action) {
       case 'draw_bbox': {
         const ring = bboxFeature(shape.center || [], Number(shape.sizeKm));
@@ -263,20 +345,35 @@ export async function actionToFeatures(action) {
         if (ring) rings = [ring];
         break;
       }
-      case 'highlight_patches':
-        rings = await patchRings(shape);
+      case 'highlight_patches': {
+        // No region or year given: the first FMU and the year on the map
+        const region = shape.region || (ctx.regions || [])[0];
+        const year = shape.year ?? ctx.year;
+        rings = await patchRings({ ...shape, region, year });
+        labels = rings.map((ring) => `clearcut patch, ${fmtHa(featureAreaHa([ring]))} (${year})`);
+        if (!rings.length) finderError = `no patch data published for ${region || 'the selected area'} ${year}`;
         break;
+      }
+      case 'highlight_layer': {
+        const r = await layerRings(shape, ctx);
+        rings = r.rings;
+        labels = r.labels || null;
+        finderError = r.error || null;
+        break;
+      }
+      case 'highlight_alerts': {
+        const r = alertRings(shape, ctx);
+        rings = r.rings;
+        labels = r.labels || null;
+        finderError = r.error || null;
+        break;
+      }
       default:
         break;
     }
 
     if (rings.length === 0) {
-      if (shape?.action === 'highlight_patches') {
-        return {
-          features: [],
-          rejected: `refused: no patch data published for ${shape.region} ${shape.year}`,
-        };
-      }
+      if (finderError) return { features: [], rejected: `refused: ${finderError}` };
       return {
         features: [],
         rejected: `refused: "${shape?.action || 'unknown'}" produced no valid geometry `
@@ -284,7 +381,8 @@ export async function actionToFeatures(action) {
       };
     }
 
-    rings.forEach((ring) => features.push({
+    const isFinder = /^highlight_/.test(shape.action);
+    rings.forEach((ring, i) => features.push({
       // terra-draw's default id strategy validates ids as UUIDs and rejects a
       // feature that arrives without one -- silently, since addFeatures returns
       // validation results rather than throwing.
@@ -296,7 +394,10 @@ export async function actionToFeatures(action) {
         // Carried so the UI can always say where a shape came from. Nothing
         // downstream should treat these as user intent.
         proposedBy: 'assistant',
-        label: typeof shape.label === 'string' ? shape.label.slice(0, 80) : undefined,
+        label: labels?.[i] || (typeof shape.label === 'string' ? shape.label.slice(0, 80) : undefined),
+        // Found in the data (not drawn from numbers the user gave): the map
+        // blinks these so they can be spotted
+        highlight: isFinder || undefined,
       },
     }));
   }

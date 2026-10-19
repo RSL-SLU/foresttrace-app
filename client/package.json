@@ -12,6 +12,7 @@
     "@testing-library/user-event": "^13.5.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
+    "geotiff": "^3.0.5",
     "groq-sdk": "^1.2.1",
     "leaflet": "^1.9.4",
     "leaflet.tilelayer.colorfilter": "^1.2.5",

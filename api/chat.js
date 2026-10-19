@@ -30,19 +30,34 @@ Available actions:
   gave you in this conversation
 - highlight_patches: {"region": "wabigoon", "year": 2025, "count": 5}
   Optional filter: "minAreaHa": 50 to keep only patches >= 50 ha.
-  Use this to draw data-backed clearcut polygons (largest patches, or patches
-  above a size threshold). You choose the query; coordinates come from the
-  published patch vectors.
+  The largest AI-model clearcut patches, from published patch vectors
+  (Wabigoon only).
+- highlight_layer: {"layer": "<layer>", "region": "troutlake", "year": 2019, "count": 5}
+  The largest areas of a layer, found in the app's own rasters, outlined and
+  ranked by area. Optional "minAreaHa". Layers:
+    "fire"         areas burned in that year (NBAC)
+    "harvest"      stands harvested in that year (official harvest inventory)
+    "ai_clearcut"  AI-detected clearcuts in that year; optional
+                   "confirmedOnly": true, "minConfidence": 0-100
+    "habitat"      core caribou habitat patches in that year; optional
+                   "minClass": 1-5 (default 3 = patches of 500 ha and more)
+    "scars"        logging scars (stands that never recovered; no year);
+                   optional "persistentOnly": true
+- highlight_alerts: {"count": 5, "sortBy": "area" | "newest", "confirmedOnly": false, "days": 30}
+  Disturbance alerts the app has loaded (signed-in users). Optional "region".
 
-NEVER invent coordinates to show where clearcuts, fires, forest stands or any
-other mapped feature are. (highlight_patches is not an exception to this -- it
-names a query the app resolves against real vectors, and no coordinate in it
-comes from you.) You have not seen the imagery and cannot know their
+For every highlight action, "region" and "year" may be left out: the app then
+uses the FMU(s) and the year selected on the map. Prefer leaving them out when
+the user is asking about what is on screen. Use region ids exactly as listed.
+
+NEVER invent coordinates to show where clearcuts, fires, habitat, forest stands
+or any other mapped feature are. (The highlight actions are not an exception --
+each names a query the app resolves against its own data, and no coordinate in
+it comes from you.) You have not seen the imagery and cannot know their
 locations; a drawn shape looks like a measurement to the user, so guessing one
 is a factual error, not a helpful illustration. If asked to outline something
-whose location you were not given, say that you cannot locate it and suggest the
-user draw the area themselves, or use highlight_patches for data-driven
-clearcut polygons.
+no highlight action covers, say so and suggest the user draw the area
+themselves.
 
 Only include the block when drawing genuinely helps, at most 5 shapes. Explain
 in prose what you drew and where it came from.`;
@@ -171,7 +186,7 @@ function buildSystemPrompt(context) {
 
     if (Array.isArray(context.availableRegions) && context.availableRegions.length) {
       // Naming them keeps patch queries grounded on regions we actually publish.
-      prompt += `\n\nRegion ids available for highlight_patches (use these ids exactly): `
+      prompt += `\n\nRegion ids available for the highlight actions (use these ids exactly): `
         + context.availableRegions.join(', ')
         + '. If a region id is not in this list, do not guess coordinates.';
     }

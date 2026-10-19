@@ -202,6 +202,12 @@ function section(topic, heading, beats, extra = {}) {
 // it (a story over many FMUs) the top ones are described, the rest summed up,
 // and the chart becomes a ranked bar of the latest values.
 const MANY = 6;
+
+// Region colours for the overview: the donut slices and the same areas
+// filled on the map. Picked to sit apart from the layer colours (clearcut
+// amber/red, fire yellow, caribou viridis/teal) under a 45% fill.
+const REGION_COLORS = ['#4e79a7', '#e15759', '#b07aa1', '#f28e2b', '#76b7b2', '#9c755f'];
+const OTHER_COLOR = '#9ca3af';
 const SHOWN_WHEN_MANY = 3;
 
 /** The rows to describe one by one, and a summary beat for the others. */
@@ -254,7 +260,7 @@ const TOPICS = {
       : ['fire', 'burned area', (s) => s.total]);
     if (!pick) return null;
     const [key, noun, valueOf] = pick;
-    const rows = signals.filter((s) => s[key]).map((s) => ({ name: s.region.name, v: valueOf(s[key]), s: s[key] }))
+    const rows = signals.filter((s) => s[key]).map((s) => ({ id: s.region.id, name: s.region.name, v: valueOf(s[key]), s: s[key] }))
       .sort((a, b) => b.v - a.v);
     if (rows.length < 2) return null;
     const total = rows.reduce((a, r) => a + r.v, 0);
@@ -262,8 +268,14 @@ const TOPICS = {
     const lead = rows[0];
     // A donut stays readable with about six slices: the rest become "Other"
     const slices = rows.length > MANY
-      ? rows.slice(0, MANY - 1).concat([{ name: `Other ${rows.length - MANY + 1} areas`, v: rows.slice(MANY - 1).reduce((a, r) => a + r.v, 0) }])
+      ? rows.slice(0, MANY - 1).concat([{ name: `Other ${rows.length - MANY + 1} areas`, v: rows.slice(MANY - 1).reduce((a, r) => a + r.v, 0), other: true }])
       : rows;
+    const sliceColors = slices.map((r, i) => (r.other ? OTHER_COLOR : REGION_COLORS[i % REGION_COLORS.length]));
+    // Every area's map fill: its slice colour, or grey when folded into "Other"
+    const regionFill = {};
+    rows.forEach((r, i) => {
+      regionFill[r.id] = i < slices.length && !slices[i].other ? sliceColors[i] : OTHER_COLOR;
+    });
     return section('overview', `${rows.length} areas at a glance`, [
       { text: `${rows.length > MANY ? `Of the ${signals.length} forest management units in this story, ${rows.length} have ${noun} on record.` : `This story follows ${list(rows.map((r) => r.name))}.`} ${lead.name} accounts for the largest share: ${ha(lead.v)}, ${pct((lead.v / total) * 100)} of the ${ha(total)} across ${rows.length > 2 ? `all ${rows.length}` : 'both'}.`, placeId: overviewPlace(facts) },
     ], {
@@ -273,9 +285,12 @@ const TOPICS = {
         caption: `Each slice is one area's ${noun}${key === 'fire' ? ' over the period' : `, ${lead.s.last.year}`}.`,
         labels: slices.map((r) => r.name),
         values: slices.map((r) => Math.round(r.v)),
+        colors: sliceColors,
         unit: 'ha',
         source: lead.s.source,
       },
+      // The map fills each area in its slice colour while this step is read
+      regionFill,
     });
   },
 
@@ -559,7 +574,7 @@ function caveatsFor(facts, signals) {
   const c = [];
   if (facts.isClearcut) c.push('Clearcut figures are model estimates and carry error; see the accuracy section where available.');
   if (facts.isClearcut && facts.isWildfire) c.push('Areas that both burned and were harvested may be counted in both totals.');
-  if ((facts.compares || []).some((x) => x.topic === 'fire')) c.push('Before/after views use today’s basemap imagery; only the overlay changes between the two sides.');
+  if ((facts.compares || []).length) c.push('Before/after views use the nearest yearly Sentinel-2 cloudless mosaic (2016, 2018–2024), which can differ from the year shown by a year or two; each side is labelled with its imagery year.');
   if (signals.some((s) => s.alerts?.demoData)) c.push('Disturbance alerts shown are demonstration data, not real detections.');
   c.push('The data show where the forest changed, not who changed it or why.');
   return c;
@@ -598,7 +613,8 @@ function writeStory(facts, { audience = 'news' } = {}) {
     recipe,
     kicker: RECIPES[recipe].kicker,
     title: headline(recipe, t, facts, signals),
-    dek: `${RECIPES[recipe].label} in ${list(facts.regions.map((r) => r.name))}, from ForestTrace satellite monitoring${facts.yearRange ? `, ${facts.span}` : ''}.`,
+    // Up to three areas by name; more are counted (the charts name them)
+    dek: `${RECIPES[recipe].label} in ${facts.regions.length > 3 ? `${facts.regions.length} forest management units in Ontario` : list(facts.regions.map((r) => r.name))}, from ForestTrace satellite monitoring${facts.yearRange ? `, ${facts.span}` : ''}.`,
     lede: first ? first.paragraphs[0] : `ForestTrace monitoring data for ${list(facts.regions.map((r) => r.name))}.`,
     keyFacts: keyFacts(recipe, t, multi),
     questions: questionsFor(recipe, t, sections),

@@ -143,6 +143,24 @@ function simplify(geojson, step = 6) {
   return { type: 'Feature', properties: {}, geometry: { type: 'MultiPolygon', coordinates: polys } };
 }
 
+// Where a region's name goes on the map: the centroid of its largest outer
+// ring (planar; fine at FMU scale)
+function labelPoint(geojson) {
+  let best = null;
+  for (const poly of polygonsOf(geojson)) {
+    const ring = poly[0];
+    let a = 0; let cx = 0; let cy = 0;
+    for (let i = 0; i < ring.length - 1; i++) {
+      const [x1, y1] = ring[i];
+      const [x2, y2] = ring[i + 1];
+      const f = x1 * y2 - x2 * y1;
+      a += f; cx += (x1 + x2) * f; cy += (y1 + y2) * f;
+    }
+    if (a && (!best || Math.abs(a) > best.a)) best = { a: Math.abs(a), pt: [round(cx / (3 * a), 4), round(cy / (3 * a), 4)] };
+  }
+  return best ? best.pt : null;
+}
+
 function series(byYear, pick = (v) => v) {
   if (!byYear) return null;
   const years = Object.keys(byYear).filter((y) => /^\d{4}$/.test(y)).sort();
@@ -176,6 +194,8 @@ async function regionFacts(region, year, alertsCol) {
     if (rangeFeature) {
       summary.areaHa = Math.round(areaHa(rangeFeature));
       layers.boundary = simplify(rangeFeature);
+      layers.boundary.properties = { regionId: region, name };
+      summary.labelPoint = labelPoint(rangeFeature);
       places.push({ id: `range:${region}`, kind: 'range', label: `${name} Caribou Range`, bbox: bboxOf(rangeFeature) });
     }
   } else {
@@ -183,6 +203,8 @@ async function regionFacts(region, year, alertsCol) {
     if (boundary) {
       summary.areaHa = Math.round(areaHa(boundary));
       layers.boundary = simplify(boundary);
+      layers.boundary.properties = { regionId: region, name };
+      summary.labelPoint = labelPoint(boundary);
       places.push({ id: `fmu:${region}`, kind: 'fmu', label: `${name} Forest Management Unit`, bbox: bboxOf(boundary) });
     }
   }
@@ -594,8 +616,10 @@ async function buildStoryFacts(ctx = {}, { maxRegions = MAX_REGIONS } = {}) {
         }
       }
       if (hasWildfire) {
-        // The worst fire year in the story's period that has a raster
-        const fireYears = yearsOf('wildfire-v3', r).filter((y) => y <= year && (!yearRange || y >= yearRange[0]));
+        // The worst fire year in the story's period that has a raster, from
+        // 2018 on: yearly imagery starts in 2016 with a gap in 2017, so only
+        // then does the "before" side show the ground before the fire
+        const fireYears = yearsOf('wildfire-v3', r).filter((y) => y >= 2018 && y <= year && (!yearRange || y >= yearRange[0]));
         const peak = fireYears
           .map((y) => ({ y, ha: wildfireStats[r]?.[y]?.areaHa || 0 }))
           .sort((a, b) => b.ha - a.ha)[0];
@@ -603,7 +627,7 @@ async function buildStoryFacts(ctx = {}, { maxRegions = MAX_REGIONS } = {}) {
           compares.push({
             id: `compare:fire:${r}`, topic: 'fire', region: r, placeId: placeOf(r),
             title: `Before and after the ${peak.y} fires`,
-            caption: `Right: area burned in ${peak.y} (NBAC). The imagery underneath is the current basemap, not imagery from ${peak.y}. Drag the divider on the map to compare.`,
+            caption: `Left: satellite imagery from before the fire. Right: imagery from after it, with the area burned in ${peak.y} (NBAC). Drag the divider on the map to compare.`,
             left: { year: peak.y - 1, label: 'Before', cog: null },
             right: { year: peak.y, label: String(peak.y), cog: cogLayer(r, peak.y, 'wildfire-v3', {
               layerId: 'cmp-fire', color: '#facc15', opacity: 0.85, paletteType: 'wildfire',

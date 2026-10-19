@@ -138,7 +138,13 @@ function ForestryAIAgent({
       const { action, text } = extractMapAction(data.content);
       let note = '';
       if (action && onProposeFeatures) {
-        const { features, rejected } = await actionToFeatures(action);
+        // Finders without a region or year use the FMUs and year on the map;
+        // alert finders read the alerts the app has already loaded
+        const { features, rejected } = await actionToFeatures(action, {
+          regions: selectedFMUs || [],
+          year: selectedYear,
+          alerts: moduleData?.alerts?.all || [],
+        });
         // Success needs no note: the shapes are on the map, and the model has
         // already said in prose what it drew.
         if (features.length) onProposeFeatures(features);

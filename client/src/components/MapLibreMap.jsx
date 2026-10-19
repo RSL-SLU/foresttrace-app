@@ -231,7 +231,7 @@ const DRAW_MODES = [
   { id: 'circle', glyph: '\u25EF', label: 'Circle' },
 ];
 
-function DrawingTools({ onCreate, onChange, onAsk, proposedFeatures, enabled, modeRef }) {
+function DrawingTools({ onCreate, onChange, onAsk, onClear, proposedFeatures, enabled, modeRef }) {
   const { current: mapRef } = useMap();
   const drawRef = useRef(null);
   const onCreateRef = useRef(onCreate);
@@ -414,7 +414,9 @@ function DrawingTools({ onCreate, onChange, onAsk, proposedFeatures, enabled, mo
     // clear() empties the store without emitting 'change', so the snapshot has
     // to be pushed by hand or consumers keep the shapes that were just removed.
     if (onChangeRef.current) onChangeRef.current([]);
-  }, []);
+    // ...and the blinking finder highlights that came with them
+    if (onClear) onClear();
+  }, [onClear]);
 
   if (!enabled) return null;
 
@@ -594,6 +596,64 @@ function AlertsOnTop({ enabled, signature }) {
   return null;
 }
 
+const HIGHLIGHT_LAYER_IDS = ['ai-highlight-fill', 'ai-highlight-line'];
+const BLINK_MS = 600;
+
+/**
+ * The assistant's finder results (mapActions.js: highlight_*), drawn as a
+ * blinking overlay so they can be spotted: the map zooms to them when they
+ * arrive and the outline pulses until they are cleared or replaced. A steady
+ * highlight under reduced motion. The same shapes also go to the drawing
+ * layer, which is what lets the user ask about them.
+ */
+function HighlightOverlay({ features }) {
+  const { current: mapRef } = useMap();
+  const data = useMemo(() => ({ type: 'FeatureCollection', features: features || [] }), [features]);
+
+  useEffect(() => {
+    const map = mapRef?.getMap?.();
+    if (!map || !features?.length) return undefined;
+    // Frame everything found
+    let minX = Infinity; let minY = Infinity; let maxX = -Infinity; let maxY = -Infinity;
+    features.forEach((f) => f.geometry.coordinates[0].forEach(([x, y]) => {
+      minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+    }));
+    if (Number.isFinite(minX)) map.fitBounds([[minX, minY], [maxX, maxY]], { padding: 90, maxZoom: 11, duration: 1200 });
+
+    const raise = () => HIGHLIGHT_LAYER_IDS.forEach((id) => { if (map.getLayer(id)) map.moveLayer(id); });
+    raise();
+    map.once('idle', raise);
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) return () => map.off('idle', raise);
+    let on = true;
+    const timer = setInterval(() => {
+      on = !on;
+      if (map.getLayer('ai-highlight-line')) map.setPaintProperty('ai-highlight-line', 'line-opacity', on ? 1 : 0.2);
+      if (map.getLayer('ai-highlight-fill')) map.setPaintProperty('ai-highlight-fill', 'fill-opacity', on ? 0.35 : 0.05);
+    }, BLINK_MS);
+    return () => {
+      clearInterval(timer);
+      map.off('idle', raise);
+    };
+  }, [mapRef, features]);
+
+  if (!features?.length) return null;
+  return (
+    <Source id="ai-highlight" type="geojson" data={data}>
+      <Layer
+        id="ai-highlight-fill"
+        type="fill"
+        paint={{ 'fill-color': '#fde047', 'fill-opacity': 0.35, 'fill-opacity-transition': { duration: 450, delay: 0 } }}
+      />
+      <Layer
+        id="ai-highlight-line"
+        type="line"
+        paint={{ 'line-color': '#fde047', 'line-width': 3, 'line-opacity': 1, 'line-opacity-transition': { duration: 450, delay: 0 } }}
+      />
+    </Source>
+  );
+}
+
 function BasemapModeSync({ basemapMode }) {
   const { current: mapRef } = useMap();
 
@@ -755,6 +815,14 @@ function MapLibreMap({
   onAlertClick = null,
 }) {
   ensureCogProtocol();
+
+  // Finder results to blink (highlight_* actions), until replaced or cleared
+  const [highlights, setHighlights] = useState(null);
+  useEffect(() => {
+    const found = (proposedFeatures || []).filter((f) => f.properties?.highlight);
+    setHighlights(found.length ? found : null);
+  }, [proposedFeatures]);
+  const clearHighlights = useCallback(() => setHighlights(null), []);
   ensurePmtilesProtocol();
   ensureTintedProtocol();
 
@@ -1159,10 +1227,13 @@ function MapLibreMap({
         </Source>
       )}
 
+      <HighlightOverlay features={highlights} />
+
       <DrawingTools
         onCreate={onShapeCreate}
         onChange={onDrawChange}
         onAsk={onAskAboutDrawing}
+        onClear={clearHighlights}
         proposedFeatures={proposedFeatures}
         enabled={drawingEnabled}
         modeRef={drawModeRef}
