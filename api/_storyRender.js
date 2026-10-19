@@ -305,7 +305,8 @@ function renderStoryHtml({ story, facts, author, createdAt, model }) {
   .fmu-label.on { opacity:1; }
   .map-wrap.globe { background:#0b0f0a; }
   /* brand card: ForestTrace | Saint Louis University + Remote Sensing Lab */
-  .brand-card { position:absolute; right:10px; bottom:34px; z-index:4; display:flex; align-items:center; gap:10px; padding:6px 10px; border:1px solid var(--line); border-radius:3px; box-shadow:0 1px 6px rgba(0,0,0,.25); }
+  /* 46px: clear of the imagery-credit pill below it */
+  .brand-card { position:absolute; right:10px; bottom:46px; z-index:4; display:flex; align-items:center; gap:10px; padding:6px 10px; border:1px solid var(--line); border-radius:3px; box-shadow:0 1px 6px rgba(0,0,0,.25); }
   .brand-card img { display:block; height:44px; width:auto; }
   .brand-card a { display:block; border-radius:2px; }
   .brand-card a:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
@@ -330,7 +331,7 @@ function renderStoryHtml({ story, facts, author, createdAt, model }) {
   .scale-tag { position:absolute; left:12px; top:38px; z-index:2; font:600 .72rem/1 var(--f-mono); letter-spacing:.08em; text-transform:uppercase; color:#fff; background:var(--accent); padding:6px 9px; border-radius:2px; transition:opacity .3s; }
   .scale-tag[hidden] { display:block; opacity:0; }
   .sat-badge { position:absolute; left:12px; top:12px; z-index:2; font:.66rem/1 var(--f-mono); letter-spacing:.04em; text-transform:uppercase; color:#fff; background:rgba(13,17,10,.62); padding:5px 8px; border-radius:2px; }
-  .tl { position:absolute; right:12px; bottom:104px; z-index:2; display:flex; align-items:center; gap:6px; background:rgba(251,251,249,.95); border:1px solid var(--line); border-radius:3px; padding:6px 8px; max-width:calc(100% - 320px); overflow-x:auto; }
+  .tl { position:absolute; right:12px; bottom:116px; z-index:2; display:flex; align-items:center; gap:6px; background:rgba(251,251,249,.95); border:1px solid var(--line); border-radius:3px; padding:6px 8px; max-width:calc(100% - 320px); overflow-x:auto; }
   .tl button { font:500 .72rem/1 var(--f-mono); border:1px solid var(--line-2); background:transparent; color:var(--ink-2); padding:6px 8px; border-radius:2px; cursor:pointer; white-space:nowrap; }
   .tl button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#fff; }
   .tl .tl-play { width:30px; padding:6px 0; }

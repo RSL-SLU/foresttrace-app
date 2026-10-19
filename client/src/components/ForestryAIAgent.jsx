@@ -152,7 +152,11 @@ function ForestryAIAgent({
       // Geometry the model proposed rides in a fenced block. Strip it from the
       // prose either way -- raw JSON in the transcript helps nobody -- and only
       // draw what survives validation.
-      const { action, text } = extractMapAction(data.content);
+      const extracted = extractMapAction(data.content);
+      const { action } = extracted;
+      // "[app: ...]" notes are history for the assistant only; drop any it
+      // copied into its own prose
+      const text = extracted.text.replace(/^\s*\[app:[^\]\n]*\]\s*$/gim, '').replace(/\n{3,}/g, '\n\n').trim();
       let note = '';
       // What became of the reply's map action, for the next turn's history
       let outcome = '';

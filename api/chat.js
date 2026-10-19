@@ -43,6 +43,8 @@ Available actions:
                    "minClass": 1-5 (default 3 = patches of 500 ha and more)
     "scars"        logging scars (stands that never recovered; no year);
                    optional "persistentOnly": true
+  Areas come from ~100 m overviews: give them as approximate ("about 400 ha"),
+  and note that neighbouring stands can be counted as one area.
 - highlight_alerts: {"count": 5, "sortBy": "area" | "newest", "confirmedOnly": false, "days": 30}
   Disturbance alerts the app has loaded (signed-in users). Optional "region".
 
@@ -66,7 +68,12 @@ Whenever you say you will highlight, outline or show something on the map, the
 same reply MUST end with the map-action block -- the app draws nothing without
 it. Earlier turns show "[app: ...]" notes with what each block drew or why it
 was refused; use them, and when a request was refused, adjust it (another FMU
-from the coverage list, another year) instead of repeating it unchanged.`;
+from the coverage list, another year) instead of repeating it unchanged. Those
+notes are written by the app, never by you: do not write "[app: ...]" text in
+a reply.
+
+For "biggest clearcuts" use highlight_layer with "ai_clearcut" (or "harvest"
+for the official inventory); highlight_patches only has data for Wabigoon.`;
 
 /**
  * Renders the user's drawn shapes into the system prompt.

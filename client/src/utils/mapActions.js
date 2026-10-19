@@ -319,7 +319,8 @@ async function layerRings(shape, ctx) {
   }
   return {
     rings: found.map((f) => f.ring),
-    labels: found.map((f) => `${layer.noun}, ${fmtHa(f.ha)}${layer.needsYear ? ` (${year})` : ''}`),
+    // "~": measured on a ~100 m overview, where neighbouring stands can merge
+    labels: found.map((f) => `${layer.noun}, ~${fmtHa(f.ha)}${layer.needsYear ? ` (${year})` : ''}`),
   };
 }
 
@@ -436,9 +437,17 @@ export async function actionToFeatures(action, ctx = {}) {
         // No region or year given: the first FMU and the year on the map
         const region = shape.region || (ctx.regions || [])[0];
         const year = shape.year ?? ctx.year;
-        rings = await patchRings({ ...shape, region, year });
+        rings = shape.region || region ? await patchRings({ ...shape, region, year }) : [];
         labels = rings.map((ring) => `clearcut patch, ${fmtHa(featureAreaHa([ring]))} (${year})`);
-        if (!rings.length) finderError = `no patch data published for ${region || 'the selected area'} ${year}`;
+        if (!rings.length) {
+          // Patch vectors exist for one FMU only; the AI-clearcut rasters
+          // cover every clearcut FMU, so "the biggest clearcuts" falls through
+          // to them rather than failing on whichever FMU is selected first
+          const r = await layerRings({ ...shape, layer: 'ai_clearcut', region: shape.region }, ctx);
+          rings = r.rings;
+          labels = r.labels || null;
+          finderError = r.error || null;
+        }
         break;
       }
       case 'highlight_layer': {

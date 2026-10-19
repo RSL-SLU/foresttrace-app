@@ -6,7 +6,10 @@
  * published vectors, the places come from the rasters the map already draws:
  *
  *   1. read one overview level of the region's COG (about 1,400 px across,
- *      ~100 m pixels: enough to find and outline areas, a few MB at most)
+ *      ~100 m pixels: enough to find and outline areas, a few MB at most).
+ *      Overviews keep one pixel in four (nearest), so thin gaps between
+ *      neighbouring stands come and go between levels: areas are approximate,
+ *      and labelled so. Full resolution is tens of millions of pixels.
  *   2. mark the pixels matching the layer's rule (burned; harvested in a year;
  *      core habitat of a size class; flagged as a logging scar; AI detection)
  *   3. group them into connected areas, measure each in hectares, keep the
@@ -45,6 +48,9 @@ export const FINDER_LAYERS = {
   },
   harvest: {
     noun: 'harvest block (official inventory)',
+    // Stands: only edge-sharing pixels join, so blocks touching at a corner
+    // stay separate at ~100 m pixels
+    edgeOnly: true,
     prefix: 'ari-ground-truth-v1',
     static: true,
     url: ({ region }) => `${COG_BASE_URL}/cogs/ari-ground-truth-v1/${region}.tif`,
@@ -55,6 +61,7 @@ export const FINDER_LAYERS = {
   },
   ai_clearcut: {
     noun: 'AI-detected clearcut',
+    edgeOnly: true,
     prefix: 'clearcut-status-v2',
     url: ({ region, year }) => `${COG_BASE_URL}/cogs/clearcut-status-v2/${region}_${year}.tif`,
     needsYear: true,
@@ -75,6 +82,7 @@ export const FINDER_LAYERS = {
   },
   scars: {
     noun: 'logging scar',
+    edgeOnly: true,
     prefix: 'logging-scars-v1',
     static: true,
     url: ({ region }) => `${COG_BASE_URL}/cogs/logging-scars-v1/${region}.tif`,
@@ -134,8 +142,8 @@ export async function finderCoverage() {
 const _levels = new Map();
 
 /** The overview level closest to MAX_DIM across, with the raster's footprint. */
-async function readLevel(url, bands) {
-  const key = `${url}#${bands.join(',')}`;
+async function readLevel(url, bands, maxDim = MAX_DIM) {
+  const key = `${url}#${bands.join(',')}#${maxDim}`;
   if (!_levels.has(key)) {
     _levels.set(key, (async () => {
       const tiff = await fromUrl(url);
@@ -150,7 +158,7 @@ async function readLevel(url, bands) {
       }
       // The most detailed level within MAX_DIM, else the smallest there is
       const dim = (img) => Math.max(img.getWidth(), img.getHeight());
-      const fits = levels.filter((img) => dim(img) <= MAX_DIM).sort((a, b) => dim(b) - dim(a));
+      const fits = levels.filter((img) => dim(img) <= maxDim).sort((a, b) => dim(b) - dim(a));
       const pick = fits[0] || levels.sort((a, b) => dim(a) - dim(b))[0];
       const width = pick.getWidth();
       const height = pick.getHeight();
@@ -164,8 +172,11 @@ async function readLevel(url, bands) {
   return _levels.get(key);
 }
 
-/** Connected (8-neighbour) groups of matching pixels, with area in hectares. */
-function components(level, test) {
+/**
+ * Connected groups of matching pixels, with area in hectares: 8-neighbour for
+ * burns and habitat (continuous), edge-only (4-neighbour) for stands.
+ */
+function components(level, test, edgeOnly = false) {
   const { width: W, height: H, minX, maxY, px, py } = level;
   const n = W * H;
   const labels = new Int32Array(n).fill(-1);
@@ -200,7 +211,7 @@ function components(level, test) {
         if (rr < 0 || rr >= H) continue;
         for (let dc = -1; dc <= 1; dc++) {
           const cc = c + dc;
-          if ((dr || dc) && cc >= 0 && cc < W) {
+          if ((dr || dc) && !(edgeOnly && dr && dc) && cc >= 0 && cc < W) {
             const q = rr * W + cc;
             if (labels[q] === -1 && test(q)) {
               labels[q] = id;
@@ -309,7 +320,7 @@ export async function findInCog(q) {
   if (layer.needsYear && !Number.isFinite(year)) return { found: [], error: `${layer.noun} needs a year` };
   let level;
   try {
-    level = await readLevel(layer.url({ region: q.region, year }), layer.bands);
+    level = await readLevel(layer.url({ region: q.region, year }), layer.bands, layer.maxDim);
   } catch {
     return { found: [], error: `no ${layer.noun} raster published for ${q.region}${layer.needsYear ? ` ${year}` : ''}` };
   }
@@ -319,7 +330,7 @@ export async function findInCog(q) {
     for (let b = 0; b < layer.bands.length; b++) values[b] = level.data[b][i];
     return layer.match(values, opts);
   };
-  const { comps, labels } = components(level, test);
+  const { comps, labels } = components(level, test, Boolean(layer.edgeOnly));
   const count = Math.min(Math.max(Number(q.count) || 5, 1), 25);
   const minHa = Number(q.minAreaHa) > 0 ? Number(q.minAreaHa) : 0;
   const top = comps
