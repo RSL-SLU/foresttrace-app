@@ -31,7 +31,8 @@
  */
 
 import { DATA_BASE_URL } from '../config';
-import { findInCog, FINDER_LAYERS } from './cogFinder';
+import { findInCog, FINDER_LAYERS, layerAvailability } from './cogFinder';
+import { REGION_LABELS } from './borealLayers';
 
 // Ontario plus a wide margin. A coordinate outside this is a hallucination or a
 // lat/lon swap, and both should be refused rather than drawn.
@@ -240,7 +241,33 @@ const MAX_FINDER_REGIONS = 6;
 /** Regions a finder runs over: the one it names, else the FMUs on the map. */
 function finderRegions(shape, ctx) {
   if (shape.region) return [regionKey(shape.region)].filter(Boolean);
-  return (ctx.regions || []).map(regionKey).filter(Boolean).slice(0, MAX_FINDER_REGIONS);
+  return (ctx.regions || []).map(regionKey).filter(Boolean);
+}
+
+const REGION_NAMES = (ids) => ids.map((id) => REGION_LABELS[id] || id.replace(/\b\w/g, (c) => c.toUpperCase())).join(', ');
+
+// Yearly stats the app already ships, used to pick which FMUs a finder reads
+// when more are selected than it can read at once
+const _stats = {};
+function loadStats(name) {
+  if (!_stats[name]) {
+    _stats[name] = fetch(`${DATA_BASE_URL}/data/${name}.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  }
+  return _stats[name];
+}
+
+/**
+ * Orders candidate regions by how much of the layer they have that year, so
+ * "the biggest fires" across 38 FMUs reads the FMUs that burned most rather
+ * than the first six alphabetically. Layers without yearly stats keep order.
+ */
+async function rankRegions(layerKey, regions, year) {
+  const source = { fire: ['wildfire_stats', (v) => v?.areaHa], habitat: ['caribou_stats', (v) => v?.coreHa] }[layerKey];
+  if (!source || regions.length <= MAX_FINDER_REGIONS) return regions;
+  const stats = await loadStats(source[0]);
+  if (!stats) return regions;
+  const amount = (r) => Number(source[1](stats[r]?.[String(year)])) || 0;
+  return regions.slice().sort((a, b) => amount(b) - amount(a));
 }
 
 const fmtHa = (ha) => `${Math.round(ha).toLocaleString('en-US')} ha`;
@@ -252,9 +279,23 @@ const fmtHa = (ha) => `${Math.round(ha).toLocaleString('en-US')} ha`;
 async function layerRings(shape, ctx) {
   const layer = FINDER_LAYERS[shape.layer];
   if (!layer) return { rings: [], error: `unknown layer "${shape.layer}" (use ${Object.keys(FINDER_LAYERS).join(', ')})` };
-  const regions = finderRegions(shape, ctx);
-  if (!regions.length) return { rings: [], error: 'no region given and no FMU selected on the map' };
   const year = Number.isFinite(Number(shape.year)) && shape.year !== null && shape.year !== '' ? Number(shape.year) : Number(ctx.year);
+  // Only the regions that have this layer (for the year): most products
+  // cover a handful of FMUs, so taking the first selected ones found nothing
+  const asked = finderRegions(shape, ctx);
+  const { available, everywhere } = await layerAvailability(shape.layer, asked, year);
+  let regions = available === null ? asked : available;
+  if (!asked.length && everywhere) regions = everywhere;   // nothing selected: wherever it exists
+  if (!regions.length) {
+    if (!asked.length) return { rings: [], error: 'no region given and no FMU selected on the map' };
+    return {
+      rings: [],
+      error: everywhere && everywhere.length
+        ? `${layer.noun} is published only for ${REGION_NAMES(everywhere)}${layer.needsYear ? ` in ${year}` : ''}, none of which is selected`
+        : `no ${layer.noun} published${layer.needsYear ? ` for ${year}` : ''}`,
+    };
+  }
+  regions = (await rankRegions(shape.layer, regions, year)).slice(0, MAX_FINDER_REGIONS);
   const count = Math.min(Math.max(Number(shape.count) || 5, 1), 25);
   const results = await Promise.all(regions.map((region) => findInCog({ ...shape, region, year, count })
     .then((r) => ({ ...r, region }))));
@@ -263,7 +304,18 @@ async function layerRings(shape, ctx) {
     .slice(0, count);
   if (!found.length) {
     const why = results.map((r) => r.error).filter(Boolean)[0];
-    return { rings: [], error: why || `no ${layer.noun} found for ${regions.join(', ')}${layer.needsYear ? ` ${year}` : ''}` };
+    // Name the filter that emptied the result, so the next request can relax it
+    const filters = [
+      shape.persistentOnly && 'persistent only (flagged at 2+ snapshots)',
+      shape.confirmedOnly && 'confirmed only',
+      Number(shape.minAreaHa) > 0 && `at least ${shape.minAreaHa} ha`,
+      Number(shape.minClass) > 0 && `size class ${shape.minClass}+`,
+    ].filter(Boolean);
+    return {
+      rings: [],
+      error: why || `no ${layer.noun} found for ${REGION_NAMES(regions)}${layer.needsYear ? ` ${year}` : ''}`
+        + (filters.length ? ` with the filter: ${filters.join(', ')} -- try without it` : ''),
+    };
   }
   return {
     rings: found.map((f) => f.ring),
@@ -306,6 +358,41 @@ function alertRings(shape, ctx) {
   return rings.length ? { rings, labels } : { rings: [], error: 'no alerts match that query' };
 }
 
+// Layer names a model reaches for, mapped to FINDER_LAYERS keys
+const LAYER_ALIASES = {
+  fire: 'fire', fires: 'fire', burn: 'fire', burns: 'fire', burned: 'fire', burned_area: 'fire', wildfire: 'fire', wildfires: 'fire',
+  harvest: 'harvest', harvests: 'harvest', harvest_blocks: 'harvest', ari: 'harvest', inventory: 'harvest',
+  ai_clearcut: 'ai_clearcut', ai_clearcuts: 'ai_clearcut', clearcut: 'ai_clearcut', clearcuts: 'ai_clearcut',
+  habitat: 'habitat', caribou: 'habitat', caribou_habitat: 'habitat', core_habitat: 'habitat',
+  scars: 'scars', scar: 'scars', logging_scars: 'scars', logging_scar: 'scars',
+};
+const aliasKey = (v) => String(v || '').toLowerCase().replace(/[^a-z]+/g, '_').replace(/^_|_$/g, '');
+
+/**
+ * Accepts the near-misses models produce for the finder actions -- a layer
+ * with no action, "highlight_scars" for highlight_layer + scars, "logging
+ * scars" for scars -- rather than refusing a request whose intent is clear.
+ * Geometry is still never taken from the model: this only names the query.
+ */
+function normalizeShape(shape) {
+  if (!shape || typeof shape !== 'object') return shape;
+  const action = aliasKey(shape.action || shape.type);
+  const layerFrom = (v) => LAYER_ALIASES[aliasKey(v)];
+  if (action === 'highlight_layer' || (!action && shape.layer)) {
+    return { ...shape, action: 'highlight_layer', layer: layerFrom(shape.layer) || shape.layer };
+  }
+  // highlight_scars, highlight_fires, find_habitat, ...
+  const m = action.match(/^(?:highlight|find|show)_(.+)$/);
+  if (m && m[1] !== 'patches' && m[1] !== 'alerts' && m[1] !== 'layer') {
+    const layer = layerFrom(m[1]) || layerFrom(shape.layer);
+    if (layer) return { ...shape, action: 'highlight_layer', layer };
+  }
+  if (action === 'highlight_patches' || action === 'highlight_alerts' || action === 'draw_bbox' || action === 'draw_polygon') {
+    return { ...shape, action };
+  }
+  return shape;
+}
+
 /** Ids the assistant may query with highlight_patches. Falls back to what's loaded if the fetch fails. */
 export async function availableRegionIds(regionsData) {
   const overview = await loadOverview();
@@ -324,7 +411,7 @@ export async function availableRegionIds(regionsData) {
 export async function actionToFeatures(action, ctx = {}) {
   if (!action || typeof action !== 'object') return { features: [], rejected: null };
 
-  const shapes = Array.isArray(action.shapes) ? action.shapes : [action];
+  const shapes = (Array.isArray(action.shapes) ? action.shapes : [action]).map(normalizeShape);
   if (shapes.length > MAX_SHAPES) {
     return { features: [], rejected: `refused: ${shapes.length} shapes exceeds the limit of ${MAX_SHAPES}` };
   }
@@ -374,9 +461,19 @@ export async function actionToFeatures(action, ctx = {}) {
 
     if (rings.length === 0) {
       if (finderError) return { features: [], rejected: `refused: ${finderError}` };
+      // Not an action we know: say what arrived, so a mismatch between the
+      // assistant's instructions and the app is diagnosable from the chat
+      if (!['draw_bbox', 'draw_polygon'].includes(shape?.action)) {
+        const keys = shape && typeof shape === 'object' ? Object.keys(shape).join(', ') : typeof shape;
+        return {
+          features: [],
+          rejected: `refused: unrecognised map action "${shape?.action || 'none'}" (fields: ${keys}). `
+            + 'If the API server was not restarted since the highlight actions were added, restart it.',
+        };
+      }
       return {
         features: [],
-        rejected: `refused: "${shape?.action || 'unknown'}" produced no valid geometry `
+        rejected: `refused: "${shape.action}" produced no valid geometry `
           + '(coordinates outside Ontario, or an implausible size)',
       };
     }

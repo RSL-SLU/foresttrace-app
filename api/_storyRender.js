@@ -629,6 +629,7 @@ ${sections.map((s, i) => `
     var cogs = page.layers.cogs || [];
 
     cogs.forEach(function (cog) {
+      if (cog.lazy) return;   // added when the story zooms into its area (loadRegionLayers)
       var targetUrl = (isLocal && cog.cogPath) ? (window.location.origin + cog.cogPath) : cog.url;
       var sourceId = 'cog-' + cog.id;
       var layerId = 'cog-layer-' + cog.id;
@@ -671,7 +672,12 @@ ${sections.map((s, i) => `
 
   // COGs only: a raster that fails to load is dropped, not swapped for a PNG
   // pyramid, which for a missing region-year was a few hundred 404s.
+  // Only a file that isn't there (404) drops its layer. Tile requests also
+  // fail when cancelled or slow while the map moves -- that must not remove a
+  // layer for the rest of the story.
   map.on('error', function (e) {
+    var msg = e && e.error ? String(e.error.status || '') + ' ' + String(e.error.message || '') : '';
+    if (!/\\b404\\b|not found/i.test(msg)) return;
     if (e && e.sourceId && e.sourceId.indexOf('cog-') === 0) {
       var cogId = e.sourceId.replace(/^cog-/, '');
       try {
@@ -684,6 +690,18 @@ ${sections.map((s, i) => `
   });
 
   var current = null;
+  // Layers of areas past the first 12 (cog.lazy), added the first time the
+  // story zooms into that area, then kept in step with the year player
+  var lazyLoaded = {};
+  function loadRegionLayers(region) {
+    if (!region || lazyLoaded[region] || !mapReady) return;
+    lazyLoaded[region] = true;
+    var added = false;
+    (page.layers.cogs || []).forEach(function (c) {
+      if (c.lazy && c.region === region) { addCog(map, c, c.id); added = true; }
+    });
+    if (added && !cmpState) applyYear(tlYear);
+  }
   // The FMU a place belongs to: the FMU/range itself or a clearcut patch in
   // it; null for overviews, alerts and drawn areas (no single FMU)
   var focusRegion = null;
@@ -697,6 +715,7 @@ ${sections.map((s, i) => `
     if (!place || !place.bbox || placeId === current) return;
     current = placeId;
     focusRegion = regionOfPlace(placeId, place);
+    loadRegionLayers(focusRegion);
     showLabelFor(focusRegion);
     updateCompare();
     var b = place.bbox;

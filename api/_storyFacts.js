@@ -475,10 +475,14 @@ async function buildStoryFacts(ctx = {}, { maxRegions = MAX_REGIONS } = {}) {
   ).replace(/\/$/, '');
 
   const cogs = [];
-  // Regions come ranked by data for the modules on screen (above)
-  const mapRegions = regions.slice(0, MAP_LAYER_REGIONS);
+  // Every area gets its layers. Regions come ranked by data for the modules
+  // on screen (above); past MAP_LAYER_REGIONS they are marked lazy and the
+  // story page loads them when it zooms into that area, not all at once.
+  const mapRegions = regions;
+  const lazyRegions = new Set(regions.slice(MAP_LAYER_REGIONS));
   const span = yearRange ? `${yearRange[0]}–${yearRange[1]}` : String(year);
   const cogLayer = (r, y, prefix, extra) => ({
+    lazy: lazyRegions.has(r) || undefined,
     id: `${extra.layerId}-${r}-${y}`,
     region: r,
     year: y,

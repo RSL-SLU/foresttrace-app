@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { extractMapAction, actionToFeatures, availableRegionIds } from '../utils/mapActions';
+import { finderCoverage } from '../utils/cogFinder';
 import StoryMapGenerator from './StoryMapGenerator';
 
 function renderContent(text) {
@@ -16,8 +17,11 @@ const SUGGESTIONS = [
   'What actions can forest managers take?',
 ];
 
-function buildContext(moduleData, selectedModule, selectedYear, selectedFMUs, selectedSensor, drawingContext, availableRegions) {
+function buildContext(moduleData, selectedModule, selectedYear, selectedFMUs, selectedSensor, drawingContext, availableRegions, highlightCoverage) {
   return {
+    // Which FMUs each highlight layer covers (cogs/manifest.json), so the
+    // assistant can pick a region that has the data instead of refusing
+    highlightCoverage: highlightCoverage || undefined,
     module: selectedModule?.name || 'Clearcut Detection',
     region: selectedFMUs?.length ? selectedFMUs.join(', ') : 'All regions',
     year: selectedYear,
@@ -75,6 +79,13 @@ function ForestryAIAgent({
     return () => { cancelled = true; };
   }, [regionsData]);
 
+  const [highlightCoverage, setHighlightCoverage] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    finderCoverage().then((cov) => { if (!cancelled) setHighlightCoverage(cov); });
+    return () => { cancelled = true; };
+  }, []);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
@@ -90,7 +101,7 @@ function ForestryAIAgent({
 
   const context = buildContext(
     moduleData, selectedModule, selectedYear, selectedFMUs, selectedSensor, drawingContext,
-    availableRegions);
+    availableRegions, highlightCoverage);
 
   // Assigned on every render so the ref always points at the current closure.
   sendRef.current = send;
@@ -114,7 +125,13 @@ function ForestryAIAgent({
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ messages: outgoing, context }),
+        // The assistant's own turns go back with their map-action block and
+        // what became of it (apiContent): shown stripped, they taught it that
+        // it had never drawn anything, and it stopped including the block
+        body: JSON.stringify({
+          messages: outgoing.map((m) => ({ role: m.role, content: m.apiContent || m.content })),
+          context,
+        }),
       });
 
       let data;
@@ -137,6 +154,15 @@ function ForestryAIAgent({
       // draw what survives validation.
       const { action, text } = extractMapAction(data.content);
       let note = '';
+      // What became of the reply's map action, for the next turn's history
+      let outcome = '';
+      // Straight or curly apostrophe: models write "I’ll" as often as "I'll"
+      if (!action && /\b(i['’]?ll|i will|let me|i['’]?m going to)\b[^.]{0,60}\b(highlight|outline|zoom|show)\b/i.test(text)) {
+        // Promised a highlight in prose but sent no action: say so, here and
+        // to the assistant, rather than leave an empty map unexplained
+        note += '\n\n_(no map action was included in this reply, so nothing was drawn — ask again to retry)_';
+        outcome = '[app: this reply included no map-action block, so nothing was drawn]';
+      }
       if (action && onProposeFeatures) {
         // Finders without a region or year use the FMUs and year on the map;
         // alert finders read the alerts the app has already loaded
@@ -147,14 +173,23 @@ function ForestryAIAgent({
         });
         // Success needs no note: the shapes are on the map, and the model has
         // already said in prose what it drew.
-        if (features.length) onProposeFeatures(features);
+        if (features.length) {
+          onProposeFeatures(features);
+          outcome = `[app: map action drew ${features.length} shape(s) and zoomed to them]`;
+        }
         if (rejected) {
           // Surfaced rather than swallowed: a proposal that silently fails to
           // appear reads as a broken map.
           note += `\n\n_(map action ${rejected})_`;
+          outcome = `[app: map action ${rejected}]`;
         }
       }
-      setMessages([...outgoing, { role: 'assistant', content: text + note }]);
+      setMessages([...outgoing, {
+        role: 'assistant',
+        content: text + note,
+        // Sent back next turn: the reply as written, with its map-action block
+        apiContent: outcome ? `${data.content}\n\n${outcome}` : data.content,
+      }]);
     } catch (err) {
       setError(err.message);
     } finally {

@@ -60,7 +60,13 @@ no highlight action covers, say so and suggest the user draw the area
 themselves.
 
 Only include the block when drawing genuinely helps, at most 5 shapes. Explain
-in prose what you drew and where it came from.`;
+in prose what you drew and where it came from.
+
+Whenever you say you will highlight, outline or show something on the map, the
+same reply MUST end with the map-action block -- the app draws nothing without
+it. Earlier turns show "[app: ...]" notes with what each block drew or why it
+was refused; use them, and when a request was refused, adjust it (another FMU
+from the coverage list, another year) instead of repeating it unchanged.`;
 
 /**
  * Renders the user's drawn shapes into the system prompt.
@@ -189,6 +195,22 @@ function buildSystemPrompt(context) {
       prompt += `\n\nRegion ids available for the highlight actions (use these ids exactly): `
         + context.availableRegions.join(', ')
         + '. If a region id is not in this list, do not guess coordinates.';
+    }
+
+    // Where each highlight_layer layer has data, so the model can pick an FMU
+    // that has it (or leave region out: the app then searches those FMUs)
+    // rather than refusing. Ids only, validated to the id alphabet.
+    if (context.highlightCoverage && typeof context.highlightCoverage === 'object') {
+      const lines = Object.entries(context.highlightCoverage)
+        .filter(([layer, ids]) => /^[a-z_]+$/.test(layer) && Array.isArray(ids))
+        .map(([layer, ids]) => {
+          const clean = ids.filter((id) => /^[a-z0-9_]+$/.test(String(id))).slice(0, 60);
+          return `- ${layer}: ${clean.length ? clean.join(', ') : 'none'}`;
+        });
+      if (lines.length) {
+        prompt += '\n\nFMUs each highlight_layer layer has data for (leave "region" out to search the '
+          + 'selected FMUs that have it, or all of these if none is selected):\n' + lines.join('\n');
+      }
     }
 
     prompt += describeDrawing(context.drawing);

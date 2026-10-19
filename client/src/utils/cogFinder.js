@@ -37,6 +37,7 @@ const toLonLat = (x, y) => [
 export const FINDER_LAYERS = {
   fire: {
     noun: 'burned area',
+    prefix: 'wildfire-v3',
     url: ({ region, year }) => `${COG_BASE_URL}/cogs/wildfire-v3/${region}_${year}.tif`,
     needsYear: true,
     bands: [0],
@@ -44,6 +45,8 @@ export const FINDER_LAYERS = {
   },
   harvest: {
     noun: 'harvest block (official inventory)',
+    prefix: 'ari-ground-truth-v1',
+    static: true,
     url: ({ region }) => `${COG_BASE_URL}/cogs/ari-ground-truth-v1/${region}.tif`,
     needsYear: true,
     bands: [0],
@@ -52,6 +55,7 @@ export const FINDER_LAYERS = {
   },
   ai_clearcut: {
     noun: 'AI-detected clearcut',
+    prefix: 'clearcut-status-v2',
     url: ({ region, year }) => `${COG_BASE_URL}/cogs/clearcut-status-v2/${region}_${year}.tif`,
     needsYear: true,
     bands: [0, 1],
@@ -62,6 +66,7 @@ export const FINDER_LAYERS = {
   },
   habitat: {
     noun: 'core caribou habitat',
+    prefix: 'caribou-fmu-v1',
     url: ({ region, year }) => `${COG_BASE_URL}/cogs/caribou-fmu-v1/${region}_${year}.tif`,
     needsYear: true,
     bands: [0],
@@ -70,6 +75,8 @@ export const FINDER_LAYERS = {
   },
   scars: {
     noun: 'logging scar',
+    prefix: 'logging-scars-v1',
+    static: true,
     url: ({ region }) => `${COG_BASE_URL}/cogs/logging-scars-v1/${region}.tif`,
     needsYear: false,
     bands: [0],
@@ -77,6 +84,52 @@ export const FINDER_LAYERS = {
     match: ([count], { persistentOnly = false }) => count !== 65535 && count >= (persistentOnly ? 2 : 1),
   },
 };
+
+// cogs/manifest.json (scripts/storage/generate-cog-manifest-vercel.js): which
+// region (and year) each product exists for, so a finder over many FMUs only
+// reads rasters that are there
+let _manifest = null;
+function loadManifest() {
+  if (!_manifest) {
+    _manifest = fetch(`${COG_BASE_URL}/cogs/manifest.json`)
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
+  }
+  return _manifest;
+}
+
+/**
+ * Of the given regions, those with this layer's raster (for the year, where
+ * the raster is per year); plus every region that has it, for telling the
+ * user where to look instead. null lists when the manifest can't be read.
+ */
+export async function layerAvailability(layerKey, regions, year) {
+  const layer = FINDER_LAYERS[layerKey];
+  const manifest = layer ? await loadManifest() : null;
+  if (!manifest) return { available: null, everywhere: null };
+  let everywhere;
+  if (layer.static) {
+    everywhere = manifest.static?.[layer.prefix] || [];
+  } else {
+    const byRegion = manifest.prefixes?.[layer.prefix] || {};
+    everywhere = Object.keys(byRegion).filter((r) => !layer.needsYear || (byRegion[r] || []).includes(Number(year)));
+  }
+  return { available: regions.filter((r) => everywhere.includes(r)), everywhere };
+}
+
+/**
+ * Which FMUs each highlight layer covers ({ layer: [region ids] }), from the
+ * manifest, for telling the assistant where a finder can look. Per-year
+ * layers count a region if it has any year. null if the manifest is missing.
+ */
+export async function finderCoverage() {
+  const manifest = await loadManifest();
+  if (!manifest) return null;
+  return Object.fromEntries(Object.entries(FINDER_LAYERS).map(([key, layer]) => [
+    key,
+    (layer.static ? manifest.static?.[layer.prefix] : Object.keys(manifest.prefixes?.[layer.prefix] || {})) || [],
+  ]));
+}
 
 const _levels = new Map();
 
