@@ -98,8 +98,8 @@ function ReportingLagPanel({ lag }) {
       })}
       {lag.on && results.length > 0 && (
         <p className="stat-sub scar-caveat">
-          A gap of 1–3 years fits a late report; 4+ more likely means another disturbance before the harvest,
-          or a model error. The first AI year is a baseline and left out; detections after the last record
+          A gap of 1–3 years fits a late report. At 4+ years it can still be a long reporting delay by the
+          forest company, but another disturbance before the harvest, or a model error, become as likely. The first AI year is a baseline and left out; detections after the last record
           year cannot show a lag yet. Areas from ~100 m overviews, approximate.
         </p>
       )}

@@ -10,6 +10,7 @@ import { ensureTintedProtocol, onTintActivity } from '../utils/tintedTileProtoco
 import { processTile } from '../utils/tileWorkerClient';
 import { describeStatus } from '../utils/borealLayers';
 import { LAG_CLASSES } from '../utils/reportingLag';
+import SitePhotoModal from './SitePhotoModal';
 
 // COG support is a URL protocol handler, not a layer type: once registered,
 // any source whose url starts with cog:// is range-read straight from R2 with
@@ -866,6 +867,8 @@ function MapLibreMap({
   useEffect(() => { if (!lagGeoJson?.features?.length) setLagBlock(null); }, [lagGeoJson]);
   // Clicked Wildlands League field site, for its popup
   const [fieldSite, setFieldSite] = useState(null);
+  const [sitePhoto, setSitePhoto] = useState(null);   // field site whose photo is open
+  const closeSitePhoto = useCallback(() => setSitePhoto(null), []);
   useEffect(() => { if (!fieldSitesGeoJson) setFieldSite(null); }, [fieldSitesGeoJson]);
 
   // Ref so the memoised click handler always calls the current callback
@@ -1247,7 +1250,7 @@ function MapLibreMap({
             </div>
             <div className="field-site-source">
               {lagBlock.properties.lag >= 4
-                ? 'A gap this long more likely means another disturbance before the harvest, or a model error.'
+                ? 'A gap this long can be a long delay by the forest company in reporting the harvest, another disturbance before the harvest, or a model error.'
                 : 'Possibly reported late; check the imagery for when the opening appeared.'}
             </div>
           </div>
@@ -1270,6 +1273,8 @@ function MapLibreMap({
           />
         </Source>
       )}
+
+      <SitePhotoModal site={sitePhoto} onClose={closeSitePhoto} />
 
       {fieldSite && (
         <Popup
@@ -1305,7 +1310,14 @@ function MapLibreMap({
                 {!fieldSite.properties.fmu && ' This site lies outside the FMU boundary, where the map is clipped.'}
               </div>
             )}
-            {fieldSite.properties.photo && (
+            {/* Our Blob copies (build-loggingscars-photos.js): Google's host
+                won't display inside another site, only download */}
+            {fieldSite.properties.photoUrl ? (
+              <button type="button" className="field-site-photo-btn" onClick={() => setSitePhoto(fieldSite.properties)}>
+                <img src={fieldSite.properties.thumbUrl || fieldSite.properties.photoUrl} alt="" loading="lazy" />
+                <span>View site photo</span>
+              </button>
+            ) : fieldSite.properties.photo && (
               <a href={fieldSite.properties.photo} target="_blank" rel="noopener noreferrer">Site photo</a>
             )}
             <div className="field-site-source">Wildlands League · <a href="https://loggingscars.ca" target="_blank" rel="noopener noreferrer">loggingscars.ca</a></div>

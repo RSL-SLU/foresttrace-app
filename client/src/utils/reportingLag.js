@@ -40,7 +40,7 @@ export const LAG_CLASSES = [
   { min: 1, max: 1, label: '1 year earlier', color: '#f0abfc' },
   { min: 2, max: 2, label: '2 years earlier', color: '#d946ef' },
   { min: 3, max: 3, label: '3 years earlier', color: '#a21caf' },
-  { min: 4, max: Infinity, label: '4+ years earlier (likely another disturbance)', color: '#701a75' },
+  { min: 4, max: Infinity, label: '4+ years earlier (long reporting delay, or another disturbance)', color: '#701a75' },
 ];
 export const lagClass = (lag) => LAG_CLASSES.findIndex((c) => lag >= c.min && lag <= c.max);
 
