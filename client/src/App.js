@@ -56,6 +56,8 @@ import {
   REGION_LABELS, REGION_MODEL_NOTES, reliabilityNotes,
 } from './utils/borealLayers';
 import { fetchAlerts, triageAlert, ageDays, ageColor, geometryBounds } from './utils/alerts';
+import { computeReportingLag, reportingLagRegions } from './utils/reportingLag';
+import { scanfiOnlyRegions } from './utils/cogFinder';
 import { computeClearcutDrawingPresence } from './utils/clearcutDrawingStats';
 
 import './styles/map.css';
@@ -958,6 +960,59 @@ function App() {
   const [clearcutSources, setClearcutSources] = useState(['ari']);
   // Logging scars: only stands flagged at 2+ SCANFI snapshots
   const [scarsPersistentOnly, setScarsPersistentOnly] = useState(false);
+  // Field-verified logging scars (Wildlands League, loggingscars.ca): a static
+  // project file (scripts/data/build-loggingscars-sites.js), loaded the first
+  // time the overlay is switched on
+  // Reporting lag (reportingLag.js): stands the AI model saw cleared before
+  // the harvest inventory recorded them, per selected FMU that has both
+  const [lagOn, setLagOn] = useState(false);
+  const [lagResults, setLagResults] = useState({});        // region -> result | { error }
+  const [lagSupported, setLagSupported] = useState(null);  // FMUs with both rasters
+  // Each FMU is computed once per session (results are cached in
+  // reportingLag.js too); a ref, not state, records what has started so the
+  // effect doesn't re-run, and cancel, on its own updates
+  const lagStarted = useRef(new Set());
+  // FMUs with SCANFI and scars but no clearcut data (cogFinder.js), and which
+  // support the lag, read once from the manifest so the panel can say so
+  // before anything is switched on
+  const [scanfiOnly, setScanfiOnly] = useState([]);
+  useEffect(() => {
+    scanfiOnlyRegions().then(setScanfiOnly);
+    reportingLagRegions().then((r) => setLagSupported((prev) => prev || r));
+  }, []);
+  useEffect(() => {
+    if (!lagOn) return;
+    (async () => {
+      const supported = lagSupported || await reportingLagRegions();
+      if (!lagSupported) setLagSupported(supported);
+      const wanted = selectedFMUs.filter((r) => supported.includes(r) && !lagStarted.current.has(r));
+      for (const region of wanted) {
+        lagStarted.current.add(region);
+        setLagResults((prev) => ({ ...prev, [region]: { loading: true } }));
+        try {
+          const result = await computeReportingLag(region);
+          setLagResults((prev) => ({ ...prev, [region]: result }));
+        } catch (err) {
+          lagStarted.current.delete(region);
+          setLagResults((prev) => ({ ...prev, [region]: { error: err.message } }));
+        }
+      }
+    })();
+  }, [lagOn, selectedFMUs, lagSupported]);
+  const lagGeoJson = useMemo(() => (lagOn ? {
+    type: 'FeatureCollection',
+    features: selectedFMUs.flatMap((r) => lagResults[r]?.blocks || []),
+  } : null), [lagOn, selectedFMUs, lagResults]);
+
+  const [fieldSitesOn, setFieldSitesOn] = useState(false);
+  const [fieldSites, setFieldSites] = useState(null);
+  useEffect(() => {
+    if (!fieldSitesOn || fieldSites) return;
+    fetch(`${DATA_BASE_URL}/data/loggingscars-sites.geojson`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => setFieldSites(json || { type: 'FeatureCollection', features: [] }))
+      .catch(() => setFieldSites({ type: 'FeatureCollection', features: [] }));
+  }, [fieldSitesOn, fieldSites]);
   // Hides provisional AI detections below this confidence (0-100); confirmed
   // ones always show
   const [aiMinConfidence, setAiMinConfidence] = useState(0);
@@ -1724,11 +1779,33 @@ function App() {
     drawingStats,
     clearcutSources,
     onToggleClearcutSource: handleToggleClearcutSource,
+    // Selected FMUs with no harvest records or AI model, only SCANFI and scars
+    scanfiOnlyRegions: selectedFMUs.filter((r) => scanfiOnly.includes(r)),
+    // Harvest the AI saw before the inventory recorded it (utils/reportingLag.js)
+    lag: {
+      on: lagOn,
+      toggle: () => setLagOn((v) => !v),
+      supported: lagSupported,
+      results: selectedFMUs.map((r) => ({ region: r, ...(lagResults[r] || {}) })),
+      zoomTo: (feature) => {
+        const map = mapRef.current;
+        if (!map?.fitBounds || !feature?.geometry) return;
+        const [w, s, e, n] = geometryBounds(feature.geometry);
+        map.fitBounds([[w, s], [e, n]], { padding: 80, maxZoom: 13, duration: 800 });
+      },
+    },
     scars: {
       on: (activeLayers.clearcut || []).includes('logging-scars'),
       toggle: () => handleLayerToggle('clearcut', 'logging-scars'),
       persistentOnly: scarsPersistentOnly,
       setPersistentOnly: setScarsPersistentOnly,
+      // Wildlands League field sites, and how SCANFI reads them (summary)
+      fieldSites: {
+        on: fieldSitesOn,
+        toggle: () => setFieldSitesOn((v) => !v),
+        summary: fieldSites?.summary || null,
+        count: fieldSites?.features?.length ?? null,
+      },
     },
     aiStatus: {
       minConfidence: aiMinConfidence,
@@ -2012,6 +2089,8 @@ function App() {
               minConfidence={aiMinConfidence}
               onMinConfidenceChange={setAiMinConfidence}
               scarsPersistentOnly={scarsPersistentOnly}
+              fieldSitesOn={fieldSitesOn && Boolean(fieldSites?.features?.length)}
+              lagOn={Boolean(lagGeoJson?.features?.length)}
               caribouSingleHue={multiModule}
               basemapMode={basemapMode}
             />
@@ -2093,6 +2172,8 @@ function App() {
                 proposedFeatures={proposedFeatures}
                 drawingEnabled
                 alertsGeoJson={alertsGeoJson}
+                fieldSitesGeoJson={fieldSitesOn ? fieldSites : null}
+                lagGeoJson={lagGeoJson}
                 selectedAlertId={selectedAlertId}
                 onAlertClick={handleAlertClick}
               />

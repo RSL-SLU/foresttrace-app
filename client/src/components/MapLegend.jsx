@@ -5,6 +5,7 @@ import {
 import { CARIBOU_VISIBLE_CLASSES, caribouClassesFor } from '../utils/caribouClasses';
 import { ALERT_AGE_BUCKETS, ageColor } from '../utils/alerts';
 import { wildfireColorFor } from '../utils/wildfireClasses';
+import { LAG_CLASSES } from '../utils/reportingLag';
 
 // The original biomass-density PNGs, low to high (was a vertical bar in BiomassModule)
 const BIOMASS_DENSITY_GRADIENT = 'linear-gradient(90deg, rgb(220,180,140) 0%, rgb(255,120,0) 8%, '
@@ -49,7 +50,7 @@ function Ramp({ background, labels }) {
  * `layers` is the effective { moduleId: layerId[] } the map renders from.
  */
 function MapLegend({
-  layers, year, minConfidence, onMinConfidenceChange, scarsPersistentOnly, caribouSingleHue = false, basemapMode = 'light',
+  layers, year, minConfidence, onMinConfidenceChange, scarsPersistentOnly, fieldSitesOn = false, lagOn = false, caribouSingleHue = false, basemapMode = 'light',
 }) {
   const on = (moduleId, layerId) => (layers[moduleId] || []).includes(layerId);
   const sections = [];
@@ -110,6 +111,29 @@ function MapLegend({
             ? 'Showing stands flagged at 2+ snapshots only.'
             : 'Lighter: flagged at one snapshot only, which may be a transient bad year.'}
         </p>
+        <p className="map-legend-note-muted">
+          SCANFI-based estimate for stands cut 2002–2010 only; independent of, and not a validation of, the Wildlands League field sites.
+        </p>
+      </div>,
+    );
+  }
+
+  if (lagOn) {
+    sections.push(
+      <div className="map-legend-group" key="lag">
+        <p className="map-legend-heading">Reporting lag · seen by AI before the harvest record</p>
+        {LAG_CLASSES.map((c) => <Item key={c.label} color={c.color}>{c.label}</Item>)}
+      </div>,
+    );
+  }
+
+  if (fieldSitesOn) {
+    sections.push(
+      <div className="map-legend-group" key="field-sites">
+        <p className="map-legend-heading">Field-verified logging scars</p>
+        <div className="map-legend-item"><span className="legend-site legend-site--selected" /><span>Selected sample site</span></div>
+        <div className="map-legend-item"><span className="legend-site" /><span>Candidate study site</span></div>
+        <p className="map-legend-note-muted">Wildlands League (loggingscars.ca): roads and landings left barren by clearcut logging.</p>
       </div>,
     );
   }

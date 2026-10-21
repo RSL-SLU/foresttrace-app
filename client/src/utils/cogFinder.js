@@ -97,7 +97,7 @@ export const FINDER_LAYERS = {
 // region (and year) each product exists for, so a finder over many FMUs only
 // reads rasters that are there
 let _manifest = null;
-function loadManifest() {
+export function loadManifest() {
   if (!_manifest) {
     _manifest = fetch(`${COG_BASE_URL}/cogs/manifest.json`)
       .then((r) => (r.ok ? r.json() : null))
@@ -139,10 +139,25 @@ export async function finderCoverage() {
   ]));
 }
 
+/**
+ * FMUs with SCANFI (and logging scars) but no clearcut product at all: no
+ * harvest-record raster, no AI model. The boreal-canada-mapping Wildlands
+ * League FMUs (2026-10-20) are the case. [] if the manifest is missing.
+ */
+export async function scanfiOnlyRegions() {
+  const manifest = await loadManifest();
+  if (!manifest) return [];
+  const ari = manifest.static?.['ari-ground-truth-v1'] || [];
+  const clearcut = Object.entries(manifest.prefixes || {})
+    .filter(([prefix]) => prefix.startsWith('clearcut'))
+    .flatMap(([, byRegion]) => Object.keys(byRegion));
+  return (manifest.static?.['scanfi-v1'] || []).filter((r) => !ari.includes(r) && !clearcut.includes(r));
+}
+
 const _levels = new Map();
 
 /** The overview level closest to MAX_DIM across, with the raster's footprint. */
-async function readLevel(url, bands, maxDim = MAX_DIM) {
+export async function readLevel(url, bands, maxDim = MAX_DIM) {
   const key = `${url}#${bands.join(',')}#${maxDim}`;
   if (!_levels.has(key)) {
     _levels.set(key, (async () => {
@@ -176,7 +191,7 @@ async function readLevel(url, bands, maxDim = MAX_DIM) {
  * Connected groups of matching pixels, with area in hectares: 8-neighbour for
  * burns and habitat (continuous), edge-only (4-neighbour) for stands.
  */
-function components(level, test, edgeOnly = false) {
+export function components(level, test, edgeOnly = false) {
   const { width: W, height: H, minX, maxY, px, py } = level;
   const n = W * H;
   const labels = new Int32Array(n).fill(-1);
@@ -231,7 +246,7 @@ function components(level, test, edgeOnly = false) {
  * group pixel and a non-group pixel, chained into rings; the longest ring is
  * the outside (the others are holes, left out of a highlight).
  */
-function outline(level, labels, comp) {
+export function outline(level, labels, comp) {
   const W = level.width;
   const inside = (r, c) => r >= 0 && c >= 0 && r < level.height && c < W && labels[r * W + c] === comp.id;
   const K = W + 1;                         // corner key = r * K + c

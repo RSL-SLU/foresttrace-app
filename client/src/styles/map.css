@@ -1652,3 +1652,15 @@ body.dark-mode .map-legend-body::-webkit-scrollbar-thumb {
 body.dark-mode .map-legend .legend-color:not(.status-outline) {
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.45);
 }
+
+/* Wildlands League field-site popup (MapLibreMap) */
+.field-site-popup { font-size: 13px; line-height: 1.4; min-width: 200px; }
+.field-site-meta { font-size: 11px; color: #555; margin: 2px 0 6px; }
+.field-site-table { border-collapse: collapse; font-size: 11px; margin: 4px 0 6px; width: 100%; }
+.field-site-table th, .field-site-table td { padding: 2px 4px; text-align: right; border-bottom: 1px solid #eee; }
+.field-site-table th:first-child, .field-site-table td:first-child { text-align: left; }
+.field-site-source { font-size: 10px; color: #777; margin-top: 6px; }
+
+/* Field-site legend swatches: the map's white rings */
+.legend-site { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #fff; border: 1.5px solid #1e3a8a; box-sizing: border-box; flex: none; }
+.legend-site--selected { width: 14px; height: 14px; border-width: 2.5px; }

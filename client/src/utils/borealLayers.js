@@ -205,6 +205,12 @@ export const REGION_LABELS = {
   dogrivermatawin: 'Dog River-Matawin',
   gordoncosens: 'Gordon Cosens',
   bancroftminden: 'Bancroft Minden',
+  // Wildlands League logging-scar FMUs: SCANFI and logging scars only
+  blackspruce: 'Black Spruce',
+  caribou: 'Caribou',
+  englishriver: 'English River',
+  lacseul: 'Lac Seul',
+  wabadowgangnoopming: 'Wabadowgang Noopming',
 };
 
 export const REGION_MODEL_NOTES = {

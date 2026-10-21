@@ -9,6 +9,7 @@ import { CLEARCUT_CLASSES, DEFAULT_VISIBLE_CLASSES, CLEARCUT_CLASS_ID } from '..
 import { ensureTintedProtocol, onTintActivity } from '../utils/tintedTileProtocol';
 import { processTile } from '../utils/tileWorkerClient';
 import { describeStatus } from '../utils/borealLayers';
+import { LAG_CLASSES } from '../utils/reportingLag';
 
 // COG support is a URL protocol handler, not a layer type: once registered,
 // any source whose url starts with cog:// is range-read straight from R2 with
@@ -774,6 +775,17 @@ function LoadingReporter({ onLoadingChange, sourceIds }) {
   return null;
 }
 
+// Field-site popup: what the logging-scar raster says near a Wildlands League
+// site (build-loggingscars-sites.js --overlay). Describes the layer's
+// coverage, never a verdict on the site.
+const SCAR_CHECK_TEXT = {
+  flagged: 'a stand cut 2002–2010 is flagged as not recovered.',
+  'not-flagged': 'a stand cut 2002–2010 is not flagged.',
+  'no-record': 'no recorded clearcut, so the layer cannot judge it (older harvest, or a road or landing too small for 30 m SCANFI).',
+  'too-young': 'only clearcuts after 2010, too young to judge.',
+  'cohort-small': 'too few same-age stands to compare against.',
+};
+
 /**
  * MapLibre replacement for the Leaflet <MapContainer> stack.
  *
@@ -811,6 +823,10 @@ function MapLibreMap({
   // Disturbance Alerts: FeatureCollection whose features carry `id`, `status`
   // and `ageColor` properties (App.js adds the color); null hides the layer.
   alertsGeoJson = null,
+  // Wildlands League logging-scar field sites (points); null hides the layer
+  fieldSitesGeoJson = null,
+  // Reporting-lag blocks (reportingLag.js): polygons with lag/lagClass/years
+  lagGeoJson = null,
   selectedAlertId = null,
   onAlertClick = null,
 }) {
@@ -841,9 +857,16 @@ function MapLibreMap({
     () => [
       ...vectorLayers.map((l) => `vector-layer-${l.id}`),
       ...(alertsGeoJson ? ALERT_INTERACTIVE_LAYERS : []),
+      ...(fieldSitesGeoJson ? ['field-sites'] : []),
+      ...(lagGeoJson?.features?.length ? ['lag-fill'] : []),
     ],
-    [vectorLayers, alertsGeoJson],
+    [vectorLayers, alertsGeoJson, fieldSitesGeoJson, lagGeoJson],
   );
+  const [lagBlock, setLagBlock] = useState(null);
+  useEffect(() => { if (!lagGeoJson?.features?.length) setLagBlock(null); }, [lagGeoJson]);
+  // Clicked Wildlands League field site, for its popup
+  const [fieldSite, setFieldSite] = useState(null);
+  useEffect(() => { if (!fieldSitesGeoJson) setFieldSite(null); }, [fieldSitesGeoJson]);
 
   // Ref so the memoised click handler always calls the current callback
   const onAlertClickRef = useRef(onAlertClick);
@@ -876,6 +899,20 @@ function MapLibreMap({
       return;
     }
     setPixelInfo(null);
+    const site = e.features.find((f) => f.layer?.id === 'field-sites');
+    if (site) {
+      setClickedFeature(null);
+      setFieldSite({ lngLat: site.geometry.coordinates, properties: site.properties });
+      return;
+    }
+    setFieldSite(null);
+    const lag = e.features.find((f) => f.layer?.id === 'lag-fill');
+    if (lag) {
+      setClickedFeature(null);
+      setLagBlock({ lngLat: e.lngLat, properties: lag.properties });
+      return;
+    }
+    setLagBlock(null);
     // Alerts take precedence: they're the layer being read when it's on, and
     // they open in the side panel rather than a popup.
     const alert = e.features.find((f) => ALERT_INTERACTIVE_LAYERS.includes(f.layer?.id));
@@ -1172,6 +1209,109 @@ function MapLibreMap({
         </Source>
       )}
       <AlertsOnTop enabled={Boolean(alertsGeoJson)} signature={overlaySourceIds.join('|')} />
+
+      {/* Reporting lag: blocks the AI model saw before their harvest record,
+          coloured by how many years earlier (LAG_CLASSES, reportingLag.js) */}
+      {lagGeoJson?.features?.length > 0 && (
+        <Source id="lag-blocks" type="geojson" data={lagGeoJson}>
+          <Layer
+            id="lag-fill"
+            type="fill"
+            paint={{
+              'fill-color': ['match', ['get', 'lagClass'], ...LAG_CLASSES.flatMap((c, i) => [i, c.color]), '#d946ef'],
+              'fill-opacity': 0.45,
+            }}
+          />
+          <Layer
+            id="lag-line"
+            type="line"
+            paint={{
+              'line-color': ['match', ['get', 'lagClass'], ...LAG_CLASSES.flatMap((c, i) => [i, c.color]), '#d946ef'],
+              'line-width': 2,
+            }}
+          />
+        </Source>
+      )}
+
+      {lagBlock && (
+        <Popup
+          longitude={lagBlock.lngLat.lng}
+          latitude={lagBlock.lngLat.lat}
+          onClose={() => setLagBlock(null)}
+          closeOnClick={false}
+        >
+          <div className="field-site-popup">
+            <strong>Seen {lagBlock.properties.lag} year{lagBlock.properties.lag === 1 ? '' : 's'} before its harvest record</strong>
+            <div className="field-site-meta">
+              AI first detected {lagBlock.properties.detected} · recorded harvested {lagBlock.properties.recorded} (ARI) · ~{Number(lagBlock.properties.ha).toLocaleString('en-US')} ha
+            </div>
+            <div className="field-site-source">
+              {lagBlock.properties.lag >= 4
+                ? 'A gap this long more likely means another disturbance before the harvest, or a model error.'
+                : 'Possibly reported late; check the imagery for when the opening appeared.'}
+            </div>
+          </div>
+        </Popup>
+      )}
+
+      {/* Wildlands League field sites (loggingscars.ca): white rings with the
+          scar layer's dark blue, larger for the selected sample sites */}
+      {fieldSitesGeoJson && (
+        <Source id="field-sites" type="geojson" data={fieldSitesGeoJson}>
+          <Layer
+            id="field-sites"
+            type="circle"
+            paint={{
+              'circle-radius': ['interpolate', ['linear'], ['zoom'], 5, ['case', ['==', ['get', 'group'], 'selected'], 4, 2.5], 10, ['case', ['==', ['get', 'group'], 'selected'], 8, 5.5]],
+              'circle-color': '#ffffff',
+              'circle-stroke-color': '#1e3a8a',
+              'circle-stroke-width': ['case', ['==', ['get', 'group'], 'selected'], 2.5, 1.5],
+            }}
+          />
+        </Source>
+      )}
+
+      {fieldSite && (
+        <Popup
+          longitude={fieldSite.lngLat[0]}
+          latitude={fieldSite.lngLat[1]}
+          onClose={() => setFieldSite(null)}
+          closeOnClick={false}
+        >
+          <div className="field-site-popup">
+            <strong>{fieldSite.properties.name}</strong>
+            <div className="field-site-meta">
+              {fieldSite.properties.group === 'selected' ? 'Selected sample site' : 'Candidate study site'}
+              {fieldSite.properties.fmuName ? ` · ${fieldSite.properties.fmuName}` : ''}
+            </div>
+            {[2015, 2020, 2025].some((y) => fieldSite.properties[`biomass${y}`] != null) && (
+              <table className="field-site-table">
+                <thead><tr><th>SCANFI</th><th>2015</th><th>2020</th><th>2025</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td>Biomass t/ha</td>
+                    {[2015, 2020, 2025].map((y) => <td key={y}>{fieldSite.properties[`biomass${y}`] ?? '–'}</td>)}
+                  </tr>
+                  <tr>
+                    <td>Age (yr)</td>
+                    {[2015, 2020, 2025].map((y) => <td key={y}>{fieldSite.properties[`age${y}`] ?? '–'}</td>)}
+                  </tr>
+                </tbody>
+              </table>
+            )}
+            {fieldSite.properties.scarCheck && (
+              <div className="field-site-meta">
+                Scar layer within 150 m: {SCAR_CHECK_TEXT[fieldSite.properties.scarCheck] || '–'}
+                {!fieldSite.properties.fmu && ' This site lies outside the FMU boundary, where the map is clipped.'}
+              </div>
+            )}
+            {fieldSite.properties.photo && (
+              <a href={fieldSite.properties.photo} target="_blank" rel="noopener noreferrer">Site photo</a>
+            )}
+            <div className="field-site-source">Wildlands League · <a href="https://loggingscars.ca" target="_blank" rel="noopener noreferrer">loggingscars.ca</a></div>
+          </div>
+        </Popup>
+      )}
 
       {clickedFeature && (
         <Popup

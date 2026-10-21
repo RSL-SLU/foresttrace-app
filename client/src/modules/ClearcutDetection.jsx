@@ -15,6 +15,7 @@ import {
 } from '../utils/clearcutAreaStats';
 import { DATA_BASE_URL } from '../config';
 import { getCogCoverage } from '../utils/clearcutCogCoverage';
+import { REGION_LABELS } from '../utils/borealLayers';
 
 const CLEARCUT_YEARS = [2010, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025];
 
@@ -25,6 +26,136 @@ const LANDSAT_ONLY_YEARS = new Set([2010, 2015]);
 
 // Fallback uncertainty used for years without validation notebooks (±15% HLS benchmark).
 const FALLBACK_UNCERTAINTY = 0.15;
+
+const pctOf = (v) => (v == null ? '–' : `${Math.round(v * 100)}%`);
+const fmtHa = (v) => `${Math.round(v).toLocaleString('en-US')} ha`;
+
+/**
+ * Reporting lag (utils/reportingLag.js): harvest the AI model saw from space a
+ * year or more before the harvest inventory recorded it, per selected FMU.
+ */
+function ReportingLagPanel({ lag }) {
+  const supported = lag.supported || [];
+  const results = lag.results.filter((r) => supported.includes(r.region));
+  const name = (id) => REGION_LABELS[id] || id;
+  return (
+    <div className="module-section">
+      <h3>Reporting lag</h3>
+      <label className="switch range-switch" htmlFor="reporting-lag-toggle">
+        <span className="range-name">Stands seen by the AI before their harvest record</span>
+        <input id="reporting-lag-toggle" type="checkbox" role="switch" checked={lag.on} onChange={lag.toggle} />
+        <span className="switch-track" aria-hidden="true" />
+      </label>
+      {lag.on && lag.supported && !results.length && (
+        <p className="stat-sub">
+          Needs both the AI model and the harvest inventory: available for{' '}
+          {supported.map(name).join(', ')}. Select one of them.
+        </p>
+      )}
+      {lag.on && results.map((r) => {
+        if (r.loading || (!r.error && r.recordedHa === undefined)) {
+          return <p key={r.region} className="stat-sub">{name(r.region)}: comparing detections with harvest records…</p>;
+        }
+        if (r.error) return <p key={r.region} className="stat-sub">{name(r.region)}: {r.error}</p>;
+        if (!r.recordedHa) {
+          return (
+            <p key={r.region} className="stat-sub">
+              <strong>{name(r.region)}</strong>: nothing to compare yet. AI detections start in {r.baselineYear}{' '}
+              (a baseline year) and harvest records end in {r.lastRecordYear}.
+            </p>
+          );
+        }
+        const max = Math.max(...r.hist.map((h) => h.ha), 1);
+        return (
+          <div key={r.region} className="lag-region">
+            <p className="stat-sub">
+              <strong>{name(r.region)}</strong>: of {fmtHa(r.recordedHa)} recorded harvested in {r.baselineYear + 1}–{r.lastRecordYear},{' '}
+              <strong>{fmtHa(r.laggedHa)} ({Math.round((100 * r.laggedHa) / r.recordedHa)}%)</strong> was seen by the AI at least a year
+              before its record, {fmtHa(r.lagged2Ha)} two or more years before.
+            </p>
+            <div className="lag-hist" role="img" aria-label="Area by years between AI detection and harvest record">
+              {r.hist.map((h) => (
+                <div key={h.lag} className={`lag-row${h.lag >= 1 ? ' lag-row--late' : ''}`}>
+                  <span className="lag-k">{h.lag > 0 ? `+${h.lag}` : h.lag}{h.lag === 5 || h.lag === -5 ? '+' : ''}</span>
+                  <span className="lag-bar" style={{ width: `${Math.max(2, (100 * h.ha) / max)}%` }} />
+                  <span className="lag-v">{fmtHa(h.ha)}</span>
+                </div>
+              ))}
+            </div>
+            <p className="stat-sub lag-axis">Years from AI detection to harvest record. Negative: recorded first, the usual case.</p>
+            {r.blocks.length > 0 && (
+              <ul className="lag-blocks">
+                {r.blocks.slice(0, 5).map((b, i) => (
+                  <li key={i}>
+                    <span>~{fmtHa(b.properties.ha)} · seen {b.properties.detected}, recorded {b.properties.recorded} (+{b.properties.lag})</span>
+                    <button type="button" className="lag-zoom" onClick={() => lag.zoomTo(b)}>Zoom</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        );
+      })}
+      {lag.on && results.length > 0 && (
+        <p className="stat-sub scar-caveat">
+          A gap of 1–3 years fits a late report; 4+ more likely means another disturbance before the harvest,
+          or a model error. The first AI year is a baseline and left out; detections after the last record
+          year cannot show a lag yet. Areas from ~100 m overviews, approximate.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * How SCANFI reads the Wildlands League field sites, compared with random
+ * stands of the same age in the same FMUs (scripts/analysis/loggingscars-scanfi.mjs,
+ * stored in the sites file). Latest SCANFI snapshot, 90 m window.
+ */
+// What the scar raster can say near each Wildlands League site
+// (summary.scarOverlay, from build-loggingscars-sites.js --overlay). It is an
+// independent estimate for stands cut 2002-2010, not a check of the sites.
+function FieldSitesSummary({ summary, count }) {
+  if (count === null) return <p className="stat-sub">Loading field sites…</p>;
+  const o = summary?.scarOverlay;
+  const s = summary?.byYear?.['2025_p3'];
+  return (
+    <div className="field-sites-summary">
+      <p className="stat-sub">
+        {count} sites where roads and landings from clearcut logging left productive forest barren
+        (<a href="https://loggingscars.ca" target="_blank" rel="noopener noreferrer">loggingscars.ca</a>).
+      </p>
+      {o && (
+        <>
+          <div className="field-sites-stats">
+            <div><span className="v">{o.sites - o.noRecord}</span><span className="k">sites with a recorded clearcut within {o.radiusM} m</span></div>
+            <div><span className="v">{o.judgeable}</span><span className="k">near a stand cut 2002–2010, old enough for the scar layer to judge</span></div>
+            <div><span className="v">{pctOf(o.flagged / o.judgeable)}</span><span className="k">of those near a flagged stand (random points: {o.randomFlaggedPct.join('–')}%)</span></div>
+          </div>
+          <p className="stat-sub">
+            The other {o.noRecord} sites have no recorded clearcut within {o.radiusM} m: most likely older
+            harvests, or roads and landings too small for 30 m SCANFI. Flags near sites are about as common
+            as near random points in the same FMUs, so the scar layer is not a validation of these sites, and
+            they are not a test of it.
+          </p>
+        </>
+      )}
+      {s && (
+        <>
+          <div className="field-sites-stats">
+            <div><span className="v">{s.biomass.siteMedian}</span><span className="k">t/ha at sites</span></div>
+            <div><span className="v">{s.biomass.controlMedian}</span><span className="k">t/ha, random stands</span></div>
+            <div><span className="v">{pctOf(s.sameAge.sitesBelowThreshold)}</span><span className="k">of sites below half their same-age peers (controls: {pctOf(s.sameAge.controlsBelowThreshold)})</span></div>
+          </div>
+          <p className="stat-sub">
+            SCANFI 2025, 90 m around each site. Chance a site has less biomass than a random stand of the
+            same age: {pctOf(s.sameAge.aucSiteLower)} (50% would be no difference).
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
 
 function XAxisTick({ x, y, payload }) {
   const isLandsatOnly = LANDSAT_ONLY_YEARS.has(Number(payload.value));
@@ -302,8 +433,28 @@ function ClearcutDetection({ data }) {
 
   const trendColor = trend?.slope >= 0 ? '#e53e3e' : '#38a169';
 
+  // FMUs with SCANFI and logging scars but no harvest records or AI model
+  // (the Wildlands League FMUs). With only those selected, the clearcut
+  // sources, figures and chart have nothing to show, so they give way to a note.
+  const scanfiOnly = data?.scanfiOnlyRegions || [];
+  const selected = data?.selectedFMUs || [];
+  const onlyScanfi = scanfiOnly.length > 0 && selected.every((r) => scanfiOnly.includes(r));
+  const lagApplies = data?.lag && (!data.lag.supported || selected.some((r) => data.lag.supported.includes(r)));
+  const listNames = (ids) => ids.map((id) => REGION_LABELS[id] || id).join(', ');
+
   return (
     <div className="clearcut-module">
+      {scanfiOnly.length > 0 && (
+        <div className="module-section">
+          <p className="stat-sub scanfi-only-note">
+            {onlyScanfi
+              ? `${listNames(scanfiOnly)} ${scanfiOnly.length === 1 ? 'has' : 'have'} no harvest-record or AI clearcut layers yet, only the SCANFI-based logging scars below.`
+              : `${listNames(scanfiOnly)}: no harvest-record or AI clearcut layers yet, so not in the figures below; logging scars only.`}
+          </p>
+        </div>
+      )}
+
+      {!onlyScanfi && (<>
       <div className="module-section">
         <details className="range-dropdown" open>
           <summary>
@@ -491,6 +642,9 @@ function ClearcutDetection({ data }) {
           · Error bars: precision/recall from validation notebooks (fallback ±{(FALLBACK_UNCERTAINTY * 100).toFixed(0)}%)
         </div>
       </div>
+      </>)}
+
+      {lagApplies && <ReportingLagPanel lag={data.lag} />}
 
       {data?.scars && (
         <div className="module-section">
@@ -522,8 +676,31 @@ function ClearcutDetection({ data }) {
             </>
           )}
           <p className="stat-sub scar-caveat">
-            Only stands harvested at least 15 years ago are scored; younger stands are too young to judge.
+            Only stands with a 2002–2010 harvest record are scored: they need to be 15+ years old to judge.
+            A SCANFI-based estimate, independent of the Wildlands League field sites below.
           </p>
+
+          {data.scars.fieldSites && (
+            <>
+              <label className="switch range-switch" htmlFor="logging-scars-field-sites">
+                <span className="range-name">Field-verified scars (Wildlands League)</span>
+                <input
+                  id="logging-scars-field-sites"
+                  type="checkbox"
+                  role="switch"
+                  checked={data.scars.fieldSites.on}
+                  onChange={data.scars.fieldSites.toggle}
+                />
+                <span className="switch-track" aria-hidden="true" />
+              </label>
+              {data.scars.fieldSites.on && (
+                <FieldSitesSummary
+                  summary={data.scars.fieldSites.summary}
+                  count={data.scars.fieldSites.count}
+                />
+              )}
+            </>
+          )}
         </div>
       )}
 

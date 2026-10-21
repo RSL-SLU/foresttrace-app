@@ -1548,6 +1548,8 @@ body.dark-mode .ai-locked-link { color: #9fdcb9; }
 .scar-legend-bar { height: 10px; border-radius: 4px; }
 .scar-legend-labels { display: flex; justify-content: space-between; font-size: 11px; opacity: 0.75; margin: 3px 0 6px; }
 .scar-caveat { margin-top: 8px; font-style: italic; }
+.scanfi-only-note { margin: 0; padding: 8px 10px; border-left: 3px solid #1d4ed8; background: rgba(29, 78, 216, 0.06); border-radius: 4px; }
+body.dark-mode .scanfi-only-note { border-left-color: #93c5fd; background: rgba(147, 197, 253, 0.08); }
 .data-note { margin-bottom: 8px; line-height: 1.45; }
 .data-note-region { text-transform: capitalize; }
 .data-note--warn { padding: 6px 8px; border-radius: 6px; background: rgba(245, 158, 11, 0.14); }
@@ -1614,3 +1616,33 @@ body.dark-mode .module-content::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, rgba(95, 145, 112, 0.95) 0%, rgba(68, 109, 82, 0.95) 100%);
   border-color: rgba(34, 45, 40, 0.8);
 }
+
+/* Wildlands League field-site summary (ClearcutDetection, Logging Scars) */
+.field-sites-summary { margin-top: 6px; }
+.field-sites-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 6px 0; }
+.field-sites-stats > div { display: grid; gap: 2px; padding: 6px; border: 1px solid #e0e0e0; border-radius: 6px; }
+.field-sites-stats .v { font-weight: 700; font-size: 15px; color: #1e3a8a; }
+.field-sites-stats .k { font-size: 10.5px; line-height: 1.3; color: #555; }
+body.dark-mode .field-sites-stats > div { border-color: #3a3a3a; }
+body.dark-mode .field-sites-stats .v { color: #93c5fd; }
+body.dark-mode .field-sites-stats .k { color: #bbb; }
+body.dark-mode .field-sites-summary a { color: #93c5fd; }
+
+/* Reporting lag panel (ClearcutDetection) */
+.lag-region { margin: 8px 0 10px; }
+.lag-hist { display: grid; gap: 2px; margin: 6px 0 2px; }
+.lag-row { display: grid; grid-template-columns: 28px 1fr 64px; align-items: center; gap: 6px; font-size: 11px; }
+.lag-k { text-align: right; font-variant-numeric: tabular-nums; color: #555; }
+.lag-bar { height: 9px; border-radius: 2px; background: #cbd5e1; }
+.lag-row--late .lag-bar { background: #d946ef; }
+.lag-row--late .lag-k { color: #a21caf; font-weight: 600; }
+.lag-v { font-variant-numeric: tabular-nums; color: #555; text-align: right; }
+.lag-axis { font-size: 10.5px !important; }
+.lag-blocks { list-style: none; padding: 0; margin: 6px 0 0; display: grid; gap: 4px; font-size: 11.5px; }
+.lag-blocks li { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.lag-zoom { flex: none; font-size: 11px; padding: 2px 8px; border: 1px solid #d946ef; border-radius: 10px; background: transparent; color: #a21caf; cursor: pointer; }
+.lag-zoom:hover { background: rgba(217, 70, 239, 0.1); }
+body.dark-mode .lag-k, body.dark-mode .lag-v { color: #bbb; }
+body.dark-mode .lag-bar { background: #475569; }
+body.dark-mode .lag-row--late .lag-bar { background: #e879f9; }
+body.dark-mode .lag-zoom { color: #f0abfc; border-color: #e879f9; }

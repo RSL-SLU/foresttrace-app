@@ -53,6 +53,12 @@ FMU_IDS = {
     'dog_river_matawin': 'dogrivermatawin',
     'gordon_cosens': 'gordoncosens',
     'bancroft_minden': 'bancroftminden',
+    # Wildlands League logging-scar FMUs: SCANFI and logging scars only, no clearcut model
+    'blackspruce': 'blackspruce',
+    'caribou': 'caribou',
+    'englishriver': 'englishriver',
+    'lacseul': 'lacseul',
+    'wabadowgangnoopming': 'wabadowgangnoopming',
 }
 
 ACC_WINDOW = 5          # years in the accumulated window, as in the app's ARI layer
