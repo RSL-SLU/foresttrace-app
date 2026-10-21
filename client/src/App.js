@@ -1006,12 +1006,25 @@ function App() {
 
   const [fieldSitesOn, setFieldSitesOn] = useState(false);
   const [fieldSites, setFieldSites] = useState(null);
+  const [fieldSitesError, setFieldSitesError] = useState(null);
+  // A failed load isn't kept: the switch turns back off with the reason, and
+  // switching it on again retries (an empty result used to stick until reload)
   useEffect(() => {
     if (!fieldSitesOn || fieldSites) return;
+    setFieldSitesError(null);
     fetch(`${DATA_BASE_URL}/data/loggingscars-sites.geojson`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((json) => setFieldSites(json || { type: 'FeatureCollection', features: [] }))
-      .catch(() => setFieldSites({ type: 'FeatureCollection', features: [] }));
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((json) => {
+        if (!json?.features?.length) throw new Error('no sites in the file');
+        setFieldSites(json);
+      })
+      .catch((err) => {
+        setFieldSitesError(`Could not load the field sites (${err.message}). Switch on to retry.`);
+        setFieldSitesOn(false);
+      });
   }, [fieldSitesOn, fieldSites]);
   // Hides provisional AI detections below this confidence (0-100); confirmed
   // ones always show
@@ -1805,6 +1818,7 @@ function App() {
         toggle: () => setFieldSitesOn((v) => !v),
         summary: fieldSites?.summary || null,
         count: fieldSites?.features?.length ?? null,
+        error: fieldSitesError,
       },
     },
     aiStatus: {

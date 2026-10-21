@@ -693,6 +693,9 @@ function ClearcutDetection({ data }) {
                 />
                 <span className="switch-track" aria-hidden="true" />
               </label>
+              {data.scars.fieldSites.error && !data.scars.fieldSites.on && (
+                <p className="stat-sub field-sites-error">{data.scars.fieldSites.error}</p>
+              )}
               {data.scars.fieldSites.on && (
                 <FieldSitesSummary
                   summary={data.scars.fieldSites.summary}

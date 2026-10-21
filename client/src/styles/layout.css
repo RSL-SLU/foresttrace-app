@@ -1627,6 +1627,8 @@ body.dark-mode .field-sites-stats > div { border-color: #3a3a3a; }
 body.dark-mode .field-sites-stats .v { color: #93c5fd; }
 body.dark-mode .field-sites-stats .k { color: #bbb; }
 body.dark-mode .field-sites-summary a { color: #93c5fd; }
+.field-sites-error { color: #b91c1c; }
+body.dark-mode .field-sites-error { color: #fca5a5; }
 
 /* Reporting lag panel (ClearcutDetection) */
 .lag-region { margin: 8px 0 10px; }
