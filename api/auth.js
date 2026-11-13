@@ -9,6 +9,7 @@ const {
 const {
   normalizeUsername, validateUsername, ensureUsername, ensureIndex,
 } = require('./_usernames');
+const { allowedPrefixesFor } = require('./_uploadTargets');
 
 module.exports = async function handler(req, res) {
   // Check database configuration
@@ -42,6 +43,8 @@ module.exports = async function handler(req, res) {
             username: await ensureUsername(users, doc),
             name: doc.name || doc.email.split('@')[0],
             role: doc.role || 'user',
+            // Drives the "Upload Data" menu item; api/uploads.js re-checks it.
+            canUpload: allowedPrefixesFor(doc).length > 0,
             createdAt: doc.createdAt,
           };
         }
@@ -210,7 +213,8 @@ module.exports = async function handler(req, res) {
 
       return res.status(200).json({
         success: true,
-        user: userPayload,
+        // canUpload stays out of the token: access is re-read on each upload.
+        user: { ...userPayload, canUpload: allowedPrefixesFor(userDoc).length > 0 },
         token,
       });
     }

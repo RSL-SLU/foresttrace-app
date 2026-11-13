@@ -11,6 +11,7 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
     "@vercel/analytics": "^2.0.1",
+    "@vercel/blob": "^2.8.2",
     "@vercel/speed-insights": "^2.0.0",
     "geotiff": "^3.0.5",
     "groq-sdk": "^1.2.1",

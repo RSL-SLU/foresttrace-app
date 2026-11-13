@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import DataUploadModal from './DataUploadModal';
 import '../styles/auth.css';
 
 const NAV_ITEMS = [
@@ -30,6 +31,7 @@ function TopMenu({
 }) {
   const { user, isAuthenticated, isInitialized, openAuthModal, logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
   const dropdownRef = useRef(null);
   // Mobile (<= 768px) collapses the nav links into a hamburger panel.
   const [navOpen, setNavOpen] = useState(false);
@@ -230,6 +232,19 @@ function TopMenu({
                   <span>🐛</span> Report an Issue
                 </button>
 
+                {(user.role === 'admin' || user.canUpload) && (
+                  <button
+                    type="button"
+                    className="user-dropdown-item"
+                    onClick={() => {
+                      setDropdownOpen(false);
+                      setUploadOpen(true);
+                    }}
+                  >
+                    <span>⬆️</span> Upload Data
+                  </button>
+                )}
+
                 {user.role === 'admin' && (
                   <button
                     type="button"
@@ -281,6 +296,8 @@ function TopMenu({
           <span className="nav-toggle-bar" aria-hidden="true" />
         </button>
       </div>
+      {/* Portaled to <body>, so the header's stacking context does not clip it */}
+      <DataUploadModal isOpen={uploadOpen} onClose={() => setUploadOpen(false)} />
     </header>
   );
 }

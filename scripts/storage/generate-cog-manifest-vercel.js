@@ -27,7 +27,7 @@ try { require('dotenv').config({ path: path.join(ROOT, '.env.vercel') }); } catc
 try { require('dotenv').config({ path: path.join(ROOT, '.env') }); } catch (_) {}
 try { require('dotenv').config({ path: path.join(ROOT, '.env.r2') }); } catch (_) {}
 
-const { list, put } = require('@vercel/blob');
+const { list, put, head } = require('@vercel/blob');
 
 const MANIFEST_KEY = 'cogs/manifest.json';
 
@@ -95,6 +95,7 @@ async function rebuildManifestVercel({
   // Preserve tile coverage from R2 if R2 credentials exist, so existing tile
   // discovery remains intact if tiles are checked against the same manifest.
   let tiles = {};
+  let tilesFromR2 = false;
   if (
     process.env.CLOUDFLARE_ACCOUNT_ID &&
     process.env.R2_ACCESS_KEY_ID &&
@@ -142,8 +143,23 @@ async function rebuildManifestVercel({
         for (const region of Object.keys(byRegion)) byRegion[region].sort((a, b) => a - b);
         if (Object.keys(byRegion).length) tiles[layer] = byRegion;
       }
+      tilesFromR2 = true;
     } catch (_) {
-      // If R2 check fails or is unavailable, leave tiles empty; callers fall back to standard tile queries.
+      tiles = {};
+    }
+  }
+
+  // Without R2 (the in-app upload route, or a machine with no .env.r2) the tile
+  // listing cannot be rebuilt, so carry over the published one. Writing {} here
+  // would wipe the coverage the clearcut layers read from manifest.tiles.
+  if (!tilesFromR2) {
+    try {
+      const meta = await head(MANIFEST_KEY, { token });
+      const res = await fetch(meta.url, { cache: 'no-store' });
+      if (res.ok) tiles = (await res.json()).tiles || {};
+      log('R2 not available -- kept tile coverage from the published manifest');
+    } catch (_) {
+      // No published manifest yet: nothing to keep.
     }
   }
 

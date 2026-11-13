@@ -46,7 +46,79 @@ function AdminDashboard({ isOpen, onClose }) {
     }
   }, [isOpen, fetchOverview]);
 
+  // Data Uploads tab: the folders that can be granted, and the upload log
+  const [uploadTargets, setUploadTargets] = useState([]);
+  const [uploadLog, setUploadLog] = useState([]);
+  const [uploadsError, setUploadsError] = useState(null);
+
+  const fetchUploads = useCallback(async () => {
+    if (!token) return;
+    setUploadsError(null);
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      const [targetsRes, logRes] = await Promise.all([
+        fetch('/api/uploads?action=targets', { headers }),
+        fetch('/api/uploads?action=log', { headers }),
+      ]);
+      const targetsJson = await targetsRes.json().catch(() => ({}));
+      const logJson = await logRes.json().catch(() => ({}));
+      if (!targetsRes.ok) throw new Error(targetsJson.error || 'Failed to load upload folders');
+      if (!logRes.ok) throw new Error(logJson.error || 'Failed to load upload log');
+      setUploadTargets(targetsJson.targets || []);
+      setUploadLog(logJson.uploads || []);
+    } catch (err) {
+      setUploadsError(err.message);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (isOpen && activeTab === 'uploads') fetchUploads();
+  }, [isOpen, activeTab, fetchUploads]);
+
   if (!isOpen) return null;
+
+  async function handleToggleUploadAccess(targetUser, prefix) {
+    const current = targetUser.uploadPrefixes || [];
+    const next = current.includes(prefix) ? current.filter((p) => p !== prefix) : [...current, prefix];
+    setActionInProgress(`${targetUser.id}:${prefix}`);
+    try {
+      const res = await fetch('/api/admin', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: 'update-upload-access', targetUserId: targetUser.id, prefixes: next }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to update upload access');
+      }
+      await fetchOverview();
+    } catch (err) {
+      alert(`Error updating upload access: ${err.message}`);
+    } finally {
+      setActionInProgress(null);
+    }
+  }
+
+  async function handleUploadsAction(action, payload, confirmMsg) {
+    if (confirmMsg && !window.confirm(confirmMsg)) return;
+    setActionInProgress(`uploads:${action}:${payload?.pathname || ''}`);
+    try {
+      const res = await fetch(`/api/uploads?action=${action}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload || {}),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed: ${action}`);
+      }
+      await fetchUploads();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setActionInProgress(null);
+    }
+  }
 
   async function handleToggleUserRole(targetUser) {
     const newRole = targetUser.role === 'admin' ? 'user' : 'admin';
@@ -157,6 +229,13 @@ function AdminDashboard({ isOpen, onClose }) {
             onClick={() => setActiveTab('reports')}
           >
             Bug Reports {openReportsCount > 0 ? `(${openReportsCount} open)` : `(${reportsList.length})`}
+          </button>
+          <button
+            type="button"
+            className={`admin-nav-tab ${activeTab === 'uploads' ? 'admin-nav-tab--active' : ''}`}
+            onClick={() => setActiveTab('uploads')}
+          >
+            Data Uploads
           </button>
           <button
             type="button"
@@ -363,6 +442,110 @@ function AdminDashboard({ isOpen, onClose }) {
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* TAB: DATA UPLOADS */}
+              {activeTab === 'uploads' && (
+                <div>
+                  {uploadsError && (
+                    <div className="auth-error-box" style={{ marginBottom: 16 }}>{uploadsError}</div>
+                  )}
+
+                  <h3 className="admin-section-title">Upload access</h3>
+                  <p className="upload-note" style={{ marginBottom: 10 }}>
+                    Click a layer to grant or revoke it. Uploads go live immediately and cannot replace existing files.
+                    Administrators can upload to every layer.
+                  </p>
+                  <div className="admin-table-container">
+                    <table className="admin-table">
+                      <thead>
+                        <tr><th>User</th><th>Layers they can upload to</th></tr>
+                      </thead>
+                      <tbody>
+                        {usersList.filter((u) => u.role !== 'admin').map((u) => (
+                          <tr key={u.id}>
+                            <td>
+                              <strong>{u.name}</strong>
+                              <div className="upload-note" style={{ marginTop: 0 }}>{u.email}</div>
+                            </td>
+                            <td>
+                              <div className="upload-chips">
+                                {uploadTargets.map((t) => {
+                                  const on = (u.uploadPrefixes || []).includes(t.prefix);
+                                  return (
+                                    <button
+                                      key={t.prefix}
+                                      type="button"
+                                      className={`upload-chip ${on ? 'upload-chip--on' : ''}`}
+                                      disabled={actionInProgress === `${u.id}:${t.prefix}`}
+                                      onClick={() => handleToggleUploadAccess(u, t.prefix)}
+                                      title={`${t.label} -- cogs/${t.prefix}/`}
+                                      aria-pressed={on}
+                                    >
+                                      {t.prefix}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <h3 className="admin-section-title" style={{ marginRight: 'auto' }}>Recent uploads</h3>
+                    <button
+                      type="button"
+                      className="admin-action-btn"
+                      disabled={actionInProgress === 'uploads:rebuild-manifest:'}
+                      onClick={() => handleUploadsAction('rebuild-manifest')}
+                      title="Re-index cogs/manifest.json from what is in Blob storage"
+                    >
+                      {actionInProgress === 'uploads:rebuild-manifest:' ? 'Rebuilding…' : '↻ Rebuild manifest'}
+                    </button>
+                  </div>
+                  <div className="admin-table-container">
+                    <table className="admin-table">
+                      <thead>
+                        <tr><th>File</th><th>Size</th><th>Uploaded by</th><th>Date</th><th>Actions</th></tr>
+                      </thead>
+                      <tbody>
+                        {uploadLog.length === 0 ? (
+                          <tr>
+                            <td colSpan="5" style={{ textAlign: 'center', color: '#64748b' }}>No uploads yet.</td>
+                          </tr>
+                        ) : uploadLog.map((r) => (
+                          <tr key={r.pathname} style={r.deletedAt ? { opacity: 0.5 } : undefined}>
+                            <td><code>{r.pathname}</code></td>
+                            <td>{r.size ? `${(r.size / 1e6).toFixed(1)} MB` : '—'}</td>
+                            <td>{r.uploadedBy?.email || '—'}</td>
+                            <td>{r.uploadedAt ? new Date(r.uploadedAt).toLocaleString() : '—'}</td>
+                            <td>
+                              {r.deletedAt ? (
+                                <span title={`Deleted by ${r.deletedBy?.email || 'admin'}`}>Deleted</span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="admin-action-btn"
+                                  disabled={actionInProgress === `uploads:delete:${r.pathname}`}
+                                  onClick={() => handleUploadsAction(
+                                    'delete',
+                                    { pathname: r.pathname },
+                                    `Delete ${r.pathname} from production? It disappears from the map once the manifest is rebuilt (done automatically).`,
+                                  )}
+                                >
+                                  {actionInProgress === `uploads:delete:${r.pathname}` ? 'Deleting…' : 'Delete'}
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
 

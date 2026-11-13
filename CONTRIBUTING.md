@@ -448,6 +448,17 @@ Requirements for migration:
 - `.env.r2` configured with Cloudflare R2 credentials
 - `.env.vercel` (or `.env`) configured with `BLOB_READ_WRITE_TOKEN`
 
+### 4. Uploading from the app (students and collaborators)
+
+Signed-in users can upload COGs from the browser (**user menu → Upload Data**) into production module folders, without ever holding `BLOB_READ_WRITE_TOKEN`. Admins grant access per user and per folder in **Admin Dashboard → Data Uploads**. Admins can upload to every folder.
+
+- **Live immediately.** Each finished batch rebuilds `cogs/manifest.json`, so the layer appears in the map at once.
+- **No replacing.** A path that already exists is refused, so uploads can only add region/year files. To fix a bad upload, an admin deletes it from the Data Uploads tab and the student uploads it again. The delete button only reaches files that came in through the app, not files uploaded with the CLI scripts.
+- **Names are checked before uploading:** `<region>_<year>.tif` for yearly layers and `<region>.tif` for static ones, lowercase. The region must already appear somewhere in the manifest, which catches typos. The first file for a brand-new region has to go through the CLI.
+- **Charts are not updated.** Stats JSON under `client/public/data/` is still regenerated offline (`scripts/stats/refresh-stats.js`) and committed.
+
+How it works: `api/uploads.js` issues a [client token](https://vercel.com/docs/vercel-blob/client-upload) for each file. The token is locked to that one pathname, expires after 15 minutes, accepts only `image/tiff` and has `allowOverwrite: false`. Access is read from `users.uploadPrefixes` on every request, so revoking it takes effect immediately. The folders that can be granted are listed in `api/_uploadTargets.js`; add a module's prefix there to make it grantable. Uploads are logged in the `cog_uploads` collection. `UPLOAD_MAX_MB` (default 2048) caps the file size.
+
 ---
 
 ## COG availability manifest

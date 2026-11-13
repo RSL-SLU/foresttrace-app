@@ -13,6 +13,7 @@ const adminHandler = require('./api/admin');
 const reportsHandler = require('./api/reports');
 const alertsHandler = require('./api/alerts');
 const storyMapsHandler = require('./api/storymaps');
+const uploadsHandler = require('./api/uploads');
 const app = express();
 // Use PORT 3001 for local dev so CRA dev server can run on 3000 simultaneously
 const PORT = process.env.PORT || 3001;
@@ -46,6 +47,7 @@ app.all('/api/admin', adminHandler);
 app.all('/api/reports', reportsHandler);
 app.all('/api/alerts', alertsHandler);
 app.all('/api/storymaps', storyMapsHandler);
+app.all('/api/uploads', uploadsHandler);
 
 // Public story map URLs (on Vercel these are rewrites in vercel.json)
 app.get('/stories/:username/:slug/preview.jpg', (req, res) => {

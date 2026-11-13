@@ -8,6 +8,7 @@
     { "source": "/api/(.*)", "destination": "/api/$1" }
   ],
   "functions": {
-    "api/storymaps.js": { "maxDuration": 300 }
+    "api/storymaps.js": { "maxDuration": 300 },
+    "api/uploads.js": { "maxDuration": 60 }
   }
 }

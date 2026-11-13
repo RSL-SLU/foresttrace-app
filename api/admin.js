@@ -4,6 +4,7 @@ const {
   getUserFromRequest,
   getMongoUri,
 } = require('./_db');
+const { TARGETS_BY_PREFIX } = require('./_uploadTargets');
 
 const VERCEL_ANALYTICS_URL = process.env.VERCEL_ANALYTICS_URL || 'https://vercel.com/rsl7/foresttrace/analytics';
 
@@ -43,6 +44,7 @@ module.exports = async function handler(req, res) {
         email: u.email,
         name: u.name || u.email.split('@')[0],
         role: u.role || 'user',
+        uploadPrefixes: Array.isArray(u.uploadPrefixes) ? u.uploadPrefixes : [],
         createdAt: u.createdAt,
         lastActiveAt: u.lastActiveAt || u.createdAt,
       }));
@@ -105,6 +107,24 @@ module.exports = async function handler(req, res) {
           { $set: { role: newRole, roleUpdatedAt: new Date() } }
         );
         return res.status(200).json({ success: true, message: `User role updated to ${newRole}` });
+      }
+
+      // Set which production COG folders a user may upload to (api/uploads.js)
+      if (action === 'update-upload-access') {
+        const { targetUserId, prefixes } = req.body || {};
+        if (!targetUserId || !Array.isArray(prefixes)) {
+          return res.status(400).json({ error: 'targetUserId and prefixes[] are required' });
+        }
+        const unknown = prefixes.filter((p) => !TARGETS_BY_PREFIX.has(p));
+        if (unknown.length) {
+          return res.status(400).json({ error: `Unknown upload folder(s): ${unknown.join(', ')}` });
+        }
+        const clean = [...new Set(prefixes)];
+        await usersCol.updateOne(
+          { _id: new ObjectId(targetUserId) },
+          { $set: { uploadPrefixes: clean, uploadAccessUpdatedAt: new Date(), uploadAccessUpdatedBy: currentUser.email } }
+        );
+        return res.status(200).json({ success: true, uploadPrefixes: clean });
       }
     }
 
