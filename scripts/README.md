@@ -13,6 +13,15 @@ Run them from anywhere — paths resolve from the repo root — e.g.
 | `alerts/` | Disturbance Alerts data. `seed-mock-alerts.js --db <name>` loads demo alerts (DIST-ALERT-shaped, flagged `mock: true`) into `disturbance_alerts`; `--remove` deletes only the mock ones. |
 | `legacy/` | The Cloudflare R2 and PNG-tile era, kept for reference. Not part of the current workflow. |
 
+## Before uploading COGs
+
+Production COGs are one file per FMU (and per year), and the browser reads
+them in pieces with HTTP range requests. That only works for a real COG in
+EPSG:3857, with 512×512 blocks and nearest-neighbour overviews. Neither upload
+tool checks this. `data/prepare-boreal-cogs.py` produces the clearcut products
+correctly; for anything else, see "How COGs are stored and read" in
+CONTRIBUTING.md and compare a new file against an existing one with `gdalinfo`.
+
 ## When a module's data changes
 
 The charts read precomputed JSON, not the rasters, so they go stale whenever a

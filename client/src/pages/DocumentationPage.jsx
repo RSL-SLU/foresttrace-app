@@ -274,7 +274,7 @@ function DocumentationPage({ onBack }) {
             <h2>Tile &amp; COG Architecture</h2>
             <DefTable rows={[
               ['Raster tiles',    'PNG tiles following the XYZ tile scheme (zoom 6–14). Served from Cloudflare R2.'],
-              ['Cloud-Optimized GeoTIFFs', 'COGs range-read directly over HTTP by the MapLibre GL WebGL renderer. Hosted on Vercel Pro Storage (Vercel Blob) in production.'],
+              ['Cloud-Optimized GeoTIFFs', 'One file per FMU and year, in Web Mercator with internal 512-pixel blocks and overviews. The MapLibre GL renderer range-reads only the blocks a map tile needs over HTTP. Hosted on Vercel Pro Storage (Vercel Blob) in production.'],
               ['COG availability', 'Indexed dynamically via cogs/manifest.json to avoid high-volume HEAD probing.'],
               ['URL patterns',    'tiles/<layer>/<region>_<year>/<z>/<x>/<y>.png  |  cogs/<prefix>/<region>_<year>.tif'],
               ['Sensor subfolders','For years with multiple sensors (e.g. 2025), tiles are stored under hls/ or planet/ subfolders within the year directory.'],

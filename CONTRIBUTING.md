@@ -397,6 +397,77 @@ set to the R2 bucket in production.
 
 ---
 
+## How COGs are stored and read
+
+Clearcut, wildfire and caribou are drawn from Cloud-Optimized GeoTIFFs (COGs). This section explains how the files are laid out and read, so you know what a file must look like before it goes to production.
+
+### One file per FMU (and per year)
+
+Each map layer reads one folder, and each file in it covers a **whole FMU**:
+
+```
+cogs/<layer>/<region>_<year>.tif     yearly layers   e.g. cogs/clearcut-status-v2/wabigoon_2021.tif
+cogs/<layer>/<region>.tif            static layers   e.g. cogs/logging-scars-v1/wabigoon.tif (one file, every year)
+```
+
+- `<layer>` is the layer's folder (its COG prefix). The layer → prefix mapping is in `client/src/App.js` (`cog: { prefix }`) and `client/src/config.js` (`COG_PREFIX_BY_LAYER`).
+- `<region>` is the app's FMU id (lowercase, no separators: `dogrivermatawin`, `troutlake`), as in `client/public/data/regions/<id>.json`. Caribou's range layer `caribou-v1` uses range ids instead.
+- A file only appears in the map once it is listed in `cogs/manifest.json` (see below).
+
+This replaced the PNG tile pyramids: caribou went from 882,116 tiles to 297 files.
+
+### The browser downloads only the parts it needs
+
+The MapLibre renderer reads COGs through `@geomatico/maplibre-cog-protocol` (registered as `cog://` in `client/src/components/MapLibreMap.jsx`), which uses `geotiff.js` underneath. For each map tile on screen it:
+
+1. reads the file's **header**, a few KB at the start, which records where every block of the image sits in the file;
+2. works out which blocks cover that tile at the current zoom;
+3. downloads **only those bytes** with HTTP range requests (`Range: bytes=…`), which Vercel Blob serves directly.
+
+That only works because of how the file is laid out inside:
+
+```
+wabigoon_2021.tif
+├─ header                      where every block is
+├─ full resolution, 512×512 blocks    ← zoomed in: only the blocks in view are fetched
+├─ overview ½ resolution
+├─ overview ¼ resolution
+└─ overview ⅛ …                       ← zoomed out: a few small blocks cover the whole FMU
+```
+
+Zoomed out, a whole FMU loads from a few small, low-resolution blocks. Zoomed in, only the full-resolution blocks inside the view are fetched. A clearcut status file is 2–4.5 MB and a SCANFI file about 60 MB, but a pan or zoom only moves a few blocks of either.
+
+### What a production COG must be
+
+| Property | Required | Why |
+|---|---|---|
+| Layout | Real COG (GDAL `driver='COG'`): tiled, overviews, header first | A plain GeoTIFF has no blocks or overviews, so the browser has to download most of the file for any tile |
+| Projection | **EPSG:3857** (Web Mercator) | The COG protocol does not reproject; anything else draws in the wrong place |
+| Block size | 512 | Matches the other files; keeps requests few and small |
+| Overview resampling | **nearest** | Pixels are class codes and years. Averaging creates values that mean nothing (a "2019.5" harvest) |
+| Data type and nodata | Integer, with the product's nodata value | The colourers compare pixels against an integer nodata. Clearcut status and logging scars are `uint16` with nodata 65535; ARI is `uint16` with 0 meaning no record; SCANFI is `uint8` with nodata 255 |
+| Extent | Clipped to the FMU boundary | Neighbouring FMUs must not overlap or double-count |
+| Compression | DEFLATE | Smaller files; every reader supports it |
+
+For the clearcut products (status, accumulated status, ARI, logging scars, SCANFI), `scripts/data/prepare-boreal-cogs.py` produces exactly this from the boreal-canada-mapping outputs, and its output folders are already named by layer:
+
+```
+E:/boreal-canada-mapping/foresttrace_cogs/
+  clearcut-status-v2/      clearcut-status-acc-v2/      ari-ground-truth-v1/
+  logging-scars-v1/        scanfi-v1/
+```
+
+Caribou (`caribou_tiling`) and wildfire (the NBAC tiler) are produced outside this repo. Match the files already in production; compare a new file against an existing one with `gdalinfo` (it ships with GDAL, e.g. in the `geo-env` conda environment the preparation script uses) before uploading:
+
+```bash
+gdalinfo E:/boreal-canada-mapping/foresttrace_cogs/clearcut-status-v2/wabigoon_2021.tif
+# Look for: "LAYOUT=COG", EPSG:3857 ("WGS 84 / Pseudo-Mercator"), Block=512x512, "Overviews:", NoData Value
+```
+
+> **The upload checks do not verify any of this.** The upload page and `upload-cogs.js` check the file *name*, the layer access and that the file is new. A plain GeoTIFF, or one in the wrong projection, is accepted, and that FMU and year then loads slowly or draws in the wrong place. The uploader cannot replace it, so it stays broken until an admin deletes it in Admin Dashboard → Data Uploads. Run the `gdalinfo` check, or upload only files produced by the module's preparation script.
+
+---
+
 ## Vercel Pro Storage for Production COGs
 
 Production deployments host Cloud-Optimized GeoTIFFs (COGs) and the COG availability manifest on **Vercel Pro Storage (Vercel Blob)**. Cloudflare R2 serves raster tile pyramids and acts as an alternative/fallback for local development.
@@ -466,6 +537,7 @@ The folder can be the whole output of `prepare-boreal-cogs.py` (one subfolder pe
 
 - **Live immediately.** Each finished batch rebuilds `cogs/manifest.json`, so the layer appears in the map at once.
 - **No replacing.** A path that already exists is refused, so uploads can only add region/year files. To fix a bad upload, an admin deletes it from the Data Uploads tab and the student uploads it again. The delete button only reaches files that came in through the app, not files uploaded with the CLI scripts.
+- **The file's contents are not checked.** Only names and access are. Make sure each file meets [What a production COG must be](#what-a-production-cog-must-be) before uploading.
 - **Names are checked before uploading:** `<region>_<year>.tif` for yearly layers and `<region>.tif` for static ones, lowercase. The region must already appear somewhere in the manifest, which catches typos. The first file for a brand-new region has to go through the CLI.
 - **Browser uploads don't update charts.** Stats JSON under `client/public/data/` is regenerated offline (`scripts/stats/refresh-stats.js`) and committed. The command-line tool runs that refresh for you.
 
