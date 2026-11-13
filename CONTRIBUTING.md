@@ -45,11 +45,10 @@ foresttrace-app/
 │   ├── stats/                       # Chart stats (refresh-stats.js)
 │   ├── data/                        # FMU boundary download & simplification
 │   ├── admin/                       # reset-password.js
-│   └── legacy/                      # R2 / PNG-tile era, reference only
+│   └── legacy/                      # Old PNG-tile scripts, reference only
 ├── package.json                     # Root: Express dev server dependencies
 ├── .env.example                     # Template for backend & environment configuration
 ├── client/.env.example              # Template for client-side API keys and flags
-├── .env.r2.example                  # Template for R2 credentials (tiles & dev alternative)
 └── .env.vercel.example              # Template for Vercel Blob credentials (production COGs)
 ```
 
@@ -114,8 +113,9 @@ If you ever need to stop lingering Node dev processes running in the background:
 - **Command Prompt**: `taskkill /F /IM node.exe`
 
 In development, `REACT_APP_TILES_BASE_URL` is empty so tiles are read from
-`client/public/tiles/` via the CRA dev server. In production (Vercel), the
-env var is set to the Cloudflare R2 public URL.
+`client/public/tiles/` via the CRA dev server, with anything missing proxied to
+the Vercel Blob store. In production (Vercel), it is set to the Blob store's
+public URL.
 
 ---
 
@@ -236,86 +236,32 @@ following the same `loadStats()` singleton pattern).
 
 ---
 
-## Tile pipeline
+## Raster tiles (biomass)
 
-> **Legacy.** This section describes the PNG-tile / Cloudflare R2 workflow.
-> Clearcut, wildfire and caribou now draw from COGs on Vercel Blob; only
-> biomass still uses PNG tiles. The scripts below live in `scripts/legacy/`.
-> For the current workflow see [scripts/README.md](scripts/README.md).
-
-Tiles follow the standard XYZ/TMS pyramid structure:
+Clearcut, wildfire and caribou draw from COGs (see
+[How COGs are stored and read](#how-cogs-are-stored-and-read)). Biomass is the
+only layer still drawn from PNG tiles, in the standard XYZ pyramid:
 
 ```
 tiles/<layer>/<region>_<year>/<z>/<x>/<y>.png
 ```
 
-### Generating tiles locally
-
-The processing scripts shown below are committed under `scripts/legacy/`. Other
-one-off/local tooling scripts (data exploration, cleanup one-shots, etc.) stay
-**gitignored** — no reason to version those. Committed scripts accept
-`--local` (read/write `client/public/tiles/`) or `--production` (read/write
-Cloudflare R2).
+The tiles live in `client/public/tiles/`, which the dev server serves directly,
+and are published to Vercel Blob under the same paths:
 
 ```bash
-# Generate annual clearcut tiles from accumulated tiles (2-year lookback filter)
-node scripts/legacy/generate-annual-clearcut-tiles.js --local wabigoon 2023
-
-# Compute area statistics and write to clearcut_stats.json
-node scripts/legacy/compute-clearcut-stats.js --local --annual wabigoon
+node scripts/storage/upload-data-vercel.js tiles/biomass --dry-run
+node scripts/storage/upload-data-vercel.js tiles/biomass
 ```
-
-Local tiles are placed under `client/public/tiles/` and served by the CRA dev
-server at `http://localhost:3000/tiles/...`.
-
-### Setting up R2 credentials
-
-Copy `.env.r2.example` to `.env.r2` and fill in your values:
-
-```bash
-cp .env.r2.example .env.r2
-```
-
-```ini
-# .env.r2  — never commit this file
-CLOUDFLARE_ACCOUNT_ID=   # Cloudflare Dashboard → top-right "Account ID"
-R2_ACCESS_KEY_ID=        # R2 → Manage R2 API Tokens → Create token
-R2_SECRET_ACCESS_KEY=    # Shown once at token creation
-R2_BUCKET_NAME=          # Exact bucket name, e.g. foresttrace-tiles
-```
-
-`.env.r2` is listed in `.gitignore` and must never be committed.
-
-### Uploading tiles to Cloudflare R2
-
-`scripts/legacy/upload-tiles.js` is committed to the repo. It reads from
-`client/public/tiles/` and mirrors the directory tree to R2. You'll need R2
-credentials to run it — ask a maintainer for the token values and fill them
-into your own local `.env.r2` (see
-[Setting up R2 credentials](#setting-up-r2-credentials) above; that file is
-gitignored and must never be committed).
-
-```bash
-node scripts/legacy/upload-tiles.js --region wabigoon --layer clearcut-annual --year 2023
-```
-
-You can also use the `--production` flag on the processing scripts directly,
-which reads from and writes to R2 without generating local copies:
-
-```bash
-node scripts/legacy/generate-annual-clearcut-tiles.js --production wabigoon 2023
-node scripts/legacy/compute-clearcut-stats.js --production --annual wabigoon
-```
-
-### Tile URL routing
 
 | Environment | `REACT_APP_TILES_BASE_URL` | Tile source |
 |-------------|---------------------------|-------------|
-| Development | *(empty)* | `client/public/tiles/` (CRA dev server) |
-| Production  | `https://pub-<id>.r2.dev` | Cloudflare R2 public bucket |
+| Development | *(empty)* | `client/public/tiles/`, then the Blob store via `setupProxy.js` |
+| Production  | `https://<id>.public.blob.vercel-storage.com` | Vercel Blob |
 
 Set `REACT_APP_TILES_BASE_URL` in the Vercel project settings (not in a
-committed `.env` file).
+committed `.env` file). The PNG-tile generators of the earlier pipeline are
+kept in `scripts/legacy/` for reference only.
 
 ---
 
@@ -356,8 +302,8 @@ files rather than from the model.
 Unlike `clearcut_stats.json`, these are **not committed** — they are bulk
 generated geodata (~1.8 MB across the years) and are gitignored alongside
 `client/public/data/regions/`. A fresh clone therefore has none, and
-`highlight_patches` will refuse until you either point the app at R2 or
-generate them locally.
+`highlight_patches` will refuse until you either point the app at the Blob
+store or generate them locally.
 
 ### Generating them
 
@@ -384,16 +330,16 @@ the same accumulated masks the map draws, so a rule change makes them stale.
 ### Publishing them
 
 ```bash
-node scripts/legacy/upload-cogs.js client/public/data/patches data/patches
+node scripts/storage/upload-data-vercel.js data/patches
 ```
 
-`scripts/legacy/upload-cogs.js` sets a short revalidating cache header on `.json` (unlike the
-immutable one it uses for COGs, which live under versioned prefixes) precisely
+`upload-data-vercel.js` gives `.json` a short revalidating cache (5 minutes,
+unlike the immutable one COGs get under their versioned prefixes) precisely
 because these are regenerated in place under the same filenames.
 
 They are read through `REACT_APP_DATA_BASE_URL`, so the same routing as the
 boundary files applies: empty in development (served from `client/public/`),
-set to the R2 bucket in production.
+set to the Blob store in production.
 
 ---
 
@@ -470,7 +416,7 @@ gdalinfo E:/boreal-canada-mapping/foresttrace_cogs/clearcut-status-v2/wabigoon_2
 
 ## Vercel Pro Storage for Production COGs
 
-Production deployments host Cloud-Optimized GeoTIFFs (COGs) and the COG availability manifest on **Vercel Pro Storage (Vercel Blob)**. Cloudflare R2 serves raster tile pyramids and acts as an alternative/fallback for local development.
+Production deployments host Cloud-Optimized GeoTIFFs (COGs) and the COG availability manifest on **Vercel Pro Storage (Vercel Blob)**. The remaining PNG tiles and the static data files (FMU boundaries, caribou ranges, patch vectors) are on the same store; see [Raster tiles](#raster-tiles-biomass).
 
 ### 1. Setting up Vercel Blob credentials
 
@@ -499,27 +445,7 @@ This script:
 - Sets standard COG headers (`Content-Type: image/tiff`, `Cache-Control: public, max-age=31536000, immutable`).
 - **Automatically re-indexes** `cogs/manifest.json` on Vercel Blob upon completion.
 
-### 3. Migrating existing files from Cloudflare R2 to Vercel
-
-If you already have COGs or assets on Cloudflare R2, use `scripts/storage/migrate-r2-to-vercel.js` to stream them directly to Vercel Blob without downloading to disk:
-
-```bash
-# Preview what will be migrated without transferring
-node scripts/storage/migrate-r2-to-vercel.js --dry-run
-
-# Migrate all files under cogs/ (default) and rebuild the manifest
-node scripts/storage/migrate-r2-to-vercel.js
-
-# Migrate another prefix or all bucket contents
-node scripts/storage/migrate-r2-to-vercel.js --prefix data/patches/
-node scripts/storage/migrate-r2-to-vercel.js --all
-```
-
-Requirements for migration:
-- `.env.r2` configured with Cloudflare R2 credentials
-- `.env.vercel` (or `.env`) configured with `BLOB_READ_WRITE_TOKEN`
-
-### 4. Uploading with an app account (students and collaborators)
+### 3. Uploading with an app account (students and collaborators)
 
 Signed-in users can upload COGs into production module folders without ever holding `BLOB_READ_WRITE_TOKEN`. Admins grant access per user and per folder in **Admin Dashboard → Data Uploads**. Admins can upload to every folder. There are two ways in, and both apply the same server-side rules:
 
@@ -551,17 +477,10 @@ How it works: `api/uploads.js` issues a [client token](https://vercel.com/docs/v
 
 It is **generated, never committed** — it describes the storage bucket/store rather than the source tree, so a checked-in copy goes stale the moment anyone uploads.
 
-- **For Vercel Blob (Production)**:
-  `scripts/storage/upload-cogs-vercel.js` and `scripts/storage/migrate-r2-to-vercel.js` rebuild it automatically. You can also re-index manually:
+  `scripts/storage/upload-cogs-vercel.js` and the in-app uploads rebuild it automatically. You can also re-index manually:
   ```bash
   node scripts/storage/generate-cog-manifest-vercel.js --dry-run   # preview manifest
   node scripts/storage/generate-cog-manifest-vercel.js             # rebuild and publish to Vercel Blob
-  ```
-
-- **For Cloudflare R2 (Local dev fallback / alternative)**:
-  ```bash
-  node scripts/legacy/generate-cog-manifest.js --dry-run
-  node scripts/legacy/generate-cog-manifest.js
   ```
 
 ---
@@ -576,13 +495,13 @@ Environment variables required in Vercel project settings:
 |----------|-------------|---------|
 | `REACT_APP_COG_BASE_URL` | Production (Vercel) | Vercel Blob store public base URL (`https://<id>.public.blob.vercel-storage.com`) |
 | `BLOB_READ_WRITE_TOKEN` | Production & Build/CLI | Vercel Blob store access token (generated in Vercel Storage) |
-| `REACT_APP_TILES_BASE_URL` | Production (Vercel) | R2 public CDN URL for raster tile pyramids |
-| `REACT_APP_DATA_BASE_URL` | Production (Vercel) | R2 public CDN URL for data files (or local fallback) |
+| `REACT_APP_TILES_BASE_URL` | Production (Vercel) | Vercel Blob store public base URL, for the biomass PNG tiles |
+| `REACT_APP_DATA_BASE_URL` | Production (Vercel) | Vercel Blob store public base URL, for boundaries, caribou ranges and patch vectors |
 | `REACT_APP_GOOGLE_MAPS_API_KEY` | Client (Browser) | Google Places search |
 | `GROQ_API_KEY` | Serverless (`api/chat.js`) | ForestryAI assistant — read server-side only |
 | `VERCEL_MONGODB_URI` / `MONGODB_URI` | Serverless | MongoDB Atlas URI for user authentication, bug reports, and chat logs |
 | `MONGODB_DB_NAME` | Serverless (Optional) | Database name override (defaults to `foresttrace` in prod, `foresttrace_preview` on preview, `foresttrace_dev` locally) |
-| `AUTH_SECRET` | Serverless (Optional) | JWT signing secret for user authentication sessions |
+| `AUTH_SECRET` | Serverless (**required**) | JWT signing secret for sign-in sessions and upload access. Without it the code falls back to a built-in secret, so anyone could forge an admin session |
 | `ANTHROPIC_API_KEY` | Serverless (`api/storymaps.js`) | Claude Sonnet 5 for story map generation — read server-side only |
 
 `GROQ_API_KEY`, `ANTHROPIC_API_KEY`, `VERCEL_MONGODB_URI`, `MONGODB_URI`, `AUTH_SECRET`, and `BLOB_READ_WRITE_TOKEN` must **not** use the `REACT_APP_` prefix — that prefix causes Create React App to bundle the value into the client JavaScript, exposing it in the browser. None of these go in a committed `.env` file.

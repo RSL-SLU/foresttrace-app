@@ -47,8 +47,7 @@ The platform provides:
     - `foresttrace`: Production database
     - `foresttrace_preview`: Vercel preview / PR deployment database
     - `foresttrace_dev`: Local development database
-  - **Vercel Pro Storage (Vercel Blob)**: Production host for Cloud-Optimized GeoTIFFs (COGs) and availability manifests
-  - **Cloudflare R2**: Public CDN for raster tile pyramids and geospatial data assets
+  - **Vercel Pro Storage (Vercel Blob)**: Production host for Cloud-Optimized GeoTIFFs (COGs), the availability manifest, the remaining PNG tiles and static geospatial data
 
 ---
 

@@ -6,12 +6,12 @@ Run them from anywhere — paths resolve from the repo root — e.g.
 
 | Folder | What's in it |
 |---|---|
-| `storage/` | Publishing to Vercel Blob: COG uploads with an app account (`upload-cogs.js`, for students; see CONTRIBUTING.md) or with the Blob token (`upload-cogs-vercel.js`, admins), static data and biomass tiles (`upload-data-vercel.js`), the COG availability manifest (`generate-cog-manifest-vercel.js`), and the one-off R2 → Blob migration. |
+| `storage/` | Publishing to Vercel Blob: COG uploads with an app account (`upload-cogs.js`, for students; see CONTRIBUTING.md) or with the Blob token (`upload-cogs-vercel.js`, admins), static data and biomass tiles (`upload-data-vercel.js`), and the COG availability manifest (`generate-cog-manifest-vercel.js`). |
 | `stats/` | Precomputed chart statistics in `client/public/data/`. `refresh-stats.js` runs the right generator for a module. |
 | `data/` | FMU boundary download (`pull_ontario_fmu_boundaries.py`) and simplification. |
 | `admin/` | Account maintenance: `reset-password.js` (any account, including the admin). |
 | `alerts/` | Disturbance Alerts data. `seed-mock-alerts.js --db <name>` loads demo alerts (DIST-ALERT-shaped, flagged `mock: true`) into `disturbance_alerts`; `--remove` deletes only the mock ones. |
-| `legacy/` | The Cloudflare R2 and PNG-tile era, kept for reference. Not part of the current workflow. |
+| `legacy/` | The earlier PNG-tile pipeline, kept for reference. Not part of the current workflow. |
 
 ## Before uploading COGs
 
