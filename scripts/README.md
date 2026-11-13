@@ -6,7 +6,7 @@ Run them from anywhere — paths resolve from the repo root — e.g.
 
 | Folder | What's in it |
 |---|---|
-| `storage/` | Publishing to Vercel Blob: COG uploads (`upload-cogs-vercel.js`), static data and biomass tiles (`upload-data-vercel.js`), the COG availability manifest (`generate-cog-manifest-vercel.js`), and the one-off R2 → Blob migration. |
+| `storage/` | Publishing to Vercel Blob: COG uploads with an app account (`upload-cogs.js`, for students; see CONTRIBUTING.md) or with the Blob token (`upload-cogs-vercel.js`, admins), static data and biomass tiles (`upload-data-vercel.js`), the COG availability manifest (`generate-cog-manifest-vercel.js`), and the one-off R2 → Blob migration. |
 | `stats/` | Precomputed chart statistics in `client/public/data/`. `refresh-stats.js` runs the right generator for a module. |
 | `data/` | FMU boundary download (`pull_ontario_fmu_boundaries.py`) and simplification. |
 | `admin/` | Account maintenance: `reset-password.js` (any account, including the admin). |

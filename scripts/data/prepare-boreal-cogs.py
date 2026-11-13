@@ -27,7 +27,9 @@ so the 300-550 MB SCANFI rasters never load whole.
 Usage (needs rasterio, e.g. the geo-env conda environment):
   python scripts/data/prepare-boreal-cogs.py
   python scripts/data/prepare-boreal-cogs.py --only clearcut-status-v2 --overwrite
-Then upload each product folder with scripts/storage/upload-cogs-vercel.js.
+Then upload the output folder with your app account (all products in one run):
+  node scripts/storage/upload-cogs.js <out>
+or, as an admin with the Blob token, each product folder with upload-cogs-vercel.js.
 """
 
 import argparse

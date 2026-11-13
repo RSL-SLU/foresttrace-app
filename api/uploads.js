@@ -21,7 +21,7 @@
  */
 
 const { handleUpload } = require('@vercel/blob/client');
-const { head, del, BlobNotFoundError } = require('@vercel/blob');
+const { head, del, list, BlobNotFoundError } = require('@vercel/blob');
 const { getCollection, getUserFromRequest, getMongoUri } = require('./_db');
 const {
   UPLOAD_TARGETS,
@@ -37,7 +37,8 @@ const {
 
 const TOKEN_TTL_MS = 15 * 60 * 1000;
 const MAX_BYTES = (Number(process.env.UPLOAD_MAX_MB) || 2048) * 1024 * 1024;
-const MAX_FILES_PER_BATCH = 50;
+// A full caribou run is ~220 files and clearcut writes two folders at once.
+const MAX_FILES_PER_BATCH = 1000;
 
 function blobToken() {
   return process.env.BLOB_READ_WRITE_TOKEN;
@@ -64,6 +65,28 @@ async function blobExists(pathname) {
   }
 }
 
+/**
+ * Every blob under cogs/<prefix>/, keyed by pathname. One listing per folder
+ * instead of a HEAD per file keeps a several-hundred-file batch inside the
+ * function's time limit.
+ */
+async function listFolder(prefix) {
+  const blobs = new Map();
+  let cursor;
+  do {
+    const page = await list({ prefix: `cogs/${prefix}/`, token: blobToken(), cursor, limit: 1000 });
+    for (const b of page.blobs || []) blobs.set(b.pathname, b);
+    cursor = page.hasMore ? page.cursor : undefined;
+  } while (cursor);
+  return blobs;
+}
+
+/** listFolder for each distinct prefix, merged into one map. */
+async function listFolders(prefixes) {
+  const maps = await Promise.all([...new Set(prefixes)].map(listFolder));
+  return new Map(maps.flatMap((m) => [...m]));
+}
+
 /** Regions already in the manifest, or null if it cannot be read. */
 async function knownRegions() {
   try {
@@ -76,20 +99,19 @@ async function knownRegions() {
   }
 }
 
+const EXISTS_ERROR = 'A file with this name already exists -- existing files cannot be replaced';
+
 /**
- * Full check of one upload: permission, naming rule, known region, and that
- * nothing already sits at that path. Returns { ok, pathname, error }.
+ * Permission and naming check for one upload (no storage lookup).
+ * Returns { ok, pathname, error }.
  */
-async function checkOne(userDoc, prefix, fileName, regions) {
+function checkName(userDoc, prefix, fileName, regions) {
   const pathname = `cogs/${prefix}/${fileName}`;
   if (!allowedPrefixesFor(userDoc).includes(prefix)) {
     return { ok: false, pathname, error: `You do not have upload access to ${prefix}` };
   }
   const named = validateFileName(prefix, fileName, regions);
   if (!named.ok) return { ok: false, pathname, error: named.error };
-  if (await blobExists(pathname)) {
-    return { ok: false, pathname, error: 'A file with this name already exists -- existing files cannot be replaced' };
-  }
   return { ok: true, pathname };
 }
 
@@ -120,8 +142,10 @@ module.exports = async function handler(req, res) {
         onBeforeGenerateToken: async (pathname) => {
           const parts = parsePathname(pathname);
           if (!parts) throw new Error('Uploads must go to cogs/<folder>/<file>.tif');
-          const check = await checkOne(userDoc, parts.prefix, parts.fileName, await knownRegions());
+          const check = checkName(userDoc, parts.prefix, parts.fileName, await knownRegions());
           if (!check.ok) throw new Error(check.error);
+          // allowOverwrite: false enforces this too; checking first gives a readable error.
+          if (await blobExists(pathname)) throw new Error(EXISTS_ERROR);
           return {
             allowedContentTypes: ['image/tiff'],
             maximumSizeInBytes: MAX_BYTES,
@@ -146,62 +170,61 @@ module.exports = async function handler(req, res) {
       });
     }
 
+    // Body: { items: [{ prefix, fileName }, ...] } -- may span several folders.
     if (req.method === 'POST' && action === 'check') {
-      const { prefix, fileNames } = body;
-      if (!prefix || !Array.isArray(fileNames) || fileNames.length === 0) {
-        return res.status(400).json({ error: 'prefix and fileNames are required' });
-      }
-      if (fileNames.length > MAX_FILES_PER_BATCH) {
-        return res.status(400).json({ error: `Upload at most ${MAX_FILES_PER_BATCH} files at a time` });
+      const items = Array.isArray(body.items) ? body.items : [];
+      if (items.length === 0) return res.status(400).json({ error: 'items[] is required' });
+      if (items.length > MAX_FILES_PER_BATCH) {
+        return res.status(400).json({ error: `Check at most ${MAX_FILES_PER_BATCH} files at a time` });
       }
       const regions = await knownRegions();
+      const allowed = new Set(allowedPrefixesFor(userDoc));
+      const existing = await listFolders(items.map((i) => i.prefix).filter((p) => allowed.has(p)));
       const seen = new Set();
-      const results = [];
-      for (const fileName of fileNames) {
-        if (seen.has(fileName)) {
-          results.push({ fileName, ok: false, error: 'Listed twice' });
-          continue;
-        }
-        seen.add(fileName);
-        const r = await checkOne(userDoc, prefix, fileName, regions);
-        results.push({ fileName, ok: r.ok, error: r.error || null });
-      }
+      const results = items.map(({ prefix, fileName }) => {
+        const r = checkName(userDoc, prefix, fileName, regions);
+        let error = r.error || null;
+        if (r.ok && seen.has(r.pathname)) error = 'Listed twice';
+        else if (r.ok && existing.has(r.pathname)) error = EXISTS_ERROR;
+        seen.add(r.pathname);
+        return { prefix, fileName, pathname: r.pathname, ok: !error, error };
+      });
       return res.status(200).json({ results, regionCheck: Boolean(regions) });
     }
 
     if (req.method === 'POST' && action === 'complete') {
-      const pathnames = Array.isArray(body.pathnames) ? body.pathnames.slice(0, MAX_FILES_PER_BATCH) : [];
       const allowed = new Set(allowedPrefixesFor(userDoc));
-      const recorded = [];
-      for (const pathname of pathnames) {
-        const parts = parsePathname(pathname);
-        if (!parts || !allowed.has(parts.prefix)) continue;
-        let meta;
-        try {
-          meta = await head(pathname, { token: blobToken() });
-        } catch (err) {
-          if (err instanceof BlobNotFoundError) continue;
-          throw err;
-        }
-        await uploads.updateOne(
-          { pathname },
-          {
-            // $set, not $setOnInsert: a path an admin deleted can be uploaded
-            // again, and the row should then describe the new file.
-            $set: {
-              pathname,
-              prefix: parts.prefix,
-              url: meta.url,
-              size: meta.size,
-              uploadedAt: meta.uploadedAt ? new Date(meta.uploadedAt) : new Date(),
-              uploadedBy: publicUser(userDoc),
+      const wanted = (Array.isArray(body.pathnames) ? body.pathnames : [])
+        .slice(0, MAX_FILES_PER_BATCH)
+        .map((p) => ({ pathname: p, parts: parsePathname(p) }))
+        .filter((x) => x.parts && allowed.has(x.parts.prefix));
+      const stored = await listFolders(wanted.map((x) => x.parts.prefix));
+      const ops = [];
+      for (const { pathname, parts } of wanted) {
+        const blob = stored.get(pathname);
+        if (!blob) continue;
+        ops.push({
+          updateOne: {
+            filter: { pathname },
+            update: {
+              // $set, not $setOnInsert: a path an admin deleted can be uploaded
+              // again, and the row should then describe the new file.
+              $set: {
+                pathname,
+                prefix: parts.prefix,
+                url: blob.url,
+                size: blob.size,
+                uploadedAt: blob.uploadedAt ? new Date(blob.uploadedAt) : new Date(),
+                uploadedBy: publicUser(userDoc),
+              },
+              $unset: { deletedAt: '', deletedBy: '' },
             },
-            $unset: { deletedAt: '', deletedBy: '' },
+            upsert: true,
           },
-          { upsert: true },
-        );
-        recorded.push(pathname);
+        });
       }
+      if (ops.length) await uploads.bulkWrite(ops, { ordered: false });
+      const recorded = ops.map((o) => o.updateOne.filter.pathname);
 
       let manifestUpdated = false;
       let manifestError = null;

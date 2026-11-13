@@ -448,14 +448,26 @@ Requirements for migration:
 - `.env.r2` configured with Cloudflare R2 credentials
 - `.env.vercel` (or `.env`) configured with `BLOB_READ_WRITE_TOKEN`
 
-### 4. Uploading from the app (students and collaborators)
+### 4. Uploading with an app account (students and collaborators)
 
-Signed-in users can upload COGs from the browser (**user menu → Upload Data**) into production module folders, without ever holding `BLOB_READ_WRITE_TOKEN`. Admins grant access per user and per folder in **Admin Dashboard → Data Uploads**. Admins can upload to every folder.
+Signed-in users can upload COGs into production module folders without ever holding `BLOB_READ_WRITE_TOKEN`. Admins grant access per user and per folder in **Admin Dashboard → Data Uploads**. Admins can upload to every folder. There are two ways in, and both apply the same server-side rules:
+
+**Command line**, right after generating the COGs:
+
+```bash
+node scripts/storage/upload-cogs.js login --url https://<app>        # once; saved for 30 days
+node scripts/storage/upload-cogs.js E:/boreal-canada-mapping/foresttrace_cogs --dry-run
+node scripts/storage/upload-cogs.js E:/boreal-canada-mapping/foresttrace_cogs
+```
+
+The folder can be the whole output of `prepare-boreal-cogs.py` (one subfolder per layer, each named after its layer), a single layer folder, or any folder of `.tif` files with `--layer <prefix>`. The tool checks every file first, lists what was rejected and why, and asks before uploading the rest. Afterwards it refreshes chart stats locally the way `upload-cogs-vercel.js` does (only wildfire has a generator today), so commit any changed stats files.
+
+**Browser** (**user menu → Upload Data**): pick the same `foresttrace_cogs/` folder with **Layer: From folder names**, or pick one layer and its files.
 
 - **Live immediately.** Each finished batch rebuilds `cogs/manifest.json`, so the layer appears in the map at once.
 - **No replacing.** A path that already exists is refused, so uploads can only add region/year files. To fix a bad upload, an admin deletes it from the Data Uploads tab and the student uploads it again. The delete button only reaches files that came in through the app, not files uploaded with the CLI scripts.
 - **Names are checked before uploading:** `<region>_<year>.tif` for yearly layers and `<region>.tif` for static ones, lowercase. The region must already appear somewhere in the manifest, which catches typos. The first file for a brand-new region has to go through the CLI.
-- **Charts are not updated.** Stats JSON under `client/public/data/` is still regenerated offline (`scripts/stats/refresh-stats.js`) and committed.
+- **Browser uploads don't update charts.** Stats JSON under `client/public/data/` is regenerated offline (`scripts/stats/refresh-stats.js`) and committed. The command-line tool runs that refresh for you.
 
 How it works: `api/uploads.js` issues a [client token](https://vercel.com/docs/vercel-blob/client-upload) for each file. The token is locked to that one pathname, expires after 15 minutes, accepts only `image/tiff` and has `allowOverwrite: false`. Access is read from `users.uploadPrefixes` on every request, so revoking it takes effect immediately. The folders that can be granted are listed in `api/_uploadTargets.js`; add a module's prefix there to make it grantable. Uploads are logged in the `cog_uploads` collection. `UPLOAD_MAX_MB` (default 2048) caps the file size.
 

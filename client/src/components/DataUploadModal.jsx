@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { upload } from '@vercel/blob/client';
 import { useAuth } from '../context/AuthContext';
@@ -7,6 +7,9 @@ import '../styles/admin.css';
 
 // Above this size the SDK splits the file into parallel, retried parts.
 const MULTIPART_BYTES = 50 * 1024 * 1024;
+const CONCURRENCY = 3;
+const BATCH = 1000; // server's per-request limit for check/complete
+const AUTO = '__auto__';
 
 const STATUS_LABEL = {
   checking: 'Checking…',
@@ -22,19 +25,38 @@ function formatBytes(n) {
   return `${(n / 1e6).toFixed(1)} MB`;
 }
 
+function chunk(list, size) {
+  const out = [];
+  for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
+  return out;
+}
+
 /**
- * Upload COGs into a production module folder (api/uploads.js). Files go live
- * as soon as they finish and cannot replace an existing file.
+ * The layer a picked file belongs to: the nearest folder in its path named
+ * after a layer (so picking prepare-boreal-cogs.py's whole foresttrace_cogs/
+ * output sorts every product into its own layer), else the chosen layer.
+ */
+function layerFor(file, choice, prefixes) {
+  const dirs = (file.webkitRelativePath || '').split('/').slice(0, -1).reverse();
+  const fromPath = dirs.find((d) => prefixes.has(d));
+  if (choice === AUTO) return fromPath || null;
+  return choice;
+}
+
+/**
+ * Upload COGs into production module folders (api/uploads.js). Files go live
+ * as soon as the batch finishes and cannot replace an existing file.
  */
 function DataUploadModal({ isOpen, onClose }) {
   const { token } = useAuth();
   const [targets, setTargets] = useState([]);
   const [maxBytes, setMaxBytes] = useState(null);
-  const [prefix, setPrefix] = useState('');
-  const [rows, setRows] = useState([]); // { file, status, error, progress }
+  const [choice, setChoice] = useState(AUTO);
+  const [rows, setRows] = useState([]); // { key, file, prefix, pathname, status, error, progress }
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [summary, setSummary] = useState(null);
+  const folderInput = useRef(null);
 
   useEffect(() => {
     if (!isOpen || !token) return;
@@ -42,102 +64,121 @@ function DataUploadModal({ isOpen, onClose }) {
     fetch('/api/uploads?action=targets', { headers: { Authorization: `Bearer ${token}` } })
       .then(async (res) => {
         const json = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(json.error || 'Could not load upload folders');
+        if (!res.ok) throw new Error(json.error || 'Could not load upload layers');
         setTargets(json.targets || []);
         setMaxBytes(json.maxBytes || null);
-        setPrefix((p) => p || json.targets?.[0]?.prefix || '');
       })
       .catch((err) => setError(err.message));
   }, [isOpen, token]);
 
+  // React drops the non-standard webkitdirectory prop; set it on the node.
+  useEffect(() => {
+    if (folderInput.current) folderInput.current.setAttribute('webkitdirectory', '');
+  });
+
   if (!isOpen) return null;
 
-  const target = targets.find((t) => t.prefix === prefix);
-  const namePattern = target?.kind === 'static' ? '<region>.tif' : '<region>_<year>.tif';
-  const readyCount = rows.filter((r) => r.status === 'ready').length;
+  const prefixes = new Set(targets.map((t) => t.prefix));
+  const target = targets.find((t) => t.prefix === choice);
+  const ready = rows.filter((r) => r.status === 'ready');
+  const counts = rows.reduce((acc, r) => ({ ...acc, [r.status]: (acc[r.status] || 0) + 1 }), {});
 
-  function patchRow(name, patch) {
-    setRows((prev) => prev.map((r) => (r.file.name === name ? { ...r, ...patch } : r)));
+  function patchRow(key, patch) {
+    setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   }
 
-  async function checkFiles(files, forPrefix) {
-    if (!files.length || !forPrefix) return;
+  async function checkFiles(files, layerChoice) {
     setSummary(null);
-    setRows(files.map((file) => ({
-      file,
-      status: maxBytes && file.size > maxBytes ? 'invalid' : 'checking',
-      error: maxBytes && file.size > maxBytes ? `Larger than the ${formatBytes(maxBytes)} limit` : null,
-      progress: 0,
-    })));
+    const tifs = files.filter((f) => /\.tiff?$/i.test(f.name));
+    const initial = tifs.map((file) => {
+      const prefix = layerFor(file, layerChoice, prefixes);
+      const key = `${prefix || '?'}/${file.webkitRelativePath || file.name}`;
+      const base = { key, file, prefix, pathname: prefix ? `cogs/${prefix}/${file.name}` : null, progress: 0 };
+      if (!prefix) return { ...base, status: 'invalid', error: 'Not inside a layer folder -- pick a layer above' };
+      if (maxBytes && file.size > maxBytes) return { ...base, status: 'invalid', error: `Larger than the ${formatBytes(maxBytes)} limit` };
+      return { ...base, status: 'checking', error: null };
+    });
+    setRows(initial);
+
+    const pending = initial.filter((r) => r.status === 'checking');
     try {
-      const res = await fetch('/api/uploads?action=check', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ prefix: forPrefix, fileNames: files.map((f) => f.name) }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error || 'Could not check the files');
-      const byName = new Map(json.results.map((r) => [r.fileName, r]));
+      const verdicts = new Map();
+      for (const part of chunk(pending, BATCH)) {
+        const res = await fetch('/api/uploads?action=check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ items: part.map((r) => ({ prefix: r.prefix, fileName: r.file.name })) }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json.error || 'Could not check the files');
+        json.results.forEach((v, i) => verdicts.set(part[i].key, v));
+      }
       setRows((prev) => prev.map((r) => {
-        if (r.status === 'invalid') return r;
-        const result = byName.get(r.file.name);
-        return result?.ok
-          ? { ...r, status: 'ready', error: null }
-          : { ...r, status: 'invalid', error: result?.error || 'Rejected' };
+        const v = verdicts.get(r.key);
+        if (!v) return r;
+        return v.ok ? { ...r, status: 'ready' } : { ...r, status: 'invalid', error: v.error || 'Rejected' };
       }));
     } catch (err) {
       setRows((prev) => prev.map((r) => (r.status === 'checking' ? { ...r, status: 'invalid', error: err.message } : r)));
     }
   }
 
-  function handleFiles(e) {
-    checkFiles(Array.from(e.target.files || []), prefix);
+  function handlePick(e) {
+    checkFiles(Array.from(e.target.files || []), choice);
     e.target.value = '';
   }
 
-  function handlePrefixChange(next) {
-    setPrefix(next);
-    // Names are judged against the folder's rule, so re-check for the new one.
+  function handleChoiceChange(next) {
+    setChoice(next);
+    // Layers decide the paths and naming rules, so re-check under the new choice.
     if (rows.length) checkFiles(rows.map((r) => r.file), next);
   }
 
   async function handleUpload() {
     setBusy(true);
     setSummary(null);
+    const queue = rows.filter((r) => r.status === 'ready');
     const done = [];
-    for (const row of rows) {
-      if (row.status !== 'ready') continue;
-      const { file } = row;
-      const pathname = `cogs/${prefix}/${file.name}`;
-      patchRow(file.name, { status: 'uploading', progress: 0 });
-      try {
-        await upload(pathname, file, {
-          access: 'public',
-          handleUploadUrl: '/api/uploads',
-          headers: { Authorization: `Bearer ${token}` },
-          contentType: 'image/tiff',
-          multipart: file.size > MULTIPART_BYTES,
-          onUploadProgress: ({ percentage }) => patchRow(file.name, { progress: percentage }),
-        });
-        patchRow(file.name, { status: 'done', progress: 100 });
-        done.push(pathname);
-      } catch (err) {
-        patchRow(file.name, { status: 'failed', error: err.message || 'Upload failed' });
+    let next = 0;
+    async function worker() {
+      while (next < queue.length) {
+        const r = queue[next];
+        next += 1;
+        patchRow(r.key, { status: 'uploading', progress: 0 });
+        try {
+          await upload(r.pathname, r.file, {
+            access: 'public',
+            handleUploadUrl: '/api/uploads',
+            headers: { Authorization: `Bearer ${token}` },
+            contentType: 'image/tiff',
+            multipart: r.file.size > MULTIPART_BYTES,
+            onUploadProgress: ({ percentage }) => patchRow(r.key, { progress: percentage }),
+          });
+          patchRow(r.key, { status: 'done', progress: 100 });
+          done.push(r.pathname);
+        } catch (err) {
+          patchRow(r.key, { status: 'failed', error: err.message || 'Upload failed' });
+        }
       }
     }
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, worker));
 
     if (done.length) {
       try {
-        const res = await fetch('/api/uploads?action=complete', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ pathnames: done }),
-        });
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(json.error || 'Could not register the uploads');
-        setSummary(json.manifestUpdated
-          ? `${done.length} file(s) uploaded and live in the map.`
-          : `${done.length} file(s) uploaded, but the layer index did not update (${json.manifestError || 'unknown error'}). Ask an admin to rebuild the manifest.`);
+        let manifestError = null;
+        for (const part of chunk(done, BATCH)) {
+          const res = await fetch('/api/uploads?action=complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ pathnames: part }),
+          });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(json.error || 'Could not register the uploads');
+          if (!json.manifestUpdated) manifestError = json.manifestError || 'unknown error';
+        }
+        setSummary(manifestError
+          ? `${done.length} file(s) uploaded, but the layer index did not update (${manifestError}). Ask an admin to rebuild the manifest.`
+          : `${done.length} file(s) uploaded and live in the map.`);
       } catch (err) {
         setSummary(`${done.length} file(s) uploaded, but registering them failed: ${err.message}. Ask an admin to rebuild the manifest.`);
       }
@@ -151,6 +192,10 @@ function DataUploadModal({ isOpen, onClose }) {
     setSummary(null);
     onClose();
   }
+
+  // Long batches: show problems first, then the rest.
+  const ORDER = { invalid: 0, failed: 1, uploading: 2, checking: 3, ready: 4, done: 5 };
+  const sortedRows = [...rows].sort((a, b) => ORDER[a.status] - ORDER[b.status] || a.key.localeCompare(b.key));
 
   return createPortal(
     <div className="admin-modal-backdrop" onClick={handleClose}>
@@ -173,7 +218,7 @@ function DataUploadModal({ isOpen, onClose }) {
             <>
               <div className="upload-warning">
                 Files go <strong>live immediately</strong> and <strong>cannot be replaced or deleted</strong> by you.
-                Check names and data before uploading. Charts are not updated by uploads; tell an admin when a new year or region needs its stats refreshed.
+                Check names and data before uploading. Uploads don't update the charts; tell an admin when a new year or region needs its stats refreshed.
               </div>
 
               <div className="auth-form-group">
@@ -181,48 +226,66 @@ function DataUploadModal({ isOpen, onClose }) {
                 <select
                   id="upload-target"
                   className="auth-input"
-                  value={prefix}
+                  value={choice}
                   disabled={busy}
-                  onChange={(e) => handlePrefixChange(e.target.value)}
+                  onChange={(e) => handleChoiceChange(e.target.value)}
                 >
+                  <option value={AUTO}>From folder names (e.g. a whole foresttrace_cogs/ output)</option>
                   {targets.map((t) => (
                     <option key={t.prefix} value={t.prefix}>{t.label} ({t.prefix})</option>
                   ))}
                 </select>
                 <span className="upload-note">
-                  File names must be <code>{namePattern}</code>, lowercase, as Cloud-Optimized GeoTIFFs
-                  {maxBytes ? `, up to ${formatBytes(maxBytes)} each` : ''}.
+                  {choice === AUTO
+                    ? <>Each file goes to the layer named by its folder, e.g. <code>clearcut-status-v2/wabigoon_2021.tif</code>. Pick the folder that holds the layer folders.</>
+                    : <>Every file goes to <code>{choice}</code>, named <code>{target?.kind === 'static' ? '<region>.tif' : '<region>_<year>.tif'}</code>.</>}
+                  {' '}Names are lowercase; {maxBytes ? `up to ${formatBytes(maxBytes)} per file.` : ''}
                 </span>
               </div>
 
               <div className="auth-form-group">
-                <label htmlFor="upload-files">Files</label>
-                <input id="upload-files" type="file" accept=".tif,image/tiff" multiple disabled={busy} onChange={handleFiles} />
+                <label>Choose</label>
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  <label className="admin-action-btn" style={{ fontSize: 13, padding: '6px 12px' }}>
+                    📁 A folder
+                    <input ref={folderInput} type="file" multiple hidden disabled={busy} onChange={handlePick} />
+                  </label>
+                  <label className="admin-action-btn" style={{ fontSize: 13, padding: '6px 12px' }}>
+                    📄 Files
+                    <input type="file" accept=".tif,image/tiff" multiple hidden disabled={busy} onChange={handlePick} />
+                  </label>
+                </div>
               </div>
 
               {rows.length > 0 && (
-                <div className="admin-table-container">
-                  <table className="admin-table">
-                    <thead>
-                      <tr><th>File</th><th>Size</th><th>Status</th></tr>
-                    </thead>
-                    <tbody>
-                      {rows.map((r) => (
-                        <tr key={r.file.name}>
-                          <td><code>{r.file.name}</code></td>
-                          <td>{formatBytes(r.file.size)}</td>
-                          <td>
-                            <span className={`upload-status upload-status--${r.status}`}>
-                              {STATUS_LABEL[r.status]}
-                              {r.status === 'uploading' ? ` ${Math.round(r.progress)}%` : ''}
-                            </span>
-                            {r.error && <div className="upload-row-error">{r.error}</div>}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  <p className="upload-note" style={{ marginBottom: 8 }}>
+                    {rows.length} file(s): {Object.entries(counts).map(([s, n]) => `${n} ${STATUS_LABEL[s].toLowerCase().replace('…', '')}`).join(' · ')}
+                  </p>
+                  <div className="admin-table-container" style={{ maxHeight: 320, overflowY: 'auto' }}>
+                    <table className="admin-table">
+                      <thead>
+                        <tr><th>Layer</th><th>File</th><th>Size</th><th>Status</th></tr>
+                      </thead>
+                      <tbody>
+                        {sortedRows.map((r) => (
+                          <tr key={r.key}>
+                            <td><code>{r.prefix || '—'}</code></td>
+                            <td><code>{r.file.name}</code></td>
+                            <td>{formatBytes(r.file.size)}</td>
+                            <td>
+                              <span className={`upload-status upload-status--${r.status}`}>
+                                {STATUS_LABEL[r.status]}
+                                {r.status === 'uploading' ? ` ${Math.round(r.progress)}%` : ''}
+                              </span>
+                              {r.error && <div className="upload-row-error">{r.error}</div>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
 
               {summary && <div className="upload-summary">{summary}</div>}
@@ -231,10 +294,10 @@ function DataUploadModal({ isOpen, onClose }) {
                 type="button"
                 className="auth-submit-btn"
                 style={{ marginTop: 16 }}
-                disabled={busy || readyCount === 0}
+                disabled={busy || ready.length === 0}
                 onClick={handleUpload}
               >
-                {busy ? 'Uploading…' : `Upload ${readyCount} file(s) to ${prefix}`}
+                {busy ? 'Uploading…' : `Upload ${ready.length} file(s)`}
               </button>
             </>
           )}
