@@ -210,11 +210,9 @@ using the layer's `color`. If your layer needs custom rendering (e.g. a
 different color formula), add a branch in
 `client/src/components/RasterTileLayer.jsx` keyed on `layerId`.
 
-This `tileUrl` pattern is what every layer falls back to. If you also want
-your layer to draw from a COG on the MapLibre path (see
-[Map renderers](#map-renderers-leaflet-vs-maplibre) above), add it to
-`COG_PREFIX_BY_LAYER` in `client/src/config.js` instead of duplicating the URL
-logic here.
+This `tileUrl` pattern is the PNG-tile path. New layers should draw from COGs
+instead: give the layer a `cog` entry and no `tileUrl`. See
+[Using uploaded COGs in a module](#using-uploaded-cogs-in-a-module).
 
 ### 3. Add statistics (optional)
 
@@ -468,6 +466,68 @@ The folder can be the whole output of `prepare-boreal-cogs.py` (one subfolder pe
 - **Browser uploads don't update charts.** Stats JSON under `client/public/data/` is regenerated offline (`scripts/stats/refresh-stats.js`) and committed. The command-line tool runs that refresh for you.
 
 How it works: `api/uploads.js` issues a [client token](https://vercel.com/docs/vercel-blob/client-upload) for each file. The token is locked to that one pathname, expires after 15 minutes, accepts only `image/tiff` and has `allowOverwrite: false`. Access is read from `users.uploadPrefixes` on every request, so revoking it takes effect immediately. The folders that can be granted are listed in `api/_uploadTargets.js`; add a module's prefix there to make it grantable. Uploads are logged in the `cog_uploads` collection. `UPLOAD_MAX_MB` (default 2048) caps the file size.
+
+### 4. Using uploaded COGs in a module
+
+An upload only puts files in a folder (`cogs/<prefix>/`) and adds them to the manifest. A module shows them through a layer that names that folder.
+
+**Adding regions or years to a layer that already exists needs no code.** For example, uploading `gordoncosens_2025.tif` to `clearcut-status-acc-v2`:
+
+- The manifest now lists `gordoncosens: [2025]` under that prefix.
+- The "AI Model: Accumulated Cuts" layer in `App.js` already points at `clearcut-status-acc-v2`.
+- The next time someone selects Gordon Cosens and 2025, the layer draws it.
+
+The one exception is a year the module doesn't offer yet. The year slider uses the module's `temporalOptions.availableYears` in `App.js`, so add the year there, or the map can't reach it.
+
+**A new product needs a new folder and a layer.** Say a student produces a regrowth classification:
+
+1. **Pick a versioned prefix**, e.g. `regrowth-v1`. If the product changes later, upload it as `regrowth-v2` rather than replacing files, since COGs are cached as immutable.
+2. **Make it uploadable.** Add the prefix to `UPLOAD_TARGETS` in `api/_uploadTargets.js` (`yearly` for `<region>_<year>.tif`, `static` for `<region>.tif`). Then grant it in Admin → Data Uploads.
+3. **Upload the files** with the commands in §3, from a folder named `regrowth-v1/`.
+4. **Declare the layer** in the module's `layers` in `client/src/App.js`:
+
+   ```js
+   {
+     id: 'regrowth',
+     name: 'Forest Regrowth',
+     color: '#16a34a',              // legend swatch
+     cogAuthoritative: true,        // COG only: no PNG tiles to fall back to
+     cog: {
+       prefix: 'regrowth-v1',       // = the upload folder, cogs/regrowth-v1/
+       // static: true,             // for one file per FMU (<region>.tif)
+       colorFn: (year, opts) => regrowthColorFn(year),
+     },
+   },
+   ```
+
+   For each selected FMU, the app checks the manifest and requests `${COG_BASE_URL}/cogs/regrowth-v1/<region>_<year>.tif`. It builds that URL itself (`cogUrlForPrefix` in `client/src/config.js`); modules don't write it.
+5. **Say how pixels become colours.** Put the function next to the existing ones in `client/src/utils/borealLayers.js` (`statusColorFn`, `scarsColorFn`, `ariColorFn`). It receives one pixel's band values and fills an RGBA colour:
+
+   ```js
+   // Band 0: 0 = no regrowth, 1 = regrowing, 2 = recovered; 255 = nodata
+   const REGROWTH_COLORS = { 1: [250, 204, 21], 2: [22, 163, 74] };
+
+   export function regrowthColorFn(year) {
+     return (pixel, color) => {
+       const rgb = REGROWTH_COLORS[pixel[0]];
+       color.set(rgb ? [...rgb, 255] : [0, 0, 0, 0]);   // anything else: transparent
+     };
+   }
+   ```
+
+   A function that depends on a panel setting (like the AI confidence slider) reads it from `opts`. It also needs a `variant: (opts) => ...` key, so changing the setting redraws the layer. `clearcut-status-v2` is an example.
+
+**Reading values in code** (for a chart, a click readout or a search) uses the same file. `readLevel(url, bands)` in `client/src/utils/cogFinder.js` returns a whole-FMU grid from the smallest overview that fits:
+
+```js
+import { cogUrlForPrefix } from '../config';
+import { readLevel } from '../utils/cogFinder';
+
+const url = cogUrlForPrefix('regrowth-v1', 'wabigoon', 2025);
+const { width, height, data } = await readLevel(url, [0]);   // band 0, at most 1400 px across
+```
+
+For full resolution over a small area, open it with geotiff.js's `fromUrl(url)` and pass `readRasters` a `window`. Only the blocks under that window are downloaded.
 
 ---
 
