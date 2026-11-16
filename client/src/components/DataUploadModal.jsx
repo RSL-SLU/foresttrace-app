@@ -45,7 +45,7 @@ function layerFor(file, choice, prefixes) {
 
 /**
  * Upload COGs into production module folders (api/uploads.js). Files go live
- * as soon as the batch finishes and cannot replace an existing file.
+ * as soon as the batch finishes; replacing existing files requires an admin grant.
  */
 function DataUploadModal({ isOpen, onClose }) {
   const { token } = useAuth();
@@ -116,7 +116,9 @@ function DataUploadModal({ isOpen, onClose }) {
       setRows((prev) => prev.map((r) => {
         const v = verdicts.get(r.key);
         if (!v) return r;
-        return v.ok ? { ...r, status: 'ready' } : { ...r, status: 'invalid', error: v.error || 'Rejected' };
+        return v.ok
+          ? { ...r, status: 'ready', overwrites: Boolean(v.overwrites) }
+          : { ...r, status: 'invalid', error: v.error || 'Rejected' };
       }));
     } catch (err) {
       setRows((prev) => prev.map((r) => (r.status === 'checking' ? { ...r, status: 'invalid', error: err.message } : r)));
@@ -135,9 +137,19 @@ function DataUploadModal({ isOpen, onClose }) {
   }
 
   async function handleUpload() {
+    const queue = rows.filter((r) => r.status === 'ready');
+    const replacing = queue.filter((r) => r.overwrites);
+    if (replacing.length) {
+      const examples = replacing.slice(0, 10).map((r) => r.pathname);
+      const remaining = replacing.length - examples.length;
+      const list = examples.join('\n');
+      const suffix = remaining > 0 ? `\n…and ${remaining} more file(s).` : '';
+      if (!window.confirm(
+        `Replace ${replacing.length} existing production COG(s)?\n\n${list}${suffix}\n\nThis change takes effect immediately.`,
+      )) return;
+    }
     setBusy(true);
     setSummary(null);
-    const queue = rows.filter((r) => r.status === 'ready');
     const done = [];
     let next = 0;
     async function worker() {
@@ -217,8 +229,8 @@ function DataUploadModal({ isOpen, onClose }) {
           {targets.length > 0 && (
             <>
               <div className="upload-warning">
-                Files go <strong>live immediately</strong> and <strong>cannot be replaced or deleted</strong> by you.
-                Check names and data before uploading. Uploads don't update the charts; tell an admin when a new year or region needs its stats refreshed.
+                Files go <strong>live immediately</strong>. Replacing existing files requires an admin grant for that layer and confirmation before upload.
+                Check names and data carefully. Uploads don't update the charts; tell an admin when a new year or region needs its stats refreshed.
               </div>
 
               <div className="auth-form-group">
@@ -275,7 +287,7 @@ function DataUploadModal({ isOpen, onClose }) {
                             <td>{formatBytes(r.file.size)}</td>
                             <td>
                               <span className={`upload-status upload-status--${r.status}`}>
-                                {STATUS_LABEL[r.status]}
+                                {r.overwrites && r.status === 'ready' ? 'Will replace' : STATUS_LABEL[r.status]}
                                 {r.status === 'uploading' ? ` ${Math.round(r.progress)}%` : ''}
                               </span>
                               {r.error && <div className="upload-row-error">{r.error}</div>}

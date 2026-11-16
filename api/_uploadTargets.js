@@ -2,10 +2,9 @@
  * The production COG folders that users can be granted upload access to, and
  * the file-name rules each one enforces.
  *
- * Uploads go live as soon as they finish and cannot replace an existing file,
- * so a mistyped name cannot be fixed by the uploader -- only an admin can
- * delete it. The rules below exist to stop those mistakes before the upload:
- * the names must match what the COG manifest indexes
+ * Uploads go live as soon as they finish. Replacing an existing file requires
+ * a separate per-user, per-layer grant. The rules below stop naming mistakes
+ * before upload: names must match what the COG manifest indexes
  * (scripts/storage/generate-cog-manifest-vercel.js) or the app never sees the
  * file.
  *
@@ -41,6 +40,16 @@ function allowedPrefixesFor(userDoc) {
   if (userDoc.role === 'admin') return UPLOAD_TARGETS.map((t) => t.prefix);
   const granted = Array.isArray(userDoc.uploadPrefixes) ? userDoc.uploadPrefixes : [];
   return granted.filter((p) => TARGETS_BY_PREFIX.has(p));
+}
+
+/** Prefixes a user may replace files in; overwrite access never grants upload access. */
+function overwritePrefixesFor(userDoc) {
+  const allowed = new Set(allowedPrefixesFor(userDoc));
+  if (userDoc?.role === 'admin') return [...allowed];
+  const granted = Array.isArray(userDoc?.uploadOverwritePrefixes)
+    ? userDoc.uploadOverwritePrefixes
+    : [];
+  return granted.filter((p) => allowed.has(p));
 }
 
 /**
@@ -112,6 +121,7 @@ module.exports = {
   UPLOAD_TARGETS,
   TARGETS_BY_PREFIX,
   allowedPrefixesFor,
+  overwritePrefixesFor,
   validateFileName,
   regionsFromManifest,
   parsePathname,

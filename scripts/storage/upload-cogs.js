@@ -24,6 +24,7 @@
  *   --layer <prefix>    layer for a folder whose name isn't one
  *   --dry-run           check everything, upload nothing
  *   --yes               don't ask before uploading when some files were rejected
+ *   --overwrite         confirm replacement of existing files (requires admin grant)
  *   --no-stats          skip refreshing chart stats afterwards
  *   --concurrency <n>   parallel uploads (default 3)
  *
@@ -55,6 +56,7 @@ function parseArgs(argv) {
     const a = argv[i];
     if (a === '--dry-run') opts.dryRun = true;
     else if (a === '--yes' || a === '-y') opts.yes = true;
+    else if (a === '--overwrite') opts.overwrite = true;
     else if (a === '--no-stats') opts.noStats = true;
     else if (a === '--layer') opts.layer = argv[++i];
     else if (a === '--url') opts.url = argv[++i];
@@ -202,6 +204,7 @@ async function run(opts) {
 
   const ready = results.filter((r) => r.ok);
   const rejected = results.filter((r) => !r.ok);
+  const replacing = ready.filter((r) => r.overwrites);
   const byPrefix = (list) => list.reduce((acc, r) => ((acc[r.prefix] ??= []).push(r), acc), {});
   for (const [prefix, list] of Object.entries(byPrefix(results))) {
     const ok = list.filter((r) => r.ok).length;
@@ -211,12 +214,23 @@ async function run(opts) {
     console.log('\nRejected:');
     rejected.forEach((r) => console.log(`  ${r.prefix}/${r.fileName}: ${r.error}`));
   }
+  if (replacing.length) {
+    console.log(`\nWill replace ${replacing.length} existing file(s):`);
+    replacing.forEach((r) => console.log(`  ${r.prefix}/${r.fileName}`));
+  }
 
   if (opts.dryRun) {
-    console.log(`\n--dry-run: ${ready.length} file(s) would be uploaded.`);
+    console.log(`\n--dry-run: ${ready.length} file(s) would be uploaded, including ${replacing.length} replacement(s).`);
     return;
   }
   if (!ready.length) fail('\nNothing to upload.');
+  if (replacing.length && !opts.overwrite) {
+    if (!process.stdin.isTTY) {
+      fail('\nExisting files would be replaced. Re-run with --overwrite to confirm.');
+    }
+    const a = await ask(`\nReplace these ${replacing.length} existing file(s)? This changes production data. [y/N] `);
+    if (!/^y(es)?$/i.test(a)) fail('Cancelled.');
+  }
   if (rejected.length && !opts.yes) {
     if (!process.stdin.isTTY) fail('\nSome files were rejected; re-run with --yes to upload the rest.');
     const a = await ask(`\nUpload the ${ready.length} valid file(s) anyway? They go live immediately. [y/N] `);
