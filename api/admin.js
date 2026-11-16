@@ -126,7 +126,8 @@ module.exports = async function handler(req, res) {
           { projection: { uploadOverwritePrefixes: 1 } },
         );
         if (!target) return res.status(404).json({ error: 'User not found' });
-        const overwritePrefixes = (target.uploadOverwritePrefixes || []).filter((p) => clean.includes(p));
+        const overwritePrefixes = (Array.isArray(target.uploadOverwritePrefixes) ? target.uploadOverwritePrefixes : [])
+          .filter((p) => clean.includes(p));
         await usersCol.updateOne(
           { _id: new ObjectId(targetUserId) },
           { $set: {

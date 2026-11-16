@@ -106,7 +106,7 @@ function AdminDashboard({ isOpen, onClose }) {
     try {
       const res = await fetch('/api/admin', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `******
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           action: 'update-upload-overwrite-access',
           targetUserId: targetUser.id,

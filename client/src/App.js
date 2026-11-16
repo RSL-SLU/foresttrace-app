@@ -45,12 +45,12 @@ import { CARIBOU_CLASSES, CARIBOU_VISIBLE_CLASSES, caribouClassesFor } from './u
 import { getFmusForRanges, rangeColor, CARIBOU_RANGES } from './utils/caribouStats';
 import {
   TILES_BASE_URL, DATA_BASE_URL, COG_BASE_URL,
-  cogPrefixForLayer, coveragePrefixForLayer, cogUrlForPrefix,
+  cogPrefixForLayer, coveragePrefixForLayer, cogUrlForPrefix, versionCogUrl,
 } from './config';
 import useRegionBoundaries from './hooks/useRegionBoundaries';
 import { TINTED_LAYER_IDS, tintedTileUrl } from './utils/tintedTileProtocol';
 import { summarizeDrawing } from './utils/drawnShapeContext';
-import { getCogCoverage, getTileCoverage, getStaticCogCoverage } from './utils/clearcutCogCoverage';
+import { getCogCoverage, getTileCoverage, getStaticCogCoverage, getCogVersions } from './utils/clearcutCogCoverage';
 import {
   ariColorFn, statusColorFn, scarsColorFn, scanfiColorFn,
   REGION_LABELS, REGION_MODEL_NOTES, reliabilityNotes,
@@ -1352,6 +1352,7 @@ function App() {
   // twelve years and fire for one -- so a single set would have each layer
   // answering for the other. A missing key means "not loaded yet".
   const [cogCoverageByPrefix, setCogCoverageByPrefix] = useState({});
+  const [cogVersions, setCogVersions] = useState({});
   // Regions that have a clearcut product of any kind. null until known, and
   // treated the same way as unknown COG coverage: request nothing yet.
   const [clearcutRegions, setClearcutRegions] = useState(null);
@@ -1424,13 +1425,19 @@ function App() {
       });
     });
 
-    Promise.all(wanted.map(({ prefix, cogPrefix, isStatic, year, regions }) => (
-      (isStatic
-        ? getStaticCogCoverage(regions, cogPrefix)
-        : getCogCoverage(regions.map((region) => ({ region, years: [year] })), cogPrefix || prefix))
-        .then((covered) => [prefix, covered])
-    ))).then((entries) => {
-      if (!cancelled) setCogCoverageByPrefix(Object.fromEntries(entries));
+    Promise.all([
+      Promise.all(wanted.map(({ prefix, cogPrefix, isStatic, year, regions }) => (
+        (isStatic
+          ? getStaticCogCoverage(regions, cogPrefix)
+          : getCogCoverage(regions.map((region) => ({ region, years: [year] })), cogPrefix || prefix))
+          .then((covered) => [prefix, covered])
+      ))),
+      getCogVersions(),
+    ]).then(([entries, versions]) => {
+      if (!cancelled) {
+        setCogCoverageByPrefix(Object.fromEntries(entries));
+        setCogVersions(versions);
+      }
     });
 
     return () => { cancelled = true; };
@@ -1562,8 +1569,12 @@ function App() {
             if (c.static ? !coverage.has(region) : !coverage.has(`${region}_${renderYear}`)) return;
             if (c.yearIndependent && frameIdx > 0) return;
             const fileUrl = c.static
-              ? `${COG_BASE_URL}/cogs/${c.prefix}/${region}.tif`
-              : cogUrlForPrefix(c.prefix, region, renderYear);
+              ? versionCogUrl(
+                `${COG_BASE_URL}/cogs/${c.prefix}/${region}.tif`,
+                `cogs/${c.prefix}/${region}.tif`,
+                cogVersions,
+              )
+              : cogUrlForPrefix(c.prefix, region, renderYear, cogVersions);
             const variant = [
               layer.id,
               c.static && !c.yearIndependent ? renderYear : null,
@@ -1572,7 +1583,7 @@ function App() {
             cogLayers.push({
               moduleId: module.id,
               id: c.yearIndependent ? `${variant}-${region}` : `${layer.id}-${region}-${renderYear}`,
-              url: `${fileUrl}?v=${variant}`,
+              url: `${fileUrl}${fileUrl.includes('?') ? '&' : '?'}v=${variant}`,
               opacity: c.yearIndependent ? undefined : layerOpacity,
               colorFunction: c.colorFn(renderYear, layerOptions),
               outline: layer.cogOutline ? layer.id : undefined,
@@ -1615,7 +1626,7 @@ function App() {
           const hasCog = !!coverage && coverage.has(`${region}_${renderYear}`);
           // From the resolved prefix, not the layer id: caribou's id maps to two
           // different products depending on mode.
-          const cogUrl = hasCog ? cogUrlForPrefix(cogPrefix, region, renderYear) : null;
+          const cogUrl = hasCog ? cogUrlForPrefix(cogPrefix, region, renderYear, cogVersions) : null;
 
           // A sparse COG layer with no raster for this region-year and no PNG to
           // fall back to has nothing to draw, and asking anyway is what produced
@@ -1737,7 +1748,7 @@ function App() {
 
     return { rasterLayers, cogLayers, vectorLayers };
   }, [effectiveActiveLayers, rasterRegions, caribouRasterRegions, selectedRanges, layerOptions,
-      moduleYears, selectedYear, cogCoverageByPrefix, multiModule, basemapMode,
+      moduleYears, selectedYear, cogCoverageByPrefix, cogVersions, multiModule, basemapMode,
       clearcutRegions, tileCoverage, playing, timelineYears]);
 
   // What the AI agent needs to answer "what's in here" across every layer the

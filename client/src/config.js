@@ -25,10 +25,9 @@ export const COG_BASE_URL = isForcedLocal ? '' : (process.env.REACT_APP_COG_BASE
 //   annual(Y)      = clearcut as the year-Y model saw it
 //   accumulated(Y) = union of clearcut over the 5 years ending at Y, so regrowth
 //                    drops out instead of accumulating forever
-// Prefixes are versioned rather than overwritten. Filenames carry no content
-// hash and are uploaded with an immutable Cache-Control, so republishing a year
-// in place would leave the CDN and any warm browser serving the old raster
-// indefinitely. Bump the suffix whenever the derivation rule changes.
+// Prefixes are versioned when a product's derivation rule changes. Individual
+// COG URLs also use the per-file upload version from cogs/manifest.json, so
+// replacing a file bypasses the immutable cache entry for its previous content.
 //   v2: standing clearcut = seen in >=2 years of the 5-year window, no 2010 carry
 //   v3: v2 OR detected this year -- the newest year has no later year to
 //       corroborate it, so v2 excluded the current season's cuts entirely
@@ -118,13 +117,16 @@ export function coveragePrefixForLayer(layerId, opts) {
 /**
  * Per-year COG URL from a resolved prefix.
  *
- * Filenames carry no content hash, so a regenerated year reuses its URL. That's
- * deliberate -- the app's year slider builds these paths by convention rather than
- * from a manifest -- but it means the immutable Cache-Control set at upload time
- * would pin a stale file. Regenerate under a new prefix (or purge) rather than
- * overwriting in place.
+ * The manifest's per-file upload version keeps the URL fresh when a COG is
+ * replaced at the same pathname, despite the immutable cache headers.
  */
-export function cogUrlForPrefix(prefix, region, year) {
+export function versionCogUrl(url, pathname, versions) {
+  const version = versions?.[pathname];
+  return version == null ? url : `${url}?version=${encodeURIComponent(version)}`;
+}
+
+export function cogUrlForPrefix(prefix, region, year, versions) {
   if (!prefix) return null;
-  return `${COG_BASE_URL}/cogs/${prefix}/${region}_${year}.tif`;
+  const pathname = `cogs/${prefix}/${region}_${year}.tif`;
+  return versionCogUrl(`${COG_BASE_URL}/${pathname}`, pathname, versions);
 }

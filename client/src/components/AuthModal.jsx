@@ -147,7 +147,7 @@ function AuthModal() {
                 type="text"
                 placeholder="e.g. jane-doe"
                 value={username}
-                onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/s+/g, '-'))}
+                onChange={(e) => setUsername(e.target.value)}
                 autoComplete="username"
                 pattern="[a-z0-9](?:[a-z0-9]|-(?=[a-z0-9])){2,29}"
                 title="3–30 characters: lowercase letters, numbers and single hyphens"

@@ -99,7 +99,7 @@ async function knownRegions() {
   }
 }
 
-const EXISTS_ERROR = 'A file with this name already exists -- existing files cannot be replaced';
+const EXISTS_ERROR = 'This file already exists -- ask an admin for overwrite access to replace it';
 
 /**
  * Permission and naming check for one upload (no storage lookup).

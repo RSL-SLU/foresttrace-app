@@ -26,7 +26,7 @@
  * detections cannot show a lag yet (right-censored).
  */
 
-import { COG_BASE_URL } from '../config';
+import { COG_BASE_URL, versionCogUrl } from '../config';
 import { loadManifest, readLevel, components, outline } from './cogFinder';
 
 const R = 6378137;
@@ -73,7 +73,11 @@ async function run(region) {
   const manifest = await loadManifest();
   const years = (manifest?.prefixes?.['clearcut-status-v2']?.[region] || []).slice().sort((a, b) => a - b);
   if (!years.length) throw new Error(`no AI status rasters for ${region}`);
-  const ari = await readLevel(`${COG_BASE_URL}/cogs/ari-ground-truth-v1/${region}.tif`, [0]);
+  const ariPath = `cogs/ari-ground-truth-v1/${region}.tif`;
+  const ari = await readLevel(
+    versionCogUrl(`${COG_BASE_URL}/${ariPath}`, ariPath, manifest?.versions),
+    [0],
+  );
   const W = ari.width;
   const H = ari.height;
   const n = W * H;
@@ -83,7 +87,11 @@ async function run(region) {
   const BASELINE = 1;
   const first = new Uint16Array(n);
   for (const y of years) {
-    const st = await readLevel(`${COG_BASE_URL}/cogs/clearcut-status-v2/${region}_${y}.tif`, [0, 2]);
+    const statusPath = `cogs/clearcut-status-v2/${region}_${y}.tif`;
+    const st = await readLevel(
+      versionCogUrl(`${COG_BASE_URL}/${statusPath}`, statusPath, manifest?.versions),
+      [0, 2],
+    );
     if (st.width !== W || st.height !== H) continue;   // grids must line up pixel for pixel
     const [S, D] = st.data;
     for (let i = 0; i < n; i++) {
