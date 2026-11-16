@@ -820,6 +820,7 @@ function MapLibreMap({
   proposedFeatures = null,
   drawingEnabled = false,
   onMapReady = null,
+  onMapContextMenu = null,
   mapRef = null,
   // Disturbance Alerts: FeatureCollection whose features carry `id`, `status`
   // and `ageColor` properties (App.js adds the color); null hides the layer.
@@ -927,6 +928,17 @@ function MapLibreMap({
     const feature = e.features[0];
     setClickedFeature({ lngLat: e.lngLat, properties: feature.properties });
   }, [inspectPixel]);
+
+  const handleMapContextMenu = useCallback((e) => {
+    e.originalEvent?.preventDefault();
+    const canvasRect = e.target.getCanvas().getBoundingClientRect();
+    onMapContextMenu?.({
+      lat: e.lngLat.lat,
+      lng: e.lngLat.lng,
+      x: e.originalEvent?.clientX ?? canvasRect.left + e.point.x,
+      y: e.originalEvent?.clientY ?? canvasRect.top + e.point.y,
+    });
+  }, [onMapContextMenu]);
 
   // One point per alert, from its precomputed centroid: polygons a few hundred
   // hectares across shrink to nothing at FMU zoom, so below ALERT_POINT_MAXZOOM
@@ -1071,6 +1083,7 @@ function MapLibreMap({
       style={{ width: '100%', height: '100%' }}
       onLoad={handleLoad}
       onClick={handleMapClick}
+      onContextMenu={handleMapContextMenu}
       interactiveLayerIds={vectorLayerIds}
       attributionControl={{ compact: true }}
     >

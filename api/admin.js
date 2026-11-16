@@ -45,6 +45,7 @@ module.exports = async function handler(req, res) {
         name: u.name || u.email.split('@')[0],
         role: u.role || 'user',
         uploadPrefixes: Array.isArray(u.uploadPrefixes) ? u.uploadPrefixes : [],
+        uploadOverwritePrefixes: Array.isArray(u.uploadOverwritePrefixes) ? u.uploadOverwritePrefixes : [],
         createdAt: u.createdAt,
         lastActiveAt: u.lastActiveAt || u.createdAt,
       }));
@@ -120,11 +121,57 @@ module.exports = async function handler(req, res) {
           return res.status(400).json({ error: `Unknown upload folder(s): ${unknown.join(', ')}` });
         }
         const clean = [...new Set(prefixes)];
+        const target = await usersCol.findOne(
+          { _id: new ObjectId(targetUserId) },
+          { projection: { uploadOverwritePrefixes: 1 } },
+        );
+        if (!target) return res.status(404).json({ error: 'User not found' });
+        const overwritePrefixes = (Array.isArray(target.uploadOverwritePrefixes) ? target.uploadOverwritePrefixes : [])
+          .filter((p) => clean.includes(p));
         await usersCol.updateOne(
           { _id: new ObjectId(targetUserId) },
-          { $set: { uploadPrefixes: clean, uploadAccessUpdatedAt: new Date(), uploadAccessUpdatedBy: currentUser.email } }
+          { $set: {
+            uploadPrefixes: clean,
+            uploadOverwritePrefixes: overwritePrefixes,
+            uploadAccessUpdatedAt: new Date(),
+            uploadAccessUpdatedBy: currentUser.email,
+          } }
         );
-        return res.status(200).json({ success: true, uploadPrefixes: clean });
+        return res.status(200).json({ success: true, uploadPrefixes: clean, uploadOverwritePrefixes: overwritePrefixes });
+      }
+
+      // Grant or revoke per-layer replacement access, separately from upload access.
+      if (action === 'update-upload-overwrite-access') {
+        const { targetUserId, prefixes } = req.body || {};
+        if (!targetUserId || !Array.isArray(prefixes)) {
+          return res.status(400).json({ error: 'targetUserId and prefixes[] are required' });
+        }
+        const unknown = prefixes.filter((p) => !TARGETS_BY_PREFIX.has(p));
+        if (unknown.length) {
+          return res.status(400).json({ error: `Unknown upload folder(s): ${unknown.join(', ')}` });
+        }
+        const target = await usersCol.findOne(
+          { _id: new ObjectId(targetUserId) },
+          { projection: { uploadPrefixes: 1 } },
+        );
+        if (!target) return res.status(404).json({ error: 'User not found' });
+        const uploadPrefixes = Array.isArray(target.uploadPrefixes) ? target.uploadPrefixes : [];
+        const clean = [...new Set(prefixes)];
+        const withoutUploadAccess = clean.filter((p) => !uploadPrefixes.includes(p));
+        if (withoutUploadAccess.length) {
+          return res.status(400).json({
+            error: `Grant upload access before overwrite access: ${withoutUploadAccess.join(', ')}`,
+          });
+        }
+        await usersCol.updateOne(
+          { _id: new ObjectId(targetUserId) },
+          { $set: {
+            uploadOverwritePrefixes: clean,
+            uploadOverwriteAccessUpdatedAt: new Date(),
+            uploadOverwriteAccessUpdatedBy: currentUser.email,
+          } },
+        );
+        return res.status(200).json({ success: true, uploadOverwritePrefixes: clean });
       }
     }
 
@@ -134,4 +181,3 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: err.message || 'Admin service error' });
   }
 };
-

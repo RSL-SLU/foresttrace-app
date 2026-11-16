@@ -99,6 +99,32 @@ function AdminDashboard({ isOpen, onClose }) {
     }
   }
 
+  async function handleToggleOverwriteAccess(targetUser, prefix) {
+    const current = targetUser.uploadOverwritePrefixes || [];
+    const next = current.includes(prefix) ? current.filter((p) => p !== prefix) : [...current, prefix];
+    setActionInProgress(`${targetUser.id}:${prefix}`);
+    try {
+      const res = await fetch('/api/admin', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          action: 'update-upload-overwrite-access',
+          targetUserId: targetUser.id,
+          prefixes: next,
+        }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to update overwrite access');
+      }
+      await fetchOverview();
+    } catch (err) {
+      alert(`Error updating overwrite access: ${err.message}`);
+    } finally {
+      setActionInProgress(null);
+    }
+  }
+
   async function handleUploadsAction(action, payload, confirmMsg) {
     if (confirmMsg && !window.confirm(confirmMsg)) return;
     setActionInProgress(`uploads:${action}:${payload?.pathname || ''}`);
@@ -454,13 +480,13 @@ function AdminDashboard({ isOpen, onClose }) {
 
                   <h3 className="admin-section-title">Upload access</h3>
                   <p className="upload-note" style={{ marginBottom: 10 }}>
-                    Click a layer to grant or revoke it. Uploads go live immediately and cannot replace existing files.
-                    Administrators can upload to every layer.
+                    Grant upload and replacement access separately for each user and layer. Replacement access requires upload access.
+                    Administrators can upload and replace files in every layer.
                   </p>
                   <div className="admin-table-container">
                     <table className="admin-table">
                       <thead>
-                        <tr><th>User</th><th>Layers they can upload to</th></tr>
+                        <tr><th>User</th><th>Layer permissions</th></tr>
                       </thead>
                       <tbody>
                         {usersList.filter((u) => u.role !== 'admin').map((u) => (
@@ -472,19 +498,33 @@ function AdminDashboard({ isOpen, onClose }) {
                             <td>
                               <div className="upload-chips">
                                 {uploadTargets.map((t) => {
-                                  const on = (u.uploadPrefixes || []).includes(t.prefix);
+                                  const canUpload = (u.uploadPrefixes || []).includes(t.prefix);
+                                  const canOverwrite = (u.uploadOverwritePrefixes || []).includes(t.prefix);
+                                  const busy = actionInProgress === `${u.id}:${t.prefix}`;
                                   return (
-                                    <button
-                                      key={t.prefix}
-                                      type="button"
-                                      className={`upload-chip ${on ? 'upload-chip--on' : ''}`}
-                                      disabled={actionInProgress === `${u.id}:${t.prefix}`}
-                                      onClick={() => handleToggleUploadAccess(u, t.prefix)}
-                                      title={`${t.label} -- cogs/${t.prefix}/`}
-                                      aria-pressed={on}
-                                    >
-                                      {t.prefix}
-                                    </button>
+                                    <div key={t.prefix} className="upload-permission-group">
+                                      <span className="upload-permission-label">{t.prefix}</span>
+                                      <button
+                                        type="button"
+                                        className={`upload-chip ${canUpload ? 'upload-chip--on' : ''}`}
+                                        disabled={busy}
+                                        onClick={() => handleToggleUploadAccess(u, t.prefix)}
+                                        title={`${canUpload ? 'Revoke' : 'Grant'} upload access to ${t.label}`}
+                                        aria-pressed={canUpload}
+                                      >
+                                        Upload
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className={`upload-chip ${canOverwrite ? 'upload-chip--overwrite' : ''}`}
+                                        disabled={!canUpload || busy}
+                                        onClick={() => handleToggleOverwriteAccess(u, t.prefix)}
+                                        title={`${canOverwrite ? 'Revoke' : 'Grant'} replacement access to ${t.label}`}
+                                        aria-pressed={canOverwrite}
+                                      >
+                                        Replace
+                                      </button>
+                                    </div>
                                   );
                                 })}
                               </div>
@@ -576,4 +616,3 @@ function AdminDashboard({ isOpen, onClose }) {
 }
 
 export default AdminDashboard;
-

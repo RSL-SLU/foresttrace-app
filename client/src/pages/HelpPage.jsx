@@ -41,6 +41,7 @@ function HelpPage({ onBack }) {
           <ul>
             <li><strong>Zoom:</strong> Use the scroll wheel or the +/− buttons on the map.</li>
             <li><strong>Pan:</strong> Click and drag to move the map.</li>
+            <li><strong>Point actions:</strong> Right-click a point to copy its latitude and longitude or ask the Forestry AI Agent about it. Sign in to use the AI.</li>
             <li><strong>Search:</strong> Type a place name in the search bar at the top of the map to navigate to that location.</li>
             <li><strong>Locate me:</strong> Click the locate button to center the map on your current position.</li>
           </ul>
@@ -56,6 +57,11 @@ function HelpPage({ onBack }) {
           <p>
             Note that percentage coverage is viewport-dependent and may differ from the
             fixed-grid hectare totals shown in the chart.
+          </p>
+          <p>
+            Provisional AI outlines below 90% confidence are hidden by default. Adjust the
+            confidence slider in the map legend to show more or fewer estimates; confirmed
+            detections always remain visible.
           </p>
         </div>
 

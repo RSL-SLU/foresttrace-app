@@ -21,7 +21,7 @@
  */
 
 import { fromUrl } from 'geotiff';
-import { COG_BASE_URL } from '../config';
+import { COG_BASE_URL, versionCogUrl } from '../config';
 
 const R = 6378137;                 // Web Mercator sphere
 const MAX_DIM = 1400;              // overview level to read, in pixels
@@ -99,7 +99,7 @@ export const FINDER_LAYERS = {
 let _manifest = null;
 export function loadManifest() {
   if (!_manifest) {
-    _manifest = fetch(`${COG_BASE_URL}/cogs/manifest.json`)
+    _manifest = fetch(`${COG_BASE_URL}/cogs/manifest.json`, { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
       .catch(() => null);
   }
@@ -335,7 +335,11 @@ export async function findInCog(q) {
   if (layer.needsYear && !Number.isFinite(year)) return { found: [], error: `${layer.noun} needs a year` };
   let level;
   try {
-    level = await readLevel(layer.url({ region: q.region, year }), layer.bands, layer.maxDim);
+    const manifest = await loadManifest();
+    const fileName = layer.static ? `${q.region}.tif` : `${q.region}_${year}.tif`;
+    const pathname = `cogs/${layer.prefix}/${fileName}`;
+    const url = versionCogUrl(layer.url({ region: q.region, year }), pathname, manifest?.versions);
+    level = await readLevel(url, layer.bands, layer.maxDim);
   } catch {
     return { found: [], error: `no ${layer.noun} raster published for ${q.region}${layer.needsYear ? ` ${year}` : ''}` };
   }

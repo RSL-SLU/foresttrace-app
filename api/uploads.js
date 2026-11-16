@@ -3,10 +3,9 @@
  *
  * The browser never sees BLOB_READ_WRITE_TOKEN. For each file it asks this
  * route for a client token, which Vercel Blob scopes to that one pathname,
- * expires after a few minutes, accepts only GeoTIFFs and refuses to replace an
- * existing file. Who may upload where is read from the database on every
- * request (users.uploadPrefixes, set from the admin dashboard), so revoking
- * access takes effect at once rather than when the 30-day login expires.
+ * expires after a few minutes, accepts only GeoTIFFs and only permits replacing
+ * existing files when separately granted. Upload and overwrite access are read
+ * from the database on every request, so revoking access takes effect at once.
  *
  *   GET  ?action=targets           folders the current user may upload to
  *   POST ?action=check             validate names before uploading
@@ -26,6 +25,7 @@ const { getCollection, getUserFromRequest, getMongoUri } = require('./_db');
 const {
   UPLOAD_TARGETS,
   allowedPrefixesFor,
+  overwritePrefixesFor,
   validateFileName,
   regionsFromManifest,
   parsePathname,
@@ -99,7 +99,7 @@ async function knownRegions() {
   }
 }
 
-const EXISTS_ERROR = 'A file with this name already exists -- existing files cannot be replaced';
+const EXISTS_ERROR = 'This file already exists -- ask an admin for overwrite access to replace it';
 
 /**
  * Permission and naming check for one upload (no storage lookup).
@@ -144,15 +144,14 @@ module.exports = async function handler(req, res) {
           if (!parts) throw new Error('Uploads must go to cogs/<folder>/<file>.tif');
           const check = checkName(userDoc, parts.prefix, parts.fileName, await knownRegions());
           if (!check.ok) throw new Error(check.error);
-          // allowOverwrite: false enforces this too; checking first gives a readable error.
-          if (await blobExists(pathname)) throw new Error(EXISTS_ERROR);
+          const canOverwrite = overwritePrefixesFor(userDoc).includes(parts.prefix);
+          if (await blobExists(pathname) && !canOverwrite) throw new Error(EXISTS_ERROR);
           return {
             allowedContentTypes: ['image/tiff'],
             maximumSizeInBytes: MAX_BYTES,
             validUntil: Date.now() + TOKEN_TTL_MS,
             addRandomSuffix: false,
-            allowOverwrite: false,
-            // COGs are immutable; same header the CLI upload sets.
+            allowOverwrite: canOverwrite,
             cacheControlMaxAge: 31536000,
           };
         },
@@ -164,8 +163,11 @@ module.exports = async function handler(req, res) {
 
     if (req.method === 'GET' && action === 'targets') {
       const allowed = new Set(allowedPrefixesFor(userDoc));
+      const overwriteAllowed = new Set(overwritePrefixesFor(userDoc));
       return res.status(200).json({
-        targets: UPLOAD_TARGETS.filter((t) => allowed.has(t.prefix)),
+        targets: UPLOAD_TARGETS
+          .filter((t) => allowed.has(t.prefix))
+          .map((t) => ({ ...t, canOverwrite: overwriteAllowed.has(t.prefix) })),
         maxBytes: MAX_BYTES,
       });
     }
@@ -179,15 +181,17 @@ module.exports = async function handler(req, res) {
       }
       const regions = await knownRegions();
       const allowed = new Set(allowedPrefixesFor(userDoc));
+      const overwriteAllowed = new Set(overwritePrefixesFor(userDoc));
       const existing = await listFolders(items.map((i) => i.prefix).filter((p) => allowed.has(p)));
       const seen = new Set();
       const results = items.map(({ prefix, fileName }) => {
         const r = checkName(userDoc, prefix, fileName, regions);
         let error = r.error || null;
+        const exists = existing.has(r.pathname);
         if (r.ok && seen.has(r.pathname)) error = 'Listed twice';
-        else if (r.ok && existing.has(r.pathname)) error = EXISTS_ERROR;
+        else if (r.ok && exists && !overwriteAllowed.has(prefix)) error = EXISTS_ERROR;
         seen.add(r.pathname);
-        return { prefix, fileName, pathname: r.pathname, ok: !error, error };
+        return { prefix, fileName, pathname: r.pathname, ok: !error, error, overwrites: !error && exists };
       });
       return res.status(200).json({ results, regionCheck: Boolean(regions) });
     }

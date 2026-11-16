@@ -34,11 +34,16 @@ let _manifestPromise = null;
 
 function loadManifest() {
   if (!_manifestPromise) {
-    _manifestPromise = fetch(`${COG_BASE_URL}/cogs/manifest.json`)
+    _manifestPromise = fetch(`${COG_BASE_URL}/cogs/manifest.json`, { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
       .catch(() => null);
   }
   return _manifestPromise;
+}
+
+export async function getCogVersions() {
+  const manifest = await loadManifest();
+  return manifest?.versions || {};
 }
 
 /**

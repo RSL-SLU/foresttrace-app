@@ -408,7 +408,7 @@ gdalinfo E:/boreal-canada-mapping/foresttrace_cogs/clearcut-status-v2/wabigoon_2
 # Look for: "LAYOUT=COG", EPSG:3857 ("WGS 84 / Pseudo-Mercator"), Block=512x512, "Overviews:", NoData Value
 ```
 
-> **The upload checks do not verify any of this.** The upload page and `upload-cogs.js` check the file *name*, the layer access and that the file is new. A plain GeoTIFF, or one in the wrong projection, is accepted, and that FMU and year then loads slowly or draws in the wrong place. The uploader cannot replace it, so it stays broken until an admin deletes it in Admin Dashboard → Data Uploads. Run the `gdalinfo` check, or upload only files produced by the module's preparation script.
+> **The upload checks do not verify any of this.** The upload page and `upload-cogs.js` check the file *name*, the layer access and (when replacing) the overwrite grant. A plain GeoTIFF, or one in the wrong projection, is accepted, and that FMU and year then loads slowly or draws in the wrong place. Run the `gdalinfo` check, or upload only files produced by the module's preparation script.
 
 ---
 
@@ -460,12 +460,12 @@ The folder can be the whole output of `prepare-boreal-cogs.py` (one subfolder pe
 **Browser** (**user menu → Upload Data**): pick the same `foresttrace_cogs/` folder with **Layer: From folder names**, or pick one layer and its files.
 
 - **Live immediately.** Each finished batch rebuilds `cogs/manifest.json`, so the layer appears in the map at once.
-- **No replacing.** A path that already exists is refused, so uploads can only add region/year files. To fix a bad upload, an admin deletes it from the Data Uploads tab and the student uploads it again. The delete button only reaches files that came in through the app, not files uploaded with the CLI scripts.
+- **Replacement is separately granted.** In **Admin Dashboard → Data Uploads**, grant a user **Replace** access for a layer in addition to **Upload** access. They can then replace only files at the same path and filename; uploads ask for confirmation before replacing. The CLI requires `--overwrite` to confirm replacement in non-interactive use. Admins can replace files in every layer. The app uses the replacement's new manifest version on its next manifest load to avoid serving the old cached raster. Deletion remains admin-only.
 - **The file's contents are not checked.** Only names and access are. Make sure each file meets [What a production COG must be](#what-a-production-cog-must-be) before uploading.
 - **Names are checked before uploading:** `<region>_<year>.tif` for yearly layers and `<region>.tif` for static ones, lowercase. The region must already appear somewhere in the manifest, which catches typos. The first file for a brand-new region has to go through the CLI.
 - **Browser uploads don't update charts.** Stats JSON under `client/public/data/` is regenerated offline (`scripts/stats/refresh-stats.js`) and committed. The command-line tool runs that refresh for you.
 
-How it works: `api/uploads.js` issues a [client token](https://vercel.com/docs/vercel-blob/client-upload) for each file. The token is locked to that one pathname, expires after 15 minutes, accepts only `image/tiff` and has `allowOverwrite: false`. Access is read from `users.uploadPrefixes` on every request, so revoking it takes effect immediately. The folders that can be granted are listed in `api/_uploadTargets.js`; add a module's prefix there to make it grantable. Uploads are logged in the `cog_uploads` collection. `UPLOAD_MAX_MB` (default 2048) caps the file size.
+How it works: `api/uploads.js` issues a [client token](https://vercel.com/docs/vercel-blob/client-upload) for each file. The token is locked to that one pathname, expires after 15 minutes, and accepts only `image/tiff`. The server sets `allowOverwrite` only for admins or users with a matching `users.uploadOverwritePrefixes` grant, and rechecks access when issuing each token. Upload access is stored in `users.uploadPrefixes`; both permissions are read on every request, so revocation takes effect immediately. The rebuilt manifest records each COG's upload version so the app bypasses the old immutable cache URL after a replacement. The folders that can be granted are listed in `api/_uploadTargets.js`; add a module's prefix there to make it grantable. Uploads are logged in the `cog_uploads` collection. `UPLOAD_MAX_MB` (default 2048) caps the file size.
 
 ### 4. Using uploaded COGs in a module
 

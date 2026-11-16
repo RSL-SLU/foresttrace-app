@@ -28,6 +28,58 @@ html, body {
   overflow: hidden;
 }
 
+.map-point-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: transparent;
+}
+
+.map-point-menu {
+  position: fixed;
+  width: min(224px, calc(100vw - 16px));
+  box-sizing: border-box;
+  padding: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 8px;
+  background: var(--bg-card, #ffffff);
+  color: var(--text-primary, #1e293b);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.map-point-menu-coordinates {
+  padding: 7px 9px;
+  font-size: 11px;
+  color: var(--text-secondary, #64748b);
+  white-space: nowrap;
+}
+
+.map-point-menu button {
+  display: block;
+  width: 100%;
+  padding: 8px 9px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.map-point-menu button:hover,
+.map-point-menu button:focus-visible {
+  background: rgba(34, 197, 94, 0.14);
+  outline: none;
+}
+
+.map-point-menu-error {
+  padding: 2px 9px 5px;
+  color: #dc2626;
+  font-size: 11px;
+}
+
 .search-container {
   position: absolute;
   top: 10px;

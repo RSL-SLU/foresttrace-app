@@ -37,6 +37,11 @@ const COG_KEY = /^cogs\/([^/]+)\/([a-z0-9]+)_(\d{4})\.tif$/;
 // scars, SCANFI); listed under manifest.static[prefix] as region ids.
 const STATIC_KEY = /^cogs\/([^/]+)\/([a-z0-9]+)\.tif$/;
 
+function blobVersion(blob) {
+  const uploadedAt = blob.uploadedAt ? new Date(blob.uploadedAt).getTime() : NaN;
+  return Number.isFinite(uploadedAt) ? uploadedAt : Date.now();
+}
+
 /**
  * Rebuild the manifest from Vercel Blob and (unless dryRun) publish it.
  *
@@ -59,6 +64,7 @@ async function rebuildManifestVercel({
 
   const prefixes = {};
   const statics = {};
+  const versions = {};
   let cursor;
   let scanned = 0;
 
@@ -74,11 +80,13 @@ async function rebuildManifestVercel({
       const single = blob.pathname.match(STATIC_KEY);
       if (single) {
         (statics[single[1]] ??= []).push(single[2]);
+        versions[blob.pathname] = blobVersion(blob);
         continue;
       }
       const match = blob.pathname.match(COG_KEY);
       if (!match) continue;
       const [, prefix, region, year] = match;
+      versions[blob.pathname] = blobVersion(blob);
       prefixes[prefix] ??= {};
       prefixes[prefix][region] ??= [];
       prefixes[prefix][region].push(Number(year));
@@ -164,7 +172,7 @@ async function rebuildManifestVercel({
   }
 
   Object.values(statics).forEach((regions) => regions.sort());
-  const manifest = { generatedAt: new Date().toISOString(), prefixes, static: statics, tiles };
+  const manifest = { generatedAt: new Date().toISOString(), prefixes, static: statics, tiles, versions };
   const body = `${JSON.stringify(manifest, null, 2)}\n`;
 
   log(`Scanned ${scanned} objects under cogs/ in Vercel Blob\n`);
@@ -208,4 +216,3 @@ if (require.main === module) {
     process.exit(1);
   });
 }
-
