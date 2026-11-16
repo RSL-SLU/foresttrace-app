@@ -931,11 +931,12 @@ function MapLibreMap({
 
   const handleMapContextMenu = useCallback((e) => {
     e.originalEvent?.preventDefault();
+    const canvasRect = e.target.getCanvas().getBoundingClientRect();
     onMapContextMenu?.({
       lat: e.lngLat.lat,
       lng: e.lngLat.lng,
-      x: e.originalEvent?.clientX ?? e.point.x,
-      y: e.originalEvent?.clientY ?? e.point.y,
+      x: e.originalEvent?.clientX ?? canvasRect.left + e.point.x,
+      y: e.originalEvent?.clientY ?? canvasRect.top + e.point.y,
     });
   }, [onMapContextMenu]);
 

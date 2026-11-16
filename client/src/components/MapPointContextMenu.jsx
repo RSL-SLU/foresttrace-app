@@ -5,11 +5,11 @@ function MapPointContextMenu({ point, onClose, onCopy, onAsk }) {
   if (!point) return null;
 
   const coordinates = `${point.lat.toFixed(6)}, ${point.lng.toFixed(6)}`;
-  const left = `min(${point.x}px, calc(100vw - 224px))`;
-  const top = `min(${point.y}px, calc(100vh - 128px))`;
+  const left = `${Math.max(8, Math.min(point.x, window.innerWidth - 224))}px`;
+  const top = `${Math.max(8, Math.min(point.y, window.innerHeight - 128))}px`;
 
   return createPortal(
-    <div className="map-point-menu-backdrop" onClick={onClose}>
+    <div className="map-point-menu-backdrop" role="presentation" onClick={onClose}>
       <div
         className="map-point-menu"
         role="menu"

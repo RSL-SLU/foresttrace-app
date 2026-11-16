@@ -37,7 +37,8 @@ html, body {
 
 .map-point-menu {
   position: fixed;
-  width: 216px;
+  width: min(224px, calc(100vw - 16px));
+  box-sizing: border-box;
   padding: 6px;
   border: 1px solid rgba(148, 163, 184, 0.45);
   border-radius: 8px;
