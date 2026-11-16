@@ -1,5 +1,5 @@
 import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react';
-import { MapContainer, TileLayer, useMap, GeoJSON } from 'react-leaflet';
+import { MapContainer, TileLayer, useMap, useMapEvents, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import '@geoman-io/leaflet-geoman-free';
@@ -22,6 +22,7 @@ import MapSourcesInfo from './components/MapSourcesInfo';
 import MapTimeline from './components/MapTimeline';
 import MapDisplayOptions from './components/MapDisplayOptions';
 import MapLegend from './components/MapLegend';
+import MapPointContextMenu from './components/MapPointContextMenu';
 import ClearcutDetection from './modules/ClearcutDetection';
 import BiomassModule from './modules/BiomassModule';
 import WildfireModule from './modules/WildfireModule';
@@ -723,6 +724,21 @@ function MaxZoomController({ maxZoom }) {
   return null;
 }
 
+function MapPointContextMenuCapture({ onOpen }) {
+  useMapEvents({
+    contextmenu(event) {
+      event.originalEvent.preventDefault();
+      onOpen({
+        lat: event.latlng.lat,
+        lng: event.latlng.lng,
+        x: event.originalEvent.clientX,
+        y: event.originalEvent.clientY,
+      });
+    },
+  });
+  return null;
+}
+
 function App() {
   const { isAuthenticated, isInitialized, loading, openAuthModal, token } = useAuth();
   const [adminDashboardOpen, setAdminDashboardOpen] = useState(false);
@@ -741,6 +757,7 @@ function App() {
     setActivePage(page);
   }, []);
   const mapRef = useRef(null);
+  const [mapPointMenu, setMapPointMenu] = useState(null);
   const [mapReady, setMapReady] = useState(false);
   const [clearcutPercent, setClearcutPercent] = useState(null);
   const [tilesLoading, setTilesLoading] = useState(false);
@@ -1028,7 +1045,7 @@ function App() {
   }, [fieldSitesOn, fieldSites]);
   // Hides provisional AI detections below this confidence (0-100); confirmed
   // ones always show
-  const [aiMinConfidence, setAiMinConfidence] = useState(0);
+  const [aiMinConfidence, setAiMinConfidence] = useState(90);
 
   const handleToggleClearcutSource = useCallback((source, on) => {
     setClearcutSources((prev) => (
@@ -1309,6 +1326,43 @@ function App() {
   // Geometry the assistant proposed. Kept apart from drawnFeatures so a
   // proposal never feeds back into the context as something the user drew.
   const [proposedFeatures, setProposedFeatures] = useState(null);
+
+  const openMapPointMenu = useCallback((point) => {
+    setMapPointMenu({ ...point, copied: false, copyError: null });
+  }, []);
+
+  const closeMapPointMenu = useCallback(() => setMapPointMenu(null), []);
+
+  const copyMapPointCoordinates = useCallback(async (coordinates) => {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard access is unavailable in this browser.');
+      await navigator.clipboard.writeText(coordinates);
+      setMapPointMenu((current) => current && ({ ...current, copied: true, copyError: null }));
+    } catch (err) {
+      setMapPointMenu((current) => current && ({ ...current, copyError: err.message }));
+    }
+  }, []);
+
+  const askAboutMapPoint = useCallback((point) => {
+    setMapPointMenu(null);
+    if (!isAuthenticated) {
+      openAuthModal('login');
+      return;
+    }
+    setPanelTab('forest-ai');
+    setPendingPrompt(
+      `What can ForestTrace tell me about this point? Latitude ${point.lat.toFixed(6)}, longitude ${point.lng.toFixed(6)}. Focus on the selected map layers and distinguish mapped data from anything inferred.`,
+    );
+  }, [isAuthenticated, openAuthModal]);
+
+  useEffect(() => {
+    if (!mapPointMenu) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') closeMapPointMenu();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mapPointMenu, closeMapPointMenu]);
 
   const askAboutDrawing = useCallback(() => {
     if (!isAuthenticated) {
@@ -2191,6 +2245,7 @@ function App() {
                 moduleOpacity={moduleOpacity}
                 mapRef={mapRef}
                 onMapReady={() => setMapReady(true)}
+                onMapContextMenu={openMapPointMenu}
                 onDrawChange={setDrawnFeatures}
                 onAskAboutDrawing={askAboutDrawing}
                 onLoadingChange={handleLoadingChange}
@@ -2220,6 +2275,7 @@ function App() {
             }}
             style={{ width: '100%', height: '100%', zIndex: 0 }}
           >
+            <MapPointContextMenuCapture onOpen={openMapPointMenu} />
             {basemapMode === 'satellite' ? (() => {
               const basemapYear = moduleYears[selectedModule?.id] || selectedYear;
               const { url, attribution } = getBasemapConfig(basemapYear);
@@ -2329,6 +2385,12 @@ function App() {
             <MaxZoomController maxZoom={mapMaxZoom} />
           </MapContainer>
           )}
+          <MapPointContextMenu
+            point={mapPointMenu}
+            onClose={closeMapPointMenu}
+            onCopy={copyMapPointCoordinates}
+            onAsk={askAboutMapPoint}
+          />
         </div>
 
         <div className="module-panel-container">
