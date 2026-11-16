@@ -1,154 +1,154 @@
 {
   "abitibiriver": {
     "2015": {
-      "coreHa": 645930.8,
+      "coreHa": 673147.6,
       "inRangeHa": 3014769.3,
       "bins": {
-        "subFunctional": 63682.1,
-        "small": 51184.3,
-        "moderate": 27193.0,
-        "large": 114868.8,
-        "veryLarge": 389002.6
+        "subFunctional": 72746.6,
+        "small": 53296.4,
+        "moderate": 28977.1,
+        "large": 122235.9,
+        "veryLarge": 395891.5
       },
       "ranges": [
         "kesagami"
       ]
     },
     "2016": {
-      "coreHa": 645725.5,
+      "coreHa": 672260.7,
       "inRangeHa": 3014769.3,
       "bins": {
-        "subFunctional": 63519.1,
-        "small": 51192.6,
-        "moderate": 27154.9,
-        "large": 114868.3,
-        "veryLarge": 388990.6
+        "subFunctional": 71789.8,
+        "small": 53621.2,
+        "moderate": 28919.1,
+        "large": 121979.1,
+        "veryLarge": 395951.6
       },
       "ranges": [
         "kesagami"
       ]
     },
     "2017": {
-      "coreHa": 645054.9,
+      "coreHa": 671382.2,
       "inRangeHa": 3014769.3,
       "bins": {
-        "subFunctional": 63913.5,
-        "small": 51340.2,
-        "moderate": 26453.2,
-        "large": 114636.1,
-        "veryLarge": 388711.9
+        "subFunctional": 71898.1,
+        "small": 53698.0,
+        "moderate": 28393.2,
+        "large": 121474.3,
+        "veryLarge": 395918.5
       },
       "ranges": [
         "kesagami"
       ]
     },
     "2018": {
-      "coreHa": 644475.6,
+      "coreHa": 670251.0,
       "inRangeHa": 3014769.3,
       "bins": {
-        "subFunctional": 63768.6,
-        "small": 51215.8,
-        "moderate": 26453.2,
-        "large": 114567.3,
-        "veryLarge": 388470.7
+        "subFunctional": 71247.4,
+        "small": 54544.7,
+        "moderate": 27671.0,
+        "large": 121285.3,
+        "veryLarge": 395502.7
       },
       "ranges": [
         "kesagami"
       ]
     },
     "2019": {
-      "coreHa": 644398.9,
+      "coreHa": 667385.7,
       "inRangeHa": 3014769.3,
       "bins": {
-        "subFunctional": 63680.8,
-        "small": 51229.9,
-        "moderate": 26453.0,
-        "large": 114564.6,
-        "veryLarge": 388470.7
+        "subFunctional": 71163.0,
+        "small": 53259.4,
+        "moderate": 27674.0,
+        "large": 120453.4,
+        "veryLarge": 394835.9
       },
       "ranges": [
         "kesagami"
       ]
     },
     "2020": {
-      "coreHa": 642190.5,
+      "coreHa": 665132.4,
       "inRangeHa": 3014769.3,
       "bins": {
-        "subFunctional": 63411.5,
-        "small": 51177.9,
-        "moderate": 26453.0,
-        "large": 112677.5,
-        "veryLarge": 388470.7
+        "subFunctional": 71124.8,
+        "small": 53074.0,
+        "moderate": 27614.5,
+        "large": 118487.4,
+        "veryLarge": 394831.7
       },
       "ranges": [
         "kesagami"
       ]
     },
     "2021": {
-      "coreHa": 626748.9,
+      "coreHa": 661705.5,
       "inRangeHa": 3014769.3,
       "bins": {
-        "subFunctional": 58911.6,
-        "small": 46704.8,
-        "moderate": 25998.0,
-        "large": 109255.6,
-        "veryLarge": 385879.0
+        "subFunctional": 69493.9,
+        "small": 51926.5,
+        "moderate": 28463.5,
+        "large": 117266.8,
+        "veryLarge": 394554.8
       },
       "ranges": [
         "kesagami"
       ]
     },
     "2022": {
-      "coreHa": 626458.5,
+      "coreHa": 661738.9,
       "inRangeHa": 3014769.3,
       "bins": {
-        "subFunctional": 58817.1,
-        "small": 46582.7,
-        "moderate": 25998.0,
-        "large": 109206.3,
-        "veryLarge": 385854.5
+        "subFunctional": 69540.1,
+        "small": 51909.2,
+        "moderate": 28470.5,
+        "large": 117158.7,
+        "veryLarge": 394660.3
       },
       "ranges": [
         "kesagami"
       ]
     },
     "2023": {
-      "coreHa": 616436.6,
+      "coreHa": 642064.8,
       "inRangeHa": 3014769.3,
       "bins": {
-        "subFunctional": 57633.3,
-        "small": 44080.7,
-        "moderate": 25757.7,
-        "large": 103487.3,
-        "veryLarge": 385477.6
+        "subFunctional": 68234.5,
+        "small": 52243.0,
+        "moderate": 26969.7,
+        "large": 100359.4,
+        "veryLarge": 394258.1
       },
       "ranges": [
         "kesagami"
       ]
     },
     "2024": {
-      "coreHa": 615556.9,
+      "coreHa": 641550.1,
       "inRangeHa": 3014769.3,
       "bins": {
-        "subFunctional": 57676.0,
-        "small": 43454.6,
-        "moderate": 25757.7,
-        "large": 103487.3,
-        "veryLarge": 385181.2
+        "subFunctional": 68180.2,
+        "small": 52268.8,
+        "moderate": 26970.8,
+        "large": 100311.1,
+        "veryLarge": 393819.2
       },
       "ranges": [
         "kesagami"
       ]
     },
     "2025": {
-      "coreHa": 615556.9,
+      "coreHa": 641713.4,
       "inRangeHa": 3014769.3,
       "bins": {
-        "subFunctional": 57676.0,
-        "small": 43454.6,
-        "moderate": 25757.7,
-        "large": 103487.3,
-        "veryLarge": 385181.2
+        "subFunctional": 68215.9,
+        "small": 52269.4,
+        "moderate": 26970.8,
+        "large": 100438.2,
+        "veryLarge": 393819.2
       },
       "ranges": [
         "kesagami"
@@ -157,13 +157,13 @@
   },
   "blackspruce": {
     "2015": {
-      "coreHa": 16747.5,
+      "coreHa": 12932.5,
       "inRangeHa": 558000.8,
       "bins": {
-        "subFunctional": 8854.9,
-        "small": 4005.3,
-        "moderate": 1493.7,
-        "large": 2393.5,
+        "subFunctional": 6384.1,
+        "small": 3525.6,
+        "moderate": 794.2,
+        "large": 2228.6,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -172,13 +172,13 @@
       ]
     },
     "2016": {
-      "coreHa": 16743.9,
+      "coreHa": 12605.9,
       "inRangeHa": 558000.8,
       "bins": {
-        "subFunctional": 8852.5,
-        "small": 4005.3,
-        "moderate": 1492.6,
-        "large": 2393.5,
+        "subFunctional": 6200.0,
+        "small": 3474.1,
+        "moderate": 703.2,
+        "large": 2228.6,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -187,13 +187,13 @@
       ]
     },
     "2017": {
-      "coreHa": 16739.8,
+      "coreHa": 12506.4,
       "inRangeHa": 558000.8,
       "bins": {
-        "subFunctional": 8850.1,
-        "small": 4004.6,
-        "moderate": 1492.5,
-        "large": 2392.7,
+        "subFunctional": 6101.6,
+        "small": 3473.9,
+        "moderate": 702.7,
+        "large": 2228.1,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -202,13 +202,13 @@
       ]
     },
     "2018": {
-      "coreHa": 16738.6,
+      "coreHa": 12419.5,
       "inRangeHa": 558000.8,
       "bins": {
-        "subFunctional": 8848.9,
-        "small": 4004.6,
-        "moderate": 1492.5,
-        "large": 2392.7,
+        "subFunctional": 6019.5,
+        "small": 3469.1,
+        "moderate": 702.7,
+        "large": 2228.1,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -217,13 +217,13 @@
       ]
     },
     "2019": {
-      "coreHa": 16713.4,
+      "coreHa": 12396.2,
       "inRangeHa": 558000.8,
       "bins": {
-        "subFunctional": 8823.6,
-        "small": 4004.6,
-        "moderate": 1492.5,
-        "large": 2392.7,
+        "subFunctional": 5998.0,
+        "small": 3467.4,
+        "moderate": 702.7,
+        "large": 2228.1,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -232,13 +232,13 @@
       ]
     },
     "2020": {
-      "coreHa": 16703.7,
+      "coreHa": 12513.1,
       "inRangeHa": 558000.8,
       "bins": {
-        "subFunctional": 8814.0,
-        "small": 4004.6,
-        "moderate": 1492.5,
-        "large": 2392.7,
+        "subFunctional": 5956.1,
+        "small": 3626.1,
+        "moderate": 702.7,
+        "large": 2228.1,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -247,13 +247,13 @@
       ]
     },
     "2021": {
-      "coreHa": 27589.3,
+      "coreHa": 11704.8,
       "inRangeHa": 558000.8,
       "bins": {
-        "subFunctional": 17382.2,
-        "small": 7146.4,
-        "moderate": 778.4,
-        "large": 2282.4,
+        "subFunctional": 6152.5,
+        "small": 3912.7,
+        "moderate": 614.9,
+        "large": 1024.7,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -262,13 +262,13 @@
       ]
     },
     "2022": {
-      "coreHa": 26360.6,
+      "coreHa": 10387.2,
       "inRangeHa": 558000.8,
       "bins": {
-        "subFunctional": 17584.4,
-        "small": 6436.2,
-        "moderate": 877.2,
-        "large": 1462.9,
+        "subFunctional": 6365.7,
+        "small": 3431.0,
+        "moderate": 590.5,
+        "large": 0.0,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -277,13 +277,13 @@
       ]
     },
     "2023": {
-      "coreHa": 26218.5,
+      "coreHa": 10237.7,
       "inRangeHa": 558000.8,
       "bins": {
-        "subFunctional": 17578.5,
-        "small": 6436.2,
-        "moderate": 741.0,
-        "large": 1462.9,
+        "subFunctional": 6365.0,
+        "small": 3282.2,
+        "moderate": 590.5,
+        "large": 0.0,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -292,13 +292,13 @@
       ]
     },
     "2024": {
-      "coreHa": 26259.3,
+      "coreHa": 10240.6,
       "inRangeHa": 558000.8,
       "bins": {
-        "subFunctional": 17612.8,
-        "small": 6442.6,
-        "moderate": 741.0,
-        "large": 1462.9,
+        "subFunctional": 6367.9,
+        "small": 3282.2,
+        "moderate": 590.5,
+        "large": 0.0,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -307,13 +307,13 @@
       ]
     },
     "2025": {
-      "coreHa": 26261.8,
+      "coreHa": 10240.0,
       "inRangeHa": 558000.8,
       "bins": {
-        "subFunctional": 17615.3,
-        "small": 6442.6,
-        "moderate": 741.0,
-        "large": 1462.9,
+        "subFunctional": 6367.3,
+        "small": 3282.2,
+        "moderate": 590.5,
+        "large": 0.0,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -324,14 +324,14 @@
   },
   "caribou": {
     "2015": {
-      "coreHa": 132618.8,
+      "coreHa": 130230.6,
       "inRangeHa": 709048.0,
       "bins": {
-        "subFunctional": 41772.5,
-        "small": 29796.8,
-        "moderate": 8903.9,
-        "large": 43413.0,
-        "veryLarge": 8732.5
+        "subFunctional": 40550.7,
+        "small": 29839.4,
+        "moderate": 8857.4,
+        "large": 42360.1,
+        "veryLarge": 8623.0
       },
       "ranges": [
         "brightsand",
@@ -339,14 +339,14 @@
       ]
     },
     "2016": {
-      "coreHa": 132590.8,
+      "coreHa": 130128.6,
       "inRangeHa": 709048.0,
       "bins": {
-        "subFunctional": 41845.9,
-        "small": 29695.9,
-        "moderate": 8903.9,
-        "large": 43412.5,
-        "veryLarge": 8732.5
+        "subFunctional": 40551.9,
+        "small": 29739.2,
+        "moderate": 8857.4,
+        "large": 42357.1,
+        "veryLarge": 8623.0
       },
       "ranges": [
         "brightsand",
@@ -354,14 +354,14 @@
       ]
     },
     "2017": {
-      "coreHa": 132723.8,
+      "coreHa": 129860.4,
       "inRangeHa": 709048.0,
       "bins": {
-        "subFunctional": 42173.7,
-        "small": 29669.1,
-        "moderate": 8806.5,
-        "large": 43342.4,
-        "veryLarge": 8732.1
+        "subFunctional": 40507.8,
+        "small": 29730.0,
+        "moderate": 8712.4,
+        "large": 42287.2,
+        "veryLarge": 8623.0
       },
       "ranges": [
         "brightsand",
@@ -369,14 +369,14 @@
       ]
     },
     "2018": {
-      "coreHa": 132590.8,
+      "coreHa": 129641.1,
       "inRangeHa": 709048.0,
       "bins": {
-        "subFunctional": 42040.7,
-        "small": 29669.1,
-        "moderate": 8806.5,
-        "large": 43342.4,
-        "veryLarge": 8732.1
+        "subFunctional": 40367.6,
+        "small": 29738.1,
+        "moderate": 8712.4,
+        "large": 42251.5,
+        "veryLarge": 8571.6
       },
       "ranges": [
         "brightsand",
@@ -384,14 +384,14 @@
       ]
     },
     "2019": {
-      "coreHa": 132303.5,
+      "coreHa": 129589.6,
       "inRangeHa": 709048.0,
       "bins": {
-        "subFunctional": 41884.4,
-        "small": 29538.5,
-        "moderate": 8806.5,
-        "large": 43342.0,
-        "veryLarge": 8732.1
+        "subFunctional": 40318.4,
+        "small": 29735.9,
+        "moderate": 8712.4,
+        "large": 42251.3,
+        "veryLarge": 8571.6
       },
       "ranges": [
         "brightsand",
@@ -399,14 +399,14 @@
       ]
     },
     "2020": {
-      "coreHa": 131819.8,
+      "coreHa": 129055.2,
       "inRangeHa": 709048.0,
       "bins": {
-        "subFunctional": 41832.4,
-        "small": 29538.4,
-        "moderate": 9516.4,
-        "large": 42200.5,
-        "veryLarge": 8732.1
+        "subFunctional": 40204.3,
+        "small": 29729.1,
+        "moderate": 9514.7,
+        "large": 41035.6,
+        "veryLarge": 8571.6
       },
       "ranges": [
         "brightsand",
@@ -414,14 +414,14 @@
       ]
     },
     "2021": {
-      "coreHa": 130326.2,
+      "coreHa": 126570.0,
       "inRangeHa": 709048.0,
       "bins": {
-        "subFunctional": 41862.3,
-        "small": 30374.9,
-        "moderate": 8806.5,
-        "large": 40550.4,
-        "veryLarge": 8732.1
+        "subFunctional": 40190.1,
+        "small": 30268.3,
+        "moderate": 8712.4,
+        "large": 38827.5,
+        "veryLarge": 8571.6
       },
       "ranges": [
         "brightsand",
@@ -429,14 +429,14 @@
       ]
     },
     "2022": {
-      "coreHa": 129209.7,
+      "coreHa": 126418.1,
       "inRangeHa": 709048.0,
       "bins": {
-        "subFunctional": 41761.3,
-        "small": 30374.1,
-        "moderate": 9410.6,
-        "large": 38931.6,
-        "veryLarge": 8732.1
+        "subFunctional": 40123.1,
+        "small": 30250.7,
+        "moderate": 8712.4,
+        "large": 38760.4,
+        "veryLarge": 8571.6
       },
       "ranges": [
         "brightsand",
@@ -444,14 +444,14 @@
       ]
     },
     "2023": {
-      "coreHa": 125294.4,
+      "coreHa": 122469.4,
       "inRangeHa": 709048.0,
       "bins": {
-        "subFunctional": 41548.9,
-        "small": 31836.1,
-        "moderate": 8806.5,
-        "large": 34370.8,
-        "veryLarge": 8732.1
+        "subFunctional": 39913.4,
+        "small": 30884.4,
+        "moderate": 8715.7,
+        "large": 34384.3,
+        "veryLarge": 8571.6
       },
       "ranges": [
         "brightsand",
@@ -459,14 +459,14 @@
       ]
     },
     "2024": {
-      "coreHa": 125172.4,
+      "coreHa": 122473.3,
       "inRangeHa": 709048.0,
       "bins": {
-        "subFunctional": 41548.7,
-        "small": 31740.8,
-        "moderate": 8806.5,
-        "large": 34344.4,
-        "veryLarge": 8732.1
+        "subFunctional": 39917.2,
+        "small": 30884.4,
+        "moderate": 8715.7,
+        "large": 34384.3,
+        "veryLarge": 8571.6
       },
       "ranges": [
         "brightsand",
@@ -474,14 +474,14 @@
       ]
     },
     "2025": {
-      "coreHa": 125172.4,
+      "coreHa": 122472.4,
       "inRangeHa": 709048.0,
       "bins": {
-        "subFunctional": 41548.7,
-        "small": 31740.8,
-        "moderate": 8806.5,
-        "large": 34344.4,
-        "veryLarge": 8732.1
+        "subFunctional": 39916.3,
+        "small": 30884.4,
+        "moderate": 8715.7,
+        "large": 34384.3,
+        "veryLarge": 8571.6
       },
       "ranges": [
         "brightsand",
@@ -491,13 +491,13 @@
   },
   "englishriver": {
     "2015": {
-      "coreHa": 27708.1,
+      "coreHa": 27566.1,
       "inRangeHa": 573520.9,
       "bins": {
-        "subFunctional": 13468.7,
-        "small": 7437.0,
-        "moderate": 1977.8,
-        "large": 4824.6,
+        "subFunctional": 13050.7,
+        "small": 7786.9,
+        "moderate": 2073.3,
+        "large": 4655.2,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -506,13 +506,13 @@
       ]
     },
     "2016": {
-      "coreHa": 27963.4,
+      "coreHa": 27527.0,
       "inRangeHa": 573520.9,
       "bins": {
-        "subFunctional": 13591.3,
-        "small": 7557.6,
-        "moderate": 1990.0,
-        "large": 4824.6,
+        "subFunctional": 13019.1,
+        "small": 7779.4,
+        "moderate": 2073.3,
+        "large": 4655.2,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -521,13 +521,13 @@
       ]
     },
     "2017": {
-      "coreHa": 29972.8,
+      "coreHa": 27719.8,
       "inRangeHa": 573520.9,
       "bins": {
-        "subFunctional": 15308.2,
-        "small": 7348.2,
-        "moderate": 2491.7,
-        "large": 4824.6,
+        "subFunctional": 13036.8,
+        "small": 7852.9,
+        "moderate": 2073.3,
+        "large": 4756.8,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -536,13 +536,13 @@
       ]
     },
     "2018": {
-      "coreHa": 29969.5,
+      "coreHa": 27716.8,
       "inRangeHa": 573520.9,
       "bins": {
-        "subFunctional": 15305.0,
-        "small": 7348.2,
-        "moderate": 2491.7,
-        "large": 4824.6,
+        "subFunctional": 13033.8,
+        "small": 7852.9,
+        "moderate": 2073.3,
+        "large": 4756.8,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -551,13 +551,13 @@
       ]
     },
     "2019": {
-      "coreHa": 29953.7,
+      "coreHa": 26845.1,
       "inRangeHa": 573520.9,
       "bins": {
-        "subFunctional": 15389.1,
-        "small": 7248.3,
-        "moderate": 2491.7,
-        "large": 4824.6,
+        "subFunctional": 12979.6,
+        "small": 7052.8,
+        "moderate": 2056.0,
+        "large": 4756.8,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -566,13 +566,13 @@
       ]
     },
     "2020": {
-      "coreHa": 29758.3,
+      "coreHa": 26370.7,
       "inRangeHa": 573520.9,
       "bins": {
-        "subFunctional": 14978.3,
-        "small": 7047.2,
-        "moderate": 2500.7,
-        "large": 5232.1,
+        "subFunctional": 12706.0,
+        "small": 6847.6,
+        "moderate": 2056.0,
+        "large": 4761.2,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -581,13 +581,13 @@
       ]
     },
     "2021": {
-      "coreHa": 41192.3,
+      "coreHa": 26580.6,
       "inRangeHa": 573520.9,
       "bins": {
-        "subFunctional": 23116.0,
-        "small": 10303.0,
-        "moderate": 2516.1,
-        "large": 5257.2,
+        "subFunctional": 12784.1,
+        "small": 6979.3,
+        "moderate": 2056.0,
+        "large": 4761.2,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -596,13 +596,13 @@
       ]
     },
     "2022": {
-      "coreHa": 41187.6,
+      "coreHa": 26577.8,
       "inRangeHa": 573520.9,
       "bins": {
-        "subFunctional": 23101.7,
-        "small": 9913.9,
-        "moderate": 2914.7,
-        "large": 5257.2,
+        "subFunctional": 12781.4,
+        "small": 6979.3,
+        "moderate": 2056.0,
+        "large": 4761.2,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -611,13 +611,13 @@
       ]
     },
     "2023": {
-      "coreHa": 40885.7,
+      "coreHa": 26349.4,
       "inRangeHa": 573520.9,
       "bins": {
-        "subFunctional": 22840.6,
-        "small": 9873.2,
-        "moderate": 2914.7,
-        "large": 5257.2,
+        "subFunctional": 12619.9,
+        "small": 6912.4,
+        "moderate": 2056.0,
+        "large": 4761.2,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -626,13 +626,13 @@
       ]
     },
     "2024": {
-      "coreHa": 40888.1,
+      "coreHa": 26349.4,
       "inRangeHa": 573520.9,
       "bins": {
-        "subFunctional": 22843.0,
-        "small": 9873.2,
-        "moderate": 2914.7,
-        "large": 5257.2,
+        "subFunctional": 12619.9,
+        "small": 6912.4,
+        "moderate": 2056.0,
+        "large": 4761.2,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -641,13 +641,13 @@
       ]
     },
     "2025": {
-      "coreHa": 40983.0,
+      "coreHa": 26352.5,
       "inRangeHa": 573520.9,
       "bins": {
-        "subFunctional": 22937.9,
-        "small": 9873.2,
-        "moderate": 2914.7,
-        "large": 5257.2,
+        "subFunctional": 12622.9,
+        "small": 6912.4,
+        "moderate": 2056.0,
+        "large": 4761.2,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -658,14 +658,14 @@
   },
   "far_north_central": {
     "2015": {
-      "coreHa": 113465.3,
+      "coreHa": 108073.7,
       "inRangeHa": 592477.8,
       "bins": {
-        "subFunctional": 50583.0,
-        "small": 20634.3,
-        "moderate": 14650.6,
-        "large": 26682.3,
-        "veryLarge": 915.2
+        "subFunctional": 46544.2,
+        "small": 21411.0,
+        "moderate": 13915.4,
+        "large": 25285.0,
+        "veryLarge": 918.2
       },
       "ranges": [
         "nipigon",
@@ -673,14 +673,14 @@
       ]
     },
     "2016": {
-      "coreHa": 113465.3,
+      "coreHa": 108073.7,
       "inRangeHa": 592477.8,
       "bins": {
-        "subFunctional": 50583.0,
-        "small": 20634.3,
-        "moderate": 14650.6,
-        "large": 26682.3,
-        "veryLarge": 915.2
+        "subFunctional": 46544.2,
+        "small": 21411.0,
+        "moderate": 13915.4,
+        "large": 25285.0,
+        "veryLarge": 918.2
       },
       "ranges": [
         "nipigon",
@@ -688,14 +688,14 @@
       ]
     },
     "2017": {
-      "coreHa": 113365.6,
+      "coreHa": 107821.4,
       "inRangeHa": 592477.8,
       "bins": {
-        "subFunctional": 50483.6,
-        "small": 20633.9,
-        "moderate": 14650.6,
-        "large": 26682.3,
-        "veryLarge": 915.2
+        "subFunctional": 46307.9,
+        "small": 21396.7,
+        "moderate": 13915.4,
+        "large": 25283.2,
+        "veryLarge": 918.2
       },
       "ranges": [
         "nipigon",
@@ -703,14 +703,14 @@
       ]
     },
     "2018": {
-      "coreHa": 113323.6,
+      "coreHa": 107724.9,
       "inRangeHa": 592477.8,
       "bins": {
-        "subFunctional": 50464.2,
-        "small": 20629.5,
-        "moderate": 14650.6,
-        "large": 26664.1,
-        "veryLarge": 915.2
+        "subFunctional": 46234.0,
+        "small": 21392.3,
+        "moderate": 13915.4,
+        "large": 25265.1,
+        "veryLarge": 918.2
       },
       "ranges": [
         "nipigon",
@@ -718,14 +718,14 @@
       ]
     },
     "2019": {
-      "coreHa": 113278.5,
+      "coreHa": 107673.9,
       "inRangeHa": 592477.8,
       "bins": {
-        "subFunctional": 50529.5,
-        "small": 20519.1,
-        "moderate": 14650.6,
-        "large": 26664.1,
-        "veryLarge": 915.2
+        "subFunctional": 46185.1,
+        "small": 21390.2,
+        "moderate": 13915.4,
+        "large": 25265.1,
+        "veryLarge": 918.2
       },
       "ranges": [
         "nipigon",
@@ -733,14 +733,14 @@
       ]
     },
     "2020": {
-      "coreHa": 113174.9,
+      "coreHa": 107663.8,
       "inRangeHa": 592477.8,
       "bins": {
-        "subFunctional": 50468.3,
-        "small": 20519.1,
-        "moderate": 14650.6,
-        "large": 26621.7,
-        "veryLarge": 915.2
+        "subFunctional": 46174.9,
+        "small": 21390.2,
+        "moderate": 13915.4,
+        "large": 25265.1,
+        "veryLarge": 918.2
       },
       "ranges": [
         "nipigon",
@@ -748,14 +748,14 @@
       ]
     },
     "2021": {
-      "coreHa": 112102.0,
+      "coreHa": 106573.7,
       "inRangeHa": 592477.8,
       "bins": {
-        "subFunctional": 49883.2,
-        "small": 20607.0,
-        "moderate": 14650.6,
-        "large": 26046.0,
-        "veryLarge": 915.2
+        "subFunctional": 45575.1,
+        "small": 21476.5,
+        "moderate": 13915.4,
+        "large": 25606.7,
+        "veryLarge": 0.0
       },
       "ranges": [
         "nipigon",
@@ -763,14 +763,14 @@
       ]
     },
     "2022": {
-      "coreHa": 112102.0,
+      "coreHa": 106573.7,
       "inRangeHa": 592477.8,
       "bins": {
-        "subFunctional": 49883.2,
-        "small": 20607.0,
-        "moderate": 14650.6,
-        "large": 26046.0,
-        "veryLarge": 915.2
+        "subFunctional": 45575.1,
+        "small": 21476.5,
+        "moderate": 13915.4,
+        "large": 25606.7,
+        "veryLarge": 0.0
       },
       "ranges": [
         "nipigon",
@@ -778,14 +778,14 @@
       ]
     },
     "2023": {
-      "coreHa": 111648.2,
+      "coreHa": 106172.1,
       "inRangeHa": 592477.8,
       "bins": {
-        "subFunctional": 49540.8,
-        "small": 20495.7,
-        "moderate": 14650.6,
-        "large": 26046.0,
-        "veryLarge": 915.2
+        "subFunctional": 45284.1,
+        "small": 21365.9,
+        "moderate": 13915.4,
+        "large": 25606.7,
+        "veryLarge": 0.0
       },
       "ranges": [
         "nipigon",
@@ -793,14 +793,14 @@
       ]
     },
     "2024": {
-      "coreHa": 111648.2,
+      "coreHa": 106172.1,
       "inRangeHa": 592477.8,
       "bins": {
-        "subFunctional": 49540.8,
-        "small": 20495.7,
-        "moderate": 14650.6,
-        "large": 26046.0,
-        "veryLarge": 915.2
+        "subFunctional": 45284.1,
+        "small": 21365.9,
+        "moderate": 13915.4,
+        "large": 25606.7,
+        "veryLarge": 0.0
       },
       "ranges": [
         "nipigon",
@@ -808,14 +808,14 @@
       ]
     },
     "2025": {
-      "coreHa": 111648.2,
+      "coreHa": 106172.1,
       "inRangeHa": 592477.8,
       "bins": {
-        "subFunctional": 49540.8,
-        "small": 20495.7,
-        "moderate": 14650.6,
-        "large": 26046.0,
-        "veryLarge": 915.2
+        "subFunctional": 45284.1,
+        "small": 21365.9,
+        "moderate": 13915.4,
+        "large": 25606.7,
+        "veryLarge": 0.0
       },
       "ranges": [
         "nipigon",
@@ -825,14 +825,14 @@
   },
   "far_north_east": {
     "2015": {
-      "coreHa": 189436.6,
+      "coreHa": 189598.5,
       "inRangeHa": 491410.8,
       "bins": {
-        "subFunctional": 14991.0,
-        "small": 8312.6,
-        "moderate": 5004.3,
-        "large": 21776.8,
-        "veryLarge": 139351.9
+        "subFunctional": 14696.5,
+        "small": 7856.9,
+        "moderate": 4758.9,
+        "large": 22591.0,
+        "veryLarge": 139695.1
       },
       "ranges": [
         "kesagami",
@@ -840,14 +840,14 @@
       ]
     },
     "2016": {
-      "coreHa": 189404.2,
+      "coreHa": 189531.3,
       "inRangeHa": 491410.8,
       "bins": {
-        "subFunctional": 14981.3,
-        "small": 8312.6,
-        "moderate": 5004.3,
-        "large": 21776.8,
-        "veryLarge": 139329.3
+        "subFunctional": 14775.9,
+        "small": 7746.2,
+        "moderate": 4758.9,
+        "large": 22591.0,
+        "veryLarge": 139659.2
       },
       "ranges": [
         "kesagami",
@@ -855,14 +855,14 @@
       ]
     },
     "2017": {
-      "coreHa": 189096.9,
+      "coreHa": 189372.7,
       "inRangeHa": 491410.8,
       "bins": {
-        "subFunctional": 14944.1,
-        "small": 8312.6,
-        "moderate": 5004.3,
-        "large": 21776.8,
-        "veryLarge": 139059.2
+        "subFunctional": 14767.1,
+        "small": 7746.2,
+        "moderate": 4758.9,
+        "large": 22591.0,
+        "veryLarge": 139509.4
       },
       "ranges": [
         "kesagami",
@@ -870,14 +870,14 @@
       ]
     },
     "2018": {
-      "coreHa": 188803.6,
+      "coreHa": 189070.6,
       "inRangeHa": 491410.8,
       "bins": {
-        "subFunctional": 14978.2,
-        "small": 8326.4,
-        "moderate": 4926.1,
-        "large": 21776.8,
-        "veryLarge": 138796.2
+        "subFunctional": 14801.2,
+        "small": 7760.0,
+        "moderate": 4680.7,
+        "large": 22591.0,
+        "veryLarge": 139237.7
       },
       "ranges": [
         "kesagami",
@@ -885,14 +885,14 @@
       ]
     },
     "2019": {
-      "coreHa": 188728.0,
+      "coreHa": 189010.8,
       "inRangeHa": 491410.8,
       "bins": {
-        "subFunctional": 15117.2,
-        "small": 8168.1,
-        "moderate": 4914.7,
-        "large": 21776.8,
-        "veryLarge": 138751.2
+        "subFunctional": 14944.4,
+        "small": 7601.8,
+        "moderate": 4680.7,
+        "large": 22591.0,
+        "veryLarge": 139192.9
       },
       "ranges": [
         "kesagami",
@@ -900,14 +900,14 @@
       ]
     },
     "2020": {
-      "coreHa": 188678.0,
+      "coreHa": 189010.8,
       "inRangeHa": 491410.8,
       "bins": {
-        "subFunctional": 15124.4,
-        "small": 8168.1,
-        "moderate": 4914.7,
-        "large": 21769.3,
-        "veryLarge": 138701.4
+        "subFunctional": 14944.4,
+        "small": 7601.8,
+        "moderate": 4680.7,
+        "large": 22591.0,
+        "veryLarge": 139192.9
       },
       "ranges": [
         "kesagami",
@@ -915,14 +915,14 @@
       ]
     },
     "2021": {
-      "coreHa": 188581.4,
+      "coreHa": 189010.8,
       "inRangeHa": 491410.8,
       "bins": {
-        "subFunctional": 15109.4,
-        "small": 8590.9,
-        "moderate": 5553.8,
-        "large": 20661.5,
-        "veryLarge": 138665.9
+        "subFunctional": 14944.4,
+        "small": 7601.8,
+        "moderate": 4680.7,
+        "large": 22591.0,
+        "veryLarge": 139192.9
       },
       "ranges": [
         "kesagami",
@@ -930,14 +930,14 @@
       ]
     },
     "2022": {
-      "coreHa": 188497.5,
+      "coreHa": 189010.8,
       "inRangeHa": 491410.8,
       "bins": {
-        "subFunctional": 15101.6,
-        "small": 9342.2,
-        "moderate": 4731.8,
-        "large": 20661.5,
-        "veryLarge": 138660.4
+        "subFunctional": 14944.4,
+        "small": 7601.8,
+        "moderate": 4680.7,
+        "large": 22591.0,
+        "veryLarge": 139192.9
       },
       "ranges": [
         "kesagami",
@@ -945,14 +945,14 @@
       ]
     },
     "2023": {
-      "coreHa": 188497.5,
+      "coreHa": 189010.8,
       "inRangeHa": 491410.8,
       "bins": {
-        "subFunctional": 15101.6,
-        "small": 9342.2,
-        "moderate": 4731.8,
-        "large": 20661.5,
-        "veryLarge": 138660.4
+        "subFunctional": 14944.4,
+        "small": 7601.8,
+        "moderate": 4680.7,
+        "large": 22591.0,
+        "veryLarge": 139192.9
       },
       "ranges": [
         "kesagami",
@@ -960,14 +960,14 @@
       ]
     },
     "2024": {
-      "coreHa": 188497.5,
+      "coreHa": 189010.8,
       "inRangeHa": 491410.8,
       "bins": {
-        "subFunctional": 15101.6,
-        "small": 9342.2,
-        "moderate": 4731.8,
-        "large": 20661.5,
-        "veryLarge": 138660.4
+        "subFunctional": 14944.4,
+        "small": 7601.8,
+        "moderate": 4680.7,
+        "large": 22591.0,
+        "veryLarge": 139192.9
       },
       "ranges": [
         "kesagami",
@@ -975,14 +975,14 @@
       ]
     },
     "2025": {
-      "coreHa": 188497.5,
+      "coreHa": 189010.8,
       "inRangeHa": 491410.8,
       "bins": {
-        "subFunctional": 15101.6,
-        "small": 9342.2,
-        "moderate": 4731.8,
-        "large": 20661.5,
-        "veryLarge": 138660.4
+        "subFunctional": 14944.4,
+        "small": 7601.8,
+        "moderate": 4680.7,
+        "large": 22591.0,
+        "veryLarge": 139192.9
       },
       "ranges": [
         "kesagami",
@@ -992,11 +992,11 @@
   },
   "far_north_west": {
     "2015": {
-      "coreHa": 2687.3,
+      "coreHa": 2637.0,
       "inRangeHa": 32962.9,
       "bins": {
-        "subFunctional": 2071.8,
-        "small": 615.5,
+        "subFunctional": 2041.5,
+        "small": 595.5,
         "moderate": 0.0,
         "large": 0.0,
         "veryLarge": 0.0
@@ -1006,11 +1006,11 @@
       ]
     },
     "2016": {
-      "coreHa": 3191.2,
+      "coreHa": 2637.0,
       "inRangeHa": 32962.9,
       "bins": {
-        "subFunctional": 2375.2,
-        "small": 816.0,
+        "subFunctional": 2041.5,
+        "small": 595.5,
         "moderate": 0.0,
         "large": 0.0,
         "veryLarge": 0.0
@@ -1020,11 +1020,11 @@
       ]
     },
     "2017": {
-      "coreHa": 3191.2,
+      "coreHa": 2637.0,
       "inRangeHa": 32962.9,
       "bins": {
-        "subFunctional": 2375.2,
-        "small": 816.0,
+        "subFunctional": 2041.5,
+        "small": 595.5,
         "moderate": 0.0,
         "large": 0.0,
         "veryLarge": 0.0
@@ -1034,11 +1034,11 @@
       ]
     },
     "2018": {
-      "coreHa": 3191.9,
+      "coreHa": 2638.3,
       "inRangeHa": 32962.9,
       "bins": {
-        "subFunctional": 2375.9,
-        "small": 816.0,
+        "subFunctional": 2042.7,
+        "small": 595.5,
         "moderate": 0.0,
         "large": 0.0,
         "veryLarge": 0.0
@@ -1048,11 +1048,11 @@
       ]
     },
     "2019": {
-      "coreHa": 3182.3,
+      "coreHa": 2638.3,
       "inRangeHa": 32962.9,
       "bins": {
-        "subFunctional": 2366.3,
-        "small": 816.0,
+        "subFunctional": 2042.7,
+        "small": 595.5,
         "moderate": 0.0,
         "large": 0.0,
         "veryLarge": 0.0
@@ -1062,11 +1062,11 @@
       ]
     },
     "2020": {
-      "coreHa": 3182.0,
+      "coreHa": 2638.3,
       "inRangeHa": 32962.9,
       "bins": {
-        "subFunctional": 2366.0,
-        "small": 816.0,
+        "subFunctional": 2042.7,
+        "small": 595.5,
         "moderate": 0.0,
         "large": 0.0,
         "veryLarge": 0.0
@@ -1076,11 +1076,11 @@
       ]
     },
     "2021": {
-      "coreHa": 3182.0,
+      "coreHa": 2638.3,
       "inRangeHa": 32962.9,
       "bins": {
-        "subFunctional": 2366.0,
-        "small": 816.0,
+        "subFunctional": 2042.7,
+        "small": 595.5,
         "moderate": 0.0,
         "large": 0.0,
         "veryLarge": 0.0
@@ -1090,11 +1090,11 @@
       ]
     },
     "2022": {
-      "coreHa": 3182.0,
+      "coreHa": 2638.3,
       "inRangeHa": 32962.9,
       "bins": {
-        "subFunctional": 2366.0,
-        "small": 816.0,
+        "subFunctional": 2042.7,
+        "small": 595.5,
         "moderate": 0.0,
         "large": 0.0,
         "veryLarge": 0.0
@@ -1104,11 +1104,11 @@
       ]
     },
     "2023": {
-      "coreHa": 3182.0,
+      "coreHa": 2638.3,
       "inRangeHa": 32962.9,
       "bins": {
-        "subFunctional": 2366.0,
-        "small": 816.0,
+        "subFunctional": 2042.7,
+        "small": 595.5,
         "moderate": 0.0,
         "large": 0.0,
         "veryLarge": 0.0
@@ -1118,11 +1118,11 @@
       ]
     },
     "2024": {
-      "coreHa": 3182.0,
+      "coreHa": 2638.3,
       "inRangeHa": 32962.9,
       "bins": {
-        "subFunctional": 2366.0,
-        "small": 816.0,
+        "subFunctional": 2042.7,
+        "small": 595.5,
         "moderate": 0.0,
         "large": 0.0,
         "veryLarge": 0.0
@@ -1132,11 +1132,11 @@
       ]
     },
     "2025": {
-      "coreHa": 3182.0,
+      "coreHa": 1901.0,
       "inRangeHa": 32962.9,
       "bins": {
-        "subFunctional": 2366.0,
-        "small": 816.0,
+        "subFunctional": 1440.7,
+        "small": 460.3,
         "moderate": 0.0,
         "large": 0.0,
         "veryLarge": 0.0
@@ -1148,14 +1148,14 @@
   },
   "gordoncosens": {
     "2015": {
-      "coreHa": 69708.7,
+      "coreHa": 64593.8,
       "inRangeHa": 638466.8,
       "bins": {
-        "subFunctional": 16814.0,
-        "small": 11196.6,
-        "moderate": 6462.4,
-        "large": 18875.6,
-        "veryLarge": 16360.1
+        "subFunctional": 15213.5,
+        "small": 10080.3,
+        "moderate": 5636.9,
+        "large": 18312.6,
+        "veryLarge": 15350.6
       },
       "ranges": [
         "kesagami",
@@ -1163,14 +1163,14 @@
       ]
     },
     "2016": {
-      "coreHa": 69562.6,
+      "coreHa": 64419.8,
       "inRangeHa": 638466.8,
       "bins": {
-        "subFunctional": 16781.9,
-        "small": 11683.3,
-        "moderate": 5861.6,
-        "large": 18875.6,
-        "veryLarge": 16360.1
+        "subFunctional": 15118.8,
+        "small": 10620.7,
+        "moderate": 5036.9,
+        "large": 18311.9,
+        "veryLarge": 15331.4
       },
       "ranges": [
         "kesagami",
@@ -1178,14 +1178,14 @@
       ]
     },
     "2017": {
-      "coreHa": 69424.4,
+      "coreHa": 64306.2,
       "inRangeHa": 638466.8,
       "bins": {
-        "subFunctional": 16720.8,
-        "small": 11620.6,
-        "moderate": 5847.2,
-        "large": 18875.6,
-        "veryLarge": 16360.1
+        "subFunctional": 14953.3,
+        "small": 10698.7,
+        "moderate": 5022.6,
+        "large": 18300.2,
+        "veryLarge": 15331.4
       },
       "ranges": [
         "kesagami",
@@ -1193,14 +1193,14 @@
       ]
     },
     "2018": {
-      "coreHa": 69305.6,
+      "coreHa": 64087.0,
       "inRangeHa": 638466.8,
       "bins": {
-        "subFunctional": 16758.7,
-        "small": 11470.1,
-        "moderate": 5847.2,
-        "large": 18869.5,
-        "veryLarge": 16360.0
+        "subFunctional": 14819.2,
+        "small": 10616.3,
+        "moderate": 5022.6,
+        "large": 18300.2,
+        "veryLarge": 15328.7
       },
       "ranges": [
         "kesagami",
@@ -1208,14 +1208,14 @@
       ]
     },
     "2019": {
-      "coreHa": 69242.6,
+      "coreHa": 63342.5,
       "inRangeHa": 638466.8,
       "bins": {
-        "subFunctional": 16726.6,
-        "small": 11439.4,
-        "moderate": 5847.1,
-        "large": 18869.5,
-        "veryLarge": 16360.0
+        "subFunctional": 14297.1,
+        "small": 10931.0,
+        "moderate": 4504.1,
+        "large": 18281.6,
+        "veryLarge": 15328.7
       },
       "ranges": [
         "kesagami",
@@ -1223,14 +1223,14 @@
       ]
     },
     "2020": {
-      "coreHa": 68903.5,
+      "coreHa": 62998.0,
       "inRangeHa": 638466.8,
       "bins": {
-        "subFunctional": 16429.6,
-        "small": 11438.8,
-        "moderate": 5805.5,
-        "large": 18869.5,
-        "veryLarge": 16360.0
+        "subFunctional": 13997.5,
+        "small": 10925.1,
+        "moderate": 4466.4,
+        "large": 18280.3,
+        "veryLarge": 15328.7
       },
       "ranges": [
         "kesagami",
@@ -1238,14 +1238,14 @@
       ]
     },
     "2021": {
-      "coreHa": 68554.2,
+      "coreHa": 62833.0,
       "inRangeHa": 638466.8,
       "bins": {
-        "subFunctional": 16371.8,
-        "small": 11813.9,
-        "moderate": 6760.9,
-        "large": 17247.5,
-        "veryLarge": 16360.0
+        "subFunctional": 13948.3,
+        "small": 10886.1,
+        "moderate": 4389.6,
+        "large": 18280.3,
+        "veryLarge": 15328.7
       },
       "ranges": [
         "kesagami",
@@ -1253,14 +1253,14 @@
       ]
     },
     "2022": {
-      "coreHa": 67838.1,
+      "coreHa": 62243.6,
       "inRangeHa": 638466.8,
       "bins": {
-        "subFunctional": 16281.4,
-        "small": 12143.6,
-        "moderate": 5805.5,
-        "large": 17247.5,
-        "veryLarge": 16360.0
+        "subFunctional": 13954.2,
+        "small": 10795.9,
+        "moderate": 3884.5,
+        "large": 18280.3,
+        "veryLarge": 15328.7
       },
       "ranges": [
         "kesagami",
@@ -1268,14 +1268,14 @@
       ]
     },
     "2023": {
-      "coreHa": 67493.3,
+      "coreHa": 61904.6,
       "inRangeHa": 638466.8,
       "bins": {
-        "subFunctional": 16242.0,
-        "small": 11840.5,
-        "moderate": 5805.5,
-        "large": 17245.3,
-        "veryLarge": 16360.0
+        "subFunctional": 13929.2,
+        "small": 10484.2,
+        "moderate": 3884.5,
+        "large": 18278.0,
+        "veryLarge": 15328.7
       },
       "ranges": [
         "kesagami",
@@ -1283,14 +1283,14 @@
       ]
     },
     "2024": {
-      "coreHa": 67493.3,
+      "coreHa": 61911.2,
       "inRangeHa": 638466.8,
       "bins": {
-        "subFunctional": 16242.0,
-        "small": 11840.5,
-        "moderate": 5805.5,
-        "large": 17245.3,
-        "veryLarge": 16360.0
+        "subFunctional": 13933.8,
+        "small": 10485.9,
+        "moderate": 3884.5,
+        "large": 18278.3,
+        "veryLarge": 15328.7
       },
       "ranges": [
         "kesagami",
@@ -1298,14 +1298,14 @@
       ]
     },
     "2025": {
-      "coreHa": 67493.3,
+      "coreHa": 61912.1,
       "inRangeHa": 638466.8,
       "bins": {
-        "subFunctional": 16242.0,
-        "small": 11840.5,
-        "moderate": 5805.5,
-        "large": 17245.3,
-        "veryLarge": 16360.0
+        "subFunctional": 13934.2,
+        "small": 10486.1,
+        "moderate": 3884.6,
+        "large": 18278.5,
+        "veryLarge": 15328.7
       },
       "ranges": [
         "kesagami",
@@ -1315,154 +1315,154 @@
   },
   "hearst": {
     "2015": {
-      "coreHa": 72642.0,
+      "coreHa": 68556.2,
       "inRangeHa": 762383.0,
       "bins": {
-        "subFunctional": 27747.1,
-        "small": 18960.7,
-        "moderate": 4393.1,
-        "large": 21541.1,
-        "veryLarge": 0.0
+        "subFunctional": 26718.8,
+        "small": 18729.9,
+        "moderate": 2990.2,
+        "large": 19966.0,
+        "veryLarge": 151.3
       },
       "ranges": [
         "pagwachuan"
       ]
     },
     "2016": {
-      "coreHa": 72243.2,
+      "coreHa": 66923.7,
       "inRangeHa": 762383.0,
       "bins": {
-        "subFunctional": 27700.5,
-        "small": 18768.3,
-        "moderate": 4398.4,
-        "large": 21376.0,
-        "veryLarge": 0.0
+        "subFunctional": 25764.9,
+        "small": 18278.6,
+        "moderate": 2990.2,
+        "large": 19738.7,
+        "veryLarge": 151.3
       },
       "ranges": [
         "pagwachuan"
       ]
     },
     "2017": {
-      "coreHa": 72121.1,
+      "coreHa": 66127.9,
       "inRangeHa": 762383.0,
       "bins": {
-        "subFunctional": 27674.1,
-        "small": 18673.0,
-        "moderate": 4398.4,
-        "large": 21375.6,
-        "veryLarge": 0.0
+        "subFunctional": 25031.6,
+        "small": 18216.2,
+        "moderate": 2990.2,
+        "large": 19738.7,
+        "veryLarge": 151.3
       },
       "ranges": [
         "pagwachuan"
       ]
     },
     "2018": {
-      "coreHa": 71963.5,
+      "coreHa": 65844.5,
       "inRangeHa": 762383.0,
       "bins": {
-        "subFunctional": 27732.6,
-        "small": 18456.8,
-        "moderate": 4398.4,
-        "large": 21375.6,
-        "veryLarge": 0.0
+        "subFunctional": 24849.4,
+        "small": 18115.0,
+        "moderate": 2995.5,
+        "large": 19733.4,
+        "veryLarge": 151.3
       },
       "ranges": [
         "pagwachuan"
       ]
     },
     "2019": {
-      "coreHa": 71884.3,
+      "coreHa": 64915.8,
       "inRangeHa": 762383.0,
       "bins": {
-        "subFunctional": 27671.0,
-        "small": 18439.7,
-        "moderate": 4397.9,
-        "large": 21375.6,
-        "veryLarge": 0.0
+        "subFunctional": 24413.4,
+        "small": 17622.3,
+        "moderate": 2995.5,
+        "large": 19733.4,
+        "veryLarge": 151.3
       },
       "ranges": [
         "pagwachuan"
       ]
     },
     "2020": {
-      "coreHa": 71037.3,
+      "coreHa": 63862.5,
       "inRangeHa": 762383.0,
       "bins": {
-        "subFunctional": 27504.5,
-        "small": 18345.5,
-        "moderate": 3811.6,
-        "large": 21375.6,
-        "veryLarge": 0.0
+        "subFunctional": 24008.4,
+        "small": 16973.9,
+        "moderate": 2995.5,
+        "large": 19733.4,
+        "veryLarge": 151.3
       },
       "ranges": [
         "pagwachuan"
       ]
     },
     "2021": {
-      "coreHa": 70362.9,
+      "coreHa": 63258.1,
       "inRangeHa": 762383.0,
       "bins": {
-        "subFunctional": 27063.7,
-        "small": 18139.7,
-        "moderate": 3811.6,
-        "large": 21347.9,
-        "veryLarge": 0.0
+        "subFunctional": 23695.0,
+        "small": 16715.1,
+        "moderate": 2995.5,
+        "large": 19701.3,
+        "veryLarge": 151.3
       },
       "ranges": [
         "pagwachuan"
       ]
     },
     "2022": {
-      "coreHa": 69901.6,
+      "coreHa": 62897.6,
       "inRangeHa": 762383.0,
       "bins": {
-        "subFunctional": 26713.6,
-        "small": 18100.8,
-        "moderate": 3811.6,
-        "large": 21275.5,
-        "veryLarge": 0.0
+        "subFunctional": 23352.8,
+        "small": 16696.8,
+        "moderate": 2995.5,
+        "large": 19701.3,
+        "veryLarge": 151.3
       },
       "ranges": [
         "pagwachuan"
       ]
     },
     "2023": {
-      "coreHa": 68712.8,
+      "coreHa": 61718.0,
       "inRangeHa": 762383.0,
       "bins": {
-        "subFunctional": 26150.8,
-        "small": 17516.1,
-        "moderate": 3790.3,
-        "large": 21255.6,
-        "veryLarge": 0.0
+        "subFunctional": 22817.6,
+        "small": 16072.4,
+        "moderate": 2995.5,
+        "large": 19681.3,
+        "veryLarge": 151.3
       },
       "ranges": [
         "pagwachuan"
       ]
     },
     "2024": {
-      "coreHa": 68712.8,
+      "coreHa": 61718.0,
       "inRangeHa": 762383.0,
       "bins": {
-        "subFunctional": 26150.8,
-        "small": 17516.1,
-        "moderate": 3790.3,
-        "large": 21255.6,
-        "veryLarge": 0.0
+        "subFunctional": 22817.6,
+        "small": 16072.4,
+        "moderate": 2995.5,
+        "large": 19681.3,
+        "veryLarge": 151.3
       },
       "ranges": [
         "pagwachuan"
       ]
     },
     "2025": {
-      "coreHa": 68712.8,
+      "coreHa": 61718.0,
       "inRangeHa": 762383.0,
       "bins": {
-        "subFunctional": 26150.8,
-        "small": 17516.1,
-        "moderate": 3790.3,
-        "large": 21255.6,
-        "veryLarge": 0.0
+        "subFunctional": 22817.6,
+        "small": 16072.4,
+        "moderate": 2995.5,
+        "large": 19681.3,
+        "veryLarge": 151.3
       },
       "ranges": [
         "pagwachuan"
@@ -1471,14 +1471,14 @@
   },
   "kenogami": {
     "2015": {
-      "coreHa": 156259.5,
+      "coreHa": 134558.6,
       "inRangeHa": 1407590.7,
       "bins": {
-        "subFunctional": 59357.1,
-        "small": 27533.5,
-        "moderate": 8719.9,
-        "large": 30780.8,
-        "veryLarge": 29868.2
+        "subFunctional": 44785.1,
+        "small": 27092.1,
+        "moderate": 9634.5,
+        "large": 38038.0,
+        "veryLarge": 15009.0
       },
       "ranges": [
         "nipigon",
@@ -1486,14 +1486,14 @@
       ]
     },
     "2016": {
-      "coreHa": 156227.5,
+      "coreHa": 134111.2,
       "inRangeHa": 1407590.7,
       "bins": {
-        "subFunctional": 59335.4,
-        "small": 27530.5,
-        "moderate": 8712.6,
-        "large": 30780.8,
-        "veryLarge": 29868.2
+        "subFunctional": 44628.3,
+        "small": 26801.4,
+        "moderate": 9634.5,
+        "large": 38038.0,
+        "veryLarge": 15009.0
       },
       "ranges": [
         "nipigon",
@@ -1501,14 +1501,14 @@
       ]
     },
     "2017": {
-      "coreHa": 156116.3,
+      "coreHa": 133834.0,
       "inRangeHa": 1407590.7,
       "bins": {
-        "subFunctional": 59280.9,
-        "small": 27528.2,
-        "moderate": 8712.6,
-        "large": 30780.8,
-        "veryLarge": 29813.8
+        "subFunctional": 44387.3,
+        "small": 26765.2,
+        "moderate": 9634.5,
+        "large": 38038.0,
+        "veryLarge": 15009.0
       },
       "ranges": [
         "nipigon",
@@ -1516,14 +1516,14 @@
       ]
     },
     "2018": {
-      "coreHa": 156093.6,
+      "coreHa": 133752.1,
       "inRangeHa": 1407590.7,
       "bins": {
-        "subFunctional": 59260.3,
-        "small": 27526.0,
-        "moderate": 8712.6,
-        "large": 30780.8,
-        "veryLarge": 29813.8
+        "subFunctional": 44593.9,
+        "small": 26476.7,
+        "moderate": 9634.5,
+        "large": 38038.0,
+        "veryLarge": 15009.0
       },
       "ranges": [
         "nipigon",
@@ -1531,14 +1531,14 @@
       ]
     },
     "2019": {
-      "coreHa": 156009.0,
+      "coreHa": 133376.5,
       "inRangeHa": 1407590.7,
       "bins": {
-        "subFunctional": 59195.3,
-        "small": 27506.8,
-        "moderate": 8712.6,
-        "large": 30780.4,
-        "veryLarge": 29813.8
+        "subFunctional": 44265.0,
+        "small": 26430.8,
+        "moderate": 9634.5,
+        "large": 38037.4,
+        "veryLarge": 15008.8
       },
       "ranges": [
         "nipigon",
@@ -1546,14 +1546,14 @@
       ]
     },
     "2020": {
-      "coreHa": 154339.5,
+      "coreHa": 133192.1,
       "inRangeHa": 1407590.7,
       "bins": {
-        "subFunctional": 58434.1,
-        "small": 27095.6,
-        "moderate": 8712.6,
-        "large": 40302.8,
-        "veryLarge": 19794.3
+        "subFunctional": 44112.2,
+        "small": 26400.1,
+        "moderate": 9634.5,
+        "large": 38036.6,
+        "veryLarge": 15008.8
       },
       "ranges": [
         "nipigon",
@@ -1561,14 +1561,14 @@
       ]
     },
     "2021": {
-      "coreHa": 151034.0,
+      "coreHa": 129576.6,
       "inRangeHa": 1407590.7,
       "bins": {
-        "subFunctional": 57769.6,
-        "small": 27223.3,
-        "moderate": 7174.9,
-        "large": 39726.0,
-        "veryLarge": 19140.3
+        "subFunctional": 43603.2,
+        "small": 26049.3,
+        "moderate": 9646.6,
+        "large": 50277.5,
+        "veryLarge": 0.0
       },
       "ranges": [
         "nipigon",
@@ -1576,14 +1576,14 @@
       ]
     },
     "2022": {
-      "coreHa": 150366.8,
+      "coreHa": 128977.9,
       "inRangeHa": 1407590.7,
       "bins": {
-        "subFunctional": 57104.6,
-        "small": 27221.0,
-        "moderate": 7174.9,
-        "large": 39726.0,
-        "veryLarge": 19140.3
+        "subFunctional": 43004.5,
+        "small": 26049.3,
+        "moderate": 9646.6,
+        "large": 50277.5,
+        "veryLarge": 0.0
       },
       "ranges": [
         "nipigon",
@@ -1591,14 +1591,14 @@
       ]
     },
     "2023": {
-      "coreHa": 149594.8,
+      "coreHa": 128245.1,
       "inRangeHa": 1407590.7,
       "bins": {
-        "subFunctional": 56708.9,
-        "small": 26844.7,
-        "moderate": 7174.9,
-        "large": 39726.0,
-        "veryLarge": 19140.3
+        "subFunctional": 42744.2,
+        "small": 25575.3,
+        "moderate": 9648.1,
+        "large": 50277.5,
+        "veryLarge": 0.0
       },
       "ranges": [
         "nipigon",
@@ -1606,14 +1606,14 @@
       ]
     },
     "2024": {
-      "coreHa": 149594.8,
+      "coreHa": 128262.4,
       "inRangeHa": 1407590.7,
       "bins": {
-        "subFunctional": 56708.9,
-        "small": 26844.7,
-        "moderate": 7174.9,
-        "large": 39726.0,
-        "veryLarge": 19140.3
+        "subFunctional": 42750.3,
+        "small": 25575.8,
+        "moderate": 9658.9,
+        "large": 50277.5,
+        "veryLarge": 0.0
       },
       "ranges": [
         "nipigon",
@@ -1621,14 +1621,14 @@
       ]
     },
     "2025": {
-      "coreHa": 149597.0,
+      "coreHa": 128321.7,
       "inRangeHa": 1407590.7,
       "bins": {
-        "subFunctional": 56711.2,
-        "small": 26844.7,
-        "moderate": 7174.9,
-        "large": 39726.0,
-        "veryLarge": 19140.3
+        "subFunctional": 42779.4,
+        "small": 25605.8,
+        "moderate": 9659.0,
+        "large": 50277.5,
+        "veryLarge": 0.0
       },
       "ranges": [
         "nipigon",
@@ -1638,10 +1638,10 @@
   },
   "kenora": {
     "2015": {
-      "coreHa": 2566.3,
+      "coreHa": 2237.4,
       "inRangeHa": 104596.1,
       "bins": {
-        "subFunctional": 2566.3,
+        "subFunctional": 2237.4,
         "small": 0.0,
         "moderate": 0.0,
         "large": 0.0,
@@ -1652,10 +1652,10 @@
       ]
     },
     "2016": {
-      "coreHa": 2565.9,
+      "coreHa": 2237.0,
       "inRangeHa": 104596.1,
       "bins": {
-        "subFunctional": 2565.9,
+        "subFunctional": 2237.0,
         "small": 0.0,
         "moderate": 0.0,
         "large": 0.0,
@@ -1666,10 +1666,10 @@
       ]
     },
     "2017": {
-      "coreHa": 2565.9,
+      "coreHa": 2255.6,
       "inRangeHa": 104596.1,
       "bins": {
-        "subFunctional": 2565.9,
+        "subFunctional": 2255.6,
         "small": 0.0,
         "moderate": 0.0,
         "large": 0.0,
@@ -1680,10 +1680,10 @@
       ]
     },
     "2018": {
-      "coreHa": 2565.9,
+      "coreHa": 2253.6,
       "inRangeHa": 104596.1,
       "bins": {
-        "subFunctional": 2565.9,
+        "subFunctional": 2253.6,
         "small": 0.0,
         "moderate": 0.0,
         "large": 0.0,
@@ -1694,10 +1694,10 @@
       ]
     },
     "2019": {
-      "coreHa": 2563.9,
+      "coreHa": 2253.6,
       "inRangeHa": 104596.1,
       "bins": {
-        "subFunctional": 2563.9,
+        "subFunctional": 2253.6,
         "small": 0.0,
         "moderate": 0.0,
         "large": 0.0,
@@ -1708,10 +1708,10 @@
       ]
     },
     "2020": {
-      "coreHa": 2550.6,
+      "coreHa": 2254.0,
       "inRangeHa": 104596.1,
       "bins": {
-        "subFunctional": 2550.6,
+        "subFunctional": 2254.0,
         "small": 0.0,
         "moderate": 0.0,
         "large": 0.0,
@@ -1722,10 +1722,10 @@
       ]
     },
     "2021": {
-      "coreHa": 411.5,
+      "coreHa": 420.5,
       "inRangeHa": 104596.1,
       "bins": {
-        "subFunctional": 411.5,
+        "subFunctional": 420.5,
         "small": 0.0,
         "moderate": 0.0,
         "large": 0.0,
@@ -1736,10 +1736,10 @@
       ]
     },
     "2022": {
-      "coreHa": 411.5,
+      "coreHa": 420.5,
       "inRangeHa": 104596.1,
       "bins": {
-        "subFunctional": 411.5,
+        "subFunctional": 420.5,
         "small": 0.0,
         "moderate": 0.0,
         "large": 0.0,
@@ -1750,10 +1750,10 @@
       ]
     },
     "2023": {
-      "coreHa": 411.5,
+      "coreHa": 420.5,
       "inRangeHa": 104596.1,
       "bins": {
-        "subFunctional": 411.5,
+        "subFunctional": 420.5,
         "small": 0.0,
         "moderate": 0.0,
         "large": 0.0,
@@ -1764,10 +1764,10 @@
       ]
     },
     "2024": {
-      "coreHa": 411.7,
+      "coreHa": 422.8,
       "inRangeHa": 104596.1,
       "bins": {
-        "subFunctional": 411.7,
+        "subFunctional": 422.8,
         "small": 0.0,
         "moderate": 0.0,
         "large": 0.0,
@@ -1778,10 +1778,10 @@
       ]
     },
     "2025": {
-      "coreHa": 411.7,
+      "coreHa": 83.8,
       "inRangeHa": 104596.1,
       "bins": {
-        "subFunctional": 411.7,
+        "subFunctional": 83.8,
         "small": 0.0,
         "moderate": 0.0,
         "large": 0.0,
@@ -1794,13 +1794,13 @@
   },
   "lacseul": {
     "2015": {
-      "coreHa": 97268.5,
+      "coreHa": 80035.8,
       "inRangeHa": 970444.4,
       "bins": {
-        "subFunctional": 42674.7,
-        "small": 25167.1,
-        "moderate": 9514.2,
-        "large": 19912.6,
+        "subFunctional": 32908.3,
+        "small": 21837.6,
+        "moderate": 8132.6,
+        "large": 17157.3,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -1809,13 +1809,13 @@
       ]
     },
     "2016": {
-      "coreHa": 97214.7,
+      "coreHa": 79849.4,
       "inRangeHa": 970444.4,
       "bins": {
-        "subFunctional": 42751.1,
-        "small": 25036.8,
-        "moderate": 9514.2,
-        "large": 19912.6,
+        "subFunctional": 32907.2,
+        "small": 21652.3,
+        "moderate": 8132.6,
+        "large": 17157.3,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -1824,13 +1824,13 @@
       ]
     },
     "2017": {
-      "coreHa": 98215.6,
+      "coreHa": 79764.5,
       "inRangeHa": 970444.4,
       "bins": {
-        "subFunctional": 43185.7,
-        "small": 25594.2,
-        "moderate": 9523.2,
-        "large": 19912.6,
+        "subFunctional": 32846.8,
+        "small": 21627.7,
+        "moderate": 8132.6,
+        "large": 17157.3,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -1839,13 +1839,13 @@
       ]
     },
     "2018": {
-      "coreHa": 97997.5,
+      "coreHa": 79557.9,
       "inRangeHa": 970444.4,
       "bins": {
-        "subFunctional": 43135.1,
-        "small": 25583.2,
-        "moderate": 9519.2,
-        "large": 19760.0,
+        "subFunctional": 32792.1,
+        "small": 21598.9,
+        "moderate": 8129.5,
+        "large": 17037.4,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -1854,13 +1854,13 @@
       ]
     },
     "2019": {
-      "coreHa": 97912.6,
+      "coreHa": 79406.0,
       "inRangeHa": 970444.4,
       "bins": {
-        "subFunctional": 43102.2,
-        "small": 25579.9,
-        "moderate": 9519.2,
-        "large": 19711.3,
+        "subFunctional": 32750.2,
+        "small": 21488.9,
+        "moderate": 8129.5,
+        "large": 17037.4,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -1869,13 +1869,13 @@
       ]
     },
     "2020": {
-      "coreHa": 98670.2,
+      "coreHa": 78763.6,
       "inRangeHa": 970444.4,
       "bins": {
-        "subFunctional": 43389.8,
-        "small": 25902.5,
-        "moderate": 9666.9,
-        "large": 19711.0,
+        "subFunctional": 32053.1,
+        "small": 21543.6,
+        "moderate": 8129.5,
+        "large": 17037.4,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -1884,13 +1884,13 @@
       ]
     },
     "2021": {
-      "coreHa": 97784.1,
+      "coreHa": 78325.1,
       "inRangeHa": 970444.4,
       "bins": {
-        "subFunctional": 42919.0,
-        "small": 25487.6,
-        "moderate": 9666.4,
-        "large": 19711.0,
+        "subFunctional": 31979.2,
+        "small": 21179.1,
+        "moderate": 8129.5,
+        "large": 17037.4,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -1899,13 +1899,13 @@
       ]
     },
     "2022": {
-      "coreHa": 97212.1,
+      "coreHa": 77852.3,
       "inRangeHa": 970444.4,
       "bins": {
-        "subFunctional": 42381.5,
-        "small": 25453.2,
-        "moderate": 9666.4,
-        "large": 19711.0,
+        "subFunctional": 31532.4,
+        "small": 21153.1,
+        "moderate": 8129.5,
+        "large": 17037.4,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -1914,13 +1914,13 @@
       ]
     },
     "2023": {
-      "coreHa": 96638.9,
+      "coreHa": 77282.8,
       "inRangeHa": 970444.4,
       "bins": {
-        "subFunctional": 42189.5,
-        "small": 25453.2,
-        "moderate": 9666.4,
-        "large": 19329.8,
+        "subFunctional": 31344.5,
+        "small": 21153.1,
+        "moderate": 8129.5,
+        "large": 16655.8,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -1929,13 +1929,13 @@
       ]
     },
     "2024": {
-      "coreHa": 96592.4,
+      "coreHa": 77284.8,
       "inRangeHa": 970444.4,
       "bins": {
-        "subFunctional": 42156.3,
-        "small": 25453.2,
-        "moderate": 9653.2,
-        "large": 19329.8,
+        "subFunctional": 31346.5,
+        "small": 21153.1,
+        "moderate": 8129.5,
+        "large": 16655.8,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -1944,13 +1944,13 @@
       ]
     },
     "2025": {
-      "coreHa": 96592.4,
+      "coreHa": 77288.8,
       "inRangeHa": 970444.4,
       "bins": {
-        "subFunctional": 42156.3,
-        "small": 25453.2,
-        "moderate": 9653.2,
-        "large": 19329.8,
+        "subFunctional": 31347.7,
+        "small": 21153.1,
+        "moderate": 8132.1,
+        "large": 16655.8,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -1961,14 +1961,14 @@
   },
   "lakenipigon": {
     "2015": {
-      "coreHa": 74319.0,
+      "coreHa": 38141.4,
       "inRangeHa": 1191731.8,
       "bins": {
-        "subFunctional": 47362.5,
-        "small": 12102.1,
-        "moderate": 3035.4,
-        "large": 8418.1,
-        "veryLarge": 3400.8
+        "subFunctional": 23900.0,
+        "small": 6903.7,
+        "moderate": 2571.8,
+        "large": 4765.9,
+        "veryLarge": 0.0
       },
       "ranges": [
         "brightsand",
@@ -1976,14 +1976,14 @@
       ]
     },
     "2016": {
-      "coreHa": 74279.2,
+      "coreHa": 37991.1,
       "inRangeHa": 1191731.8,
       "bins": {
-        "subFunctional": 47323.0,
-        "small": 12101.8,
-        "moderate": 3035.4,
-        "large": 8418.1,
-        "veryLarge": 3400.8
+        "subFunctional": 23742.4,
+        "small": 6903.7,
+        "moderate": 2571.8,
+        "large": 4773.2,
+        "veryLarge": 0.0
       },
       "ranges": [
         "brightsand",
@@ -1991,14 +1991,14 @@
       ]
     },
     "2017": {
-      "coreHa": 74273.1,
+      "coreHa": 37937.2,
       "inRangeHa": 1191731.8,
       "bins": {
-        "subFunctional": 47316.9,
-        "small": 12101.8,
-        "moderate": 3035.4,
-        "large": 8418.1,
-        "veryLarge": 3400.8
+        "subFunctional": 23688.5,
+        "small": 6903.7,
+        "moderate": 2571.8,
+        "large": 4773.2,
+        "veryLarge": 0.0
       },
       "ranges": [
         "brightsand",
@@ -2006,14 +2006,14 @@
       ]
     },
     "2018": {
-      "coreHa": 74252.8,
+      "coreHa": 37748.3,
       "inRangeHa": 1191731.8,
       "bins": {
-        "subFunctional": 47416.4,
-        "small": 11982.0,
-        "moderate": 3035.4,
-        "large": 8418.1,
-        "veryLarge": 3400.8
+        "subFunctional": 23652.9,
+        "small": 6750.4,
+        "moderate": 2571.8,
+        "large": 4773.2,
+        "veryLarge": 0.0
       },
       "ranges": [
         "brightsand",
@@ -2021,14 +2021,14 @@
       ]
     },
     "2019": {
-      "coreHa": 74239.8,
+      "coreHa": 37541.2,
       "inRangeHa": 1191731.8,
       "bins": {
-        "subFunctional": 47404.0,
-        "small": 11982.0,
-        "moderate": 3034.9,
-        "large": 8418.1,
-        "veryLarge": 3400.8
+        "subFunctional": 23445.8,
+        "small": 6750.4,
+        "moderate": 2571.8,
+        "large": 4773.2,
+        "veryLarge": 0.0
       },
       "ranges": [
         "brightsand",
@@ -2036,14 +2036,14 @@
       ]
     },
     "2020": {
-      "coreHa": 73905.9,
+      "coreHa": 37432.2,
       "inRangeHa": 1191731.8,
       "bins": {
-        "subFunctional": 47116.1,
-        "small": 11938.2,
-        "moderate": 3032.6,
-        "large": 8418.1,
-        "veryLarge": 3400.8
+        "subFunctional": 23336.7,
+        "small": 6750.4,
+        "moderate": 2571.8,
+        "large": 4773.2,
+        "veryLarge": 0.0
       },
       "ranges": [
         "brightsand",
@@ -2051,14 +2051,14 @@
       ]
     },
     "2021": {
-      "coreHa": 72768.1,
+      "coreHa": 37149.6,
       "inRangeHa": 1191731.8,
       "bins": {
-        "subFunctional": 46150.5,
-        "small": 11766.2,
-        "moderate": 3032.4,
-        "large": 8418.1,
-        "veryLarge": 3400.8
+        "subFunctional": 23055.9,
+        "small": 6748.6,
+        "moderate": 2571.8,
+        "large": 4773.2,
+        "veryLarge": 0.0
       },
       "ranges": [
         "brightsand",
@@ -2066,14 +2066,14 @@
       ]
     },
     "2022": {
-      "coreHa": 71158.6,
+      "coreHa": 36673.3,
       "inRangeHa": 1191731.8,
       "bins": {
-        "subFunctional": 45010.4,
-        "small": 11296.8,
-        "moderate": 3032.4,
-        "large": 8418.1,
-        "veryLarge": 3400.8
+        "subFunctional": 22681.7,
+        "small": 6646.6,
+        "moderate": 2571.8,
+        "large": 4773.2,
+        "veryLarge": 0.0
       },
       "ranges": [
         "brightsand",
@@ -2081,14 +2081,14 @@
       ]
     },
     "2023": {
-      "coreHa": 69532.0,
+      "coreHa": 36319.1,
       "inRangeHa": 1191731.8,
       "bins": {
-        "subFunctional": 44140.1,
-        "small": 10540.5,
-        "moderate": 3032.4,
-        "large": 8418.1,
-        "veryLarge": 3400.8
+        "subFunctional": 22343.3,
+        "small": 6630.8,
+        "moderate": 2571.8,
+        "large": 4773.2,
+        "veryLarge": 0.0
       },
       "ranges": [
         "brightsand",
@@ -2096,14 +2096,14 @@
       ]
     },
     "2024": {
-      "coreHa": 69532.0,
+      "coreHa": 36322.7,
       "inRangeHa": 1191731.8,
       "bins": {
-        "subFunctional": 44140.1,
-        "small": 10540.5,
-        "moderate": 3032.4,
-        "large": 8418.1,
-        "veryLarge": 3400.8
+        "subFunctional": 22346.9,
+        "small": 6630.8,
+        "moderate": 2571.8,
+        "large": 4773.2,
+        "veryLarge": 0.0
       },
       "ranges": [
         "brightsand",
@@ -2111,14 +2111,14 @@
       ]
     },
     "2025": {
-      "coreHa": 69532.0,
+      "coreHa": 36322.9,
       "inRangeHa": 1191731.8,
       "bins": {
-        "subFunctional": 44140.1,
-        "small": 10540.5,
-        "moderate": 3032.4,
-        "large": 8418.1,
-        "veryLarge": 3400.8
+        "subFunctional": 22347.1,
+        "small": 6630.8,
+        "moderate": 2571.8,
+        "large": 4773.2,
+        "veryLarge": 0.0
       },
       "ranges": [
         "brightsand",
@@ -2128,13 +2128,13 @@
   },
   "nagagami": {
     "2015": {
-      "coreHa": 8467.5,
+      "coreHa": 8722.7,
       "inRangeHa": 41514.1,
       "bins": {
-        "subFunctional": 968.8,
-        "small": 337.7,
-        "moderate": 551.2,
-        "large": 6609.8,
+        "subFunctional": 1109.1,
+        "small": 374.6,
+        "moderate": 586.7,
+        "large": 6652.3,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2142,13 +2142,13 @@
       ]
     },
     "2016": {
-      "coreHa": 8464.8,
+      "coreHa": 8716.5,
       "inRangeHa": 41514.1,
       "bins": {
-        "subFunctional": 966.1,
-        "small": 337.7,
-        "moderate": 551.2,
-        "large": 6609.8,
+        "subFunctional": 1108.9,
+        "small": 374.6,
+        "moderate": 586.7,
+        "large": 6646.3,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2156,13 +2156,13 @@
       ]
     },
     "2017": {
-      "coreHa": 8464.4,
+      "coreHa": 8676.2,
       "inRangeHa": 41514.1,
       "bins": {
-        "subFunctional": 965.8,
-        "small": 337.7,
-        "moderate": 551.2,
-        "large": 6609.8,
+        "subFunctional": 1084.3,
+        "small": 374.6,
+        "moderate": 586.7,
+        "large": 6630.6,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2170,13 +2170,13 @@
       ]
     },
     "2018": {
-      "coreHa": 8464.3,
+      "coreHa": 8673.9,
       "inRangeHa": 41514.1,
       "bins": {
-        "subFunctional": 965.8,
-        "small": 337.7,
-        "moderate": 551.2,
-        "large": 6609.7,
+        "subFunctional": 1082.6,
+        "small": 374.6,
+        "moderate": 586.7,
+        "large": 6630.0,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2184,13 +2184,13 @@
       ]
     },
     "2019": {
-      "coreHa": 8463.3,
+      "coreHa": 8494.9,
       "inRangeHa": 41514.1,
       "bins": {
-        "subFunctional": 964.8,
-        "small": 337.7,
-        "moderate": 551.2,
-        "large": 6609.7,
+        "subFunctional": 1016.3,
+        "small": 262.2,
+        "moderate": 586.7,
+        "large": 6629.8,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2198,13 +2198,13 @@
       ]
     },
     "2020": {
-      "coreHa": 8427.4,
+      "coreHa": 8494.8,
       "inRangeHa": 41514.1,
       "bins": {
-        "subFunctional": 928.9,
-        "small": 337.7,
-        "moderate": 551.2,
-        "large": 6609.7,
+        "subFunctional": 1016.2,
+        "small": 262.2,
+        "moderate": 586.7,
+        "large": 6629.8,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2212,13 +2212,13 @@
       ]
     },
     "2021": {
-      "coreHa": 8427.4,
+      "coreHa": 8494.8,
       "inRangeHa": 41514.1,
       "bins": {
-        "subFunctional": 928.9,
-        "small": 337.7,
-        "moderate": 551.2,
-        "large": 6609.7,
+        "subFunctional": 1016.2,
+        "small": 262.2,
+        "moderate": 586.7,
+        "large": 6629.8,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2226,13 +2226,13 @@
       ]
     },
     "2022": {
-      "coreHa": 8279.5,
+      "coreHa": 8351.5,
       "inRangeHa": 41514.1,
       "bins": {
-        "subFunctional": 1000.1,
-        "small": 337.7,
-        "moderate": 551.2,
-        "large": 6390.5,
+        "subFunctional": 1090.4,
+        "small": 262.2,
+        "moderate": 586.7,
+        "large": 6412.1,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2240,13 +2240,13 @@
       ]
     },
     "2023": {
-      "coreHa": 8279.5,
+      "coreHa": 8351.5,
       "inRangeHa": 41514.1,
       "bins": {
-        "subFunctional": 1000.1,
-        "small": 337.7,
-        "moderate": 551.2,
-        "large": 6390.5,
+        "subFunctional": 1090.4,
+        "small": 262.2,
+        "moderate": 586.7,
+        "large": 6412.1,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2254,13 +2254,13 @@
       ]
     },
     "2024": {
-      "coreHa": 8279.5,
+      "coreHa": 8351.5,
       "inRangeHa": 41514.1,
       "bins": {
-        "subFunctional": 1000.1,
-        "small": 337.7,
-        "moderate": 551.2,
-        "large": 6390.5,
+        "subFunctional": 1090.4,
+        "small": 262.2,
+        "moderate": 586.7,
+        "large": 6412.1,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2268,13 +2268,13 @@
       ]
     },
     "2025": {
-      "coreHa": 8279.5,
+      "coreHa": 8351.5,
       "inRangeHa": 41514.1,
       "bins": {
-        "subFunctional": 1000.1,
-        "small": 337.7,
-        "moderate": 551.2,
-        "large": 6390.5,
+        "subFunctional": 1090.4,
+        "small": 262.2,
+        "moderate": 586.7,
+        "large": 6412.1,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2284,12 +2284,12 @@
   },
   "ogoki": {
     "2015": {
-      "coreHa": 63278.6,
+      "coreHa": 33445.3,
       "inRangeHa": 1073835.1,
       "bins": {
-        "subFunctional": 53750.9,
-        "small": 7467.8,
-        "moderate": 2059.9,
+        "subFunctional": 25631.8,
+        "small": 5724.2,
+        "moderate": 2089.3,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -2298,12 +2298,12 @@
       ]
     },
     "2016": {
-      "coreHa": 63249.5,
+      "coreHa": 33443.7,
       "inRangeHa": 1073835.1,
       "bins": {
-        "subFunctional": 53784.4,
-        "small": 7405.2,
-        "moderate": 2059.9,
+        "subFunctional": 25630.3,
+        "small": 5724.2,
+        "moderate": 2089.3,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -2312,12 +2312,12 @@
       ]
     },
     "2017": {
-      "coreHa": 63200.2,
+      "coreHa": 33434.5,
       "inRangeHa": 1073835.1,
       "bins": {
-        "subFunctional": 53758.0,
-        "small": 7382.2,
-        "moderate": 2059.9,
+        "subFunctional": 25621.1,
+        "small": 5724.2,
+        "moderate": 2089.3,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -2326,12 +2326,12 @@
       ]
     },
     "2018": {
-      "coreHa": 63157.0,
+      "coreHa": 33395.1,
       "inRangeHa": 1073835.1,
       "bins": {
-        "subFunctional": 53714.9,
-        "small": 7382.2,
-        "moderate": 2059.9,
+        "subFunctional": 25581.7,
+        "small": 5724.2,
+        "moderate": 2089.3,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -2340,12 +2340,12 @@
       ]
     },
     "2019": {
-      "coreHa": 63138.2,
+      "coreHa": 33365.4,
       "inRangeHa": 1073835.1,
       "bins": {
-        "subFunctional": 53696.1,
-        "small": 7382.2,
-        "moderate": 2059.9,
+        "subFunctional": 25552.0,
+        "small": 5724.2,
+        "moderate": 2089.3,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -2354,12 +2354,12 @@
       ]
     },
     "2020": {
-      "coreHa": 62996.3,
+      "coreHa": 32498.6,
       "inRangeHa": 1073835.1,
       "bins": {
-        "subFunctional": 53554.1,
-        "small": 7382.2,
-        "moderate": 2059.9,
+        "subFunctional": 24900.0,
+        "small": 5509.3,
+        "moderate": 2089.3,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -2368,12 +2368,12 @@
       ]
     },
     "2021": {
-      "coreHa": 62778.9,
+      "coreHa": 32473.4,
       "inRangeHa": 1073835.1,
       "bins": {
-        "subFunctional": 53486.3,
-        "small": 7232.7,
-        "moderate": 2059.9,
+        "subFunctional": 24874.8,
+        "small": 5509.3,
+        "moderate": 2089.3,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -2382,12 +2382,12 @@
       ]
     },
     "2022": {
-      "coreHa": 62745.7,
+      "coreHa": 32465.1,
       "inRangeHa": 1073835.1,
       "bins": {
-        "subFunctional": 53453.1,
-        "small": 7232.7,
-        "moderate": 2059.9,
+        "subFunctional": 24866.5,
+        "small": 5509.3,
+        "moderate": 2089.3,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -2396,12 +2396,12 @@
       ]
     },
     "2023": {
-      "coreHa": 60343.5,
+      "coreHa": 30657.5,
       "inRangeHa": 1073835.1,
       "bins": {
-        "subFunctional": 51158.2,
-        "small": 7125.3,
-        "moderate": 2059.9,
+        "subFunctional": 23058.9,
+        "small": 5509.3,
+        "moderate": 2089.3,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -2410,12 +2410,12 @@
       ]
     },
     "2024": {
-      "coreHa": 60343.5,
+      "coreHa": 30657.5,
       "inRangeHa": 1073835.1,
       "bins": {
-        "subFunctional": 51158.2,
-        "small": 7125.3,
-        "moderate": 2059.9,
+        "subFunctional": 23058.9,
+        "small": 5509.3,
+        "moderate": 2089.3,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -2424,12 +2424,12 @@
       ]
     },
     "2025": {
-      "coreHa": 60343.5,
+      "coreHa": 30537.9,
       "inRangeHa": 1073835.1,
       "bins": {
-        "subFunctional": 51158.2,
-        "small": 7125.3,
-        "moderate": 2059.9,
+        "subFunctional": 22939.3,
+        "small": 5509.3,
+        "moderate": 2089.3,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -2440,13 +2440,13 @@
   },
   "pic": {
     "2015": {
-      "coreHa": 15335.4,
+      "coreHa": 15200.1,
       "inRangeHa": 217772.1,
       "bins": {
-        "subFunctional": 5597.9,
-        "small": 3348.6,
-        "moderate": 569.3,
-        "large": 5819.5,
+        "subFunctional": 5712.8,
+        "small": 3522.2,
+        "moderate": 1297.8,
+        "large": 4667.3,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2454,13 +2454,13 @@
       ]
     },
     "2016": {
-      "coreHa": 15320.1,
+      "coreHa": 14876.2,
       "inRangeHa": 217772.1,
       "bins": {
-        "subFunctional": 5582.9,
-        "small": 3348.4,
-        "moderate": 569.3,
-        "large": 5819.5,
+        "subFunctional": 5684.0,
+        "small": 3228.4,
+        "moderate": 1297.7,
+        "large": 4666.1,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2468,13 +2468,13 @@
       ]
     },
     "2017": {
-      "coreHa": 15315.8,
+      "coreHa": 14782.0,
       "inRangeHa": 217772.1,
       "bins": {
-        "subFunctional": 5578.7,
-        "small": 3348.4,
-        "moderate": 569.3,
-        "large": 5819.4,
+        "subFunctional": 5609.0,
+        "small": 3209.2,
+        "moderate": 1297.7,
+        "large": 4666.1,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2482,13 +2482,13 @@
       ]
     },
     "2018": {
-      "coreHa": 15311.1,
+      "coreHa": 14738.3,
       "inRangeHa": 217772.1,
       "bins": {
-        "subFunctional": 5574.0,
-        "small": 3348.4,
-        "moderate": 569.3,
-        "large": 5819.4,
+        "subFunctional": 5565.3,
+        "small": 3209.2,
+        "moderate": 1297.7,
+        "large": 4666.1,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2496,13 +2496,13 @@
       ]
     },
     "2019": {
-      "coreHa": 15298.5,
+      "coreHa": 13650.7,
       "inRangeHa": 217772.1,
       "bins": {
-        "subFunctional": 5566.7,
-        "small": 3346.4,
-        "moderate": 569.3,
-        "large": 5816.1,
+        "subFunctional": 4958.6,
+        "small": 2728.3,
+        "moderate": 1297.7,
+        "large": 4666.1,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2510,13 +2510,13 @@
       ]
     },
     "2020": {
-      "coreHa": 14953.9,
+      "coreHa": 13112.4,
       "inRangeHa": 217772.1,
       "bins": {
-        "subFunctional": 5520.2,
-        "small": 3295.3,
-        "moderate": 569.3,
-        "large": 5569.1,
+        "subFunctional": 4682.1,
+        "small": 2728.3,
+        "moderate": 1297.7,
+        "large": 4404.2,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2524,13 +2524,13 @@
       ]
     },
     "2021": {
-      "coreHa": 14787.4,
+      "coreHa": 12935.6,
       "inRangeHa": 217772.1,
       "bins": {
-        "subFunctional": 5354.1,
-        "small": 3295.3,
-        "moderate": 569.3,
-        "large": 5568.7,
+        "subFunctional": 4505.3,
+        "small": 2728.3,
+        "moderate": 1297.7,
+        "large": 4404.2,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2538,13 +2538,13 @@
       ]
     },
     "2022": {
-      "coreHa": 14558.6,
+      "coreHa": 12769.4,
       "inRangeHa": 217772.1,
       "bins": {
-        "subFunctional": 5301.9,
-        "small": 3118.7,
-        "moderate": 569.3,
-        "large": 5568.7,
+        "subFunctional": 4390.2,
+        "small": 2677.2,
+        "moderate": 1297.7,
+        "large": 4404.2,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2552,13 +2552,13 @@
       ]
     },
     "2023": {
-      "coreHa": 14013.4,
+      "coreHa": 12298.9,
       "inRangeHa": 217772.1,
       "bins": {
-        "subFunctional": 4984.6,
-        "small": 3009.8,
-        "moderate": 569.3,
-        "large": 5449.8,
+        "subFunctional": 4119.9,
+        "small": 2568.3,
+        "moderate": 1297.7,
+        "large": 4313.0,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2566,13 +2566,13 @@
       ]
     },
     "2024": {
-      "coreHa": 14013.4,
+      "coreHa": 12298.9,
       "inRangeHa": 217772.1,
       "bins": {
-        "subFunctional": 4984.6,
-        "small": 3009.8,
-        "moderate": 569.3,
-        "large": 5449.8,
+        "subFunctional": 4119.9,
+        "small": 2568.3,
+        "moderate": 1297.7,
+        "large": 4313.0,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2580,13 +2580,13 @@
       ]
     },
     "2025": {
-      "coreHa": 14013.4,
+      "coreHa": 12298.9,
       "inRangeHa": 217772.1,
       "bins": {
-        "subFunctional": 4984.6,
-        "small": 3009.8,
-        "moderate": 569.3,
-        "large": 5449.8,
+        "subFunctional": 4119.9,
+        "small": 2568.3,
+        "moderate": 1297.7,
+        "large": 4313.0,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2596,13 +2596,13 @@
   },
   "redlake": {
     "2015": {
-      "coreHa": 7359.0,
+      "coreHa": 6519.0,
       "inRangeHa": 288576.4,
       "bins": {
-        "subFunctional": 4950.0,
-        "small": 1317.3,
-        "moderate": 609.9,
-        "large": 481.8,
+        "subFunctional": 4336.3,
+        "small": 1158.6,
+        "moderate": 599.9,
+        "large": 424.3,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2611,13 +2611,13 @@
       ]
     },
     "2016": {
-      "coreHa": 7359.0,
+      "coreHa": 6461.8,
       "inRangeHa": 288576.4,
       "bins": {
-        "subFunctional": 4950.0,
-        "small": 1317.3,
-        "moderate": 609.9,
-        "large": 481.8,
+        "subFunctional": 4304.6,
+        "small": 1158.6,
+        "moderate": 574.4,
+        "large": 424.3,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2626,13 +2626,13 @@
       ]
     },
     "2017": {
-      "coreHa": 7358.8,
+      "coreHa": 6435.0,
       "inRangeHa": 288576.4,
       "bins": {
-        "subFunctional": 4949.8,
-        "small": 1317.3,
-        "moderate": 609.8,
-        "large": 481.8,
+        "subFunctional": 4283.6,
+        "small": 1157.8,
+        "moderate": 569.3,
+        "large": 424.3,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2641,13 +2641,13 @@
       ]
     },
     "2018": {
-      "coreHa": 7355.1,
+      "coreHa": 6404.9,
       "inRangeHa": 288576.4,
       "bins": {
-        "subFunctional": 4946.1,
-        "small": 1317.3,
-        "moderate": 609.8,
-        "large": 481.8,
+        "subFunctional": 4266.3,
+        "small": 1151.4,
+        "moderate": 563.0,
+        "large": 424.3,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2656,13 +2656,13 @@
       ]
     },
     "2019": {
-      "coreHa": 7354.6,
+      "coreHa": 6360.0,
       "inRangeHa": 288576.4,
       "bins": {
-        "subFunctional": 4945.9,
-        "small": 1317.2,
-        "moderate": 609.8,
-        "large": 481.8,
+        "subFunctional": 4236.2,
+        "small": 1136.5,
+        "moderate": 563.0,
+        "large": 424.3,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2671,13 +2671,13 @@
       ]
     },
     "2020": {
-      "coreHa": 7351.8,
+      "coreHa": 6341.2,
       "inRangeHa": 288576.4,
       "bins": {
-        "subFunctional": 4943.1,
-        "small": 1317.2,
-        "moderate": 609.8,
-        "large": 481.8,
+        "subFunctional": 4217.4,
+        "small": 1136.5,
+        "moderate": 563.0,
+        "large": 424.3,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2686,13 +2686,13 @@
       ]
     },
     "2021": {
-      "coreHa": 6936.5,
+      "coreHa": 6097.6,
       "inRangeHa": 288576.4,
       "bins": {
-        "subFunctional": 4527.7,
-        "small": 1317.2,
-        "moderate": 609.8,
-        "large": 481.8,
+        "subFunctional": 3973.8,
+        "small": 1136.5,
+        "moderate": 563.0,
+        "large": 424.3,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2701,13 +2701,13 @@
       ]
     },
     "2022": {
-      "coreHa": 6932.8,
+      "coreHa": 6097.6,
       "inRangeHa": 288576.4,
       "bins": {
-        "subFunctional": 4524.0,
-        "small": 1317.2,
-        "moderate": 609.8,
-        "large": 481.8,
+        "subFunctional": 3973.8,
+        "small": 1136.5,
+        "moderate": 563.0,
+        "large": 424.3,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2716,13 +2716,13 @@
       ]
     },
     "2023": {
-      "coreHa": 6860.4,
+      "coreHa": 6025.9,
       "inRangeHa": 288576.4,
       "bins": {
-        "subFunctional": 4451.7,
-        "small": 1317.2,
-        "moderate": 609.8,
-        "large": 481.8,
+        "subFunctional": 3902.1,
+        "small": 1136.5,
+        "moderate": 563.0,
+        "large": 424.3,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2731,13 +2731,13 @@
       ]
     },
     "2024": {
-      "coreHa": 6860.8,
+      "coreHa": 6056.9,
       "inRangeHa": 288576.4,
       "bins": {
-        "subFunctional": 4452.0,
-        "small": 1317.2,
-        "moderate": 609.8,
-        "large": 481.8,
+        "subFunctional": 3933.1,
+        "small": 1136.5,
+        "moderate": 563.0,
+        "large": 424.3,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2746,13 +2746,13 @@
       ]
     },
     "2025": {
-      "coreHa": 6861.3,
+      "coreHa": 6056.9,
       "inRangeHa": 288576.4,
       "bins": {
-        "subFunctional": 4452.6,
-        "small": 1317.2,
-        "moderate": 609.8,
-        "large": 481.8,
+        "subFunctional": 3933.1,
+        "small": 1136.5,
+        "moderate": 563.0,
+        "large": 424.3,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -2763,154 +2763,154 @@
   },
   "romeomalette": {
     "2015": {
-      "coreHa": 2634.3,
+      "coreHa": 2717.3,
       "inRangeHa": 32176.6,
       "bins": {
-        "subFunctional": 474.9,
-        "small": 424.3,
-        "moderate": 518.3,
+        "subFunctional": 646.2,
+        "small": 387.3,
+        "moderate": 519.8,
         "large": 0.0,
-        "veryLarge": 1216.8
+        "veryLarge": 1164.0
       },
       "ranges": [
         "kesagami"
       ]
     },
     "2016": {
-      "coreHa": 2634.3,
+      "coreHa": 2714.1,
       "inRangeHa": 32176.6,
       "bins": {
-        "subFunctional": 474.9,
-        "small": 424.3,
-        "moderate": 518.3,
+        "subFunctional": 643.0,
+        "small": 387.3,
+        "moderate": 519.8,
         "large": 0.0,
-        "veryLarge": 1216.8
+        "veryLarge": 1164.0
       },
       "ranges": [
         "kesagami"
       ]
     },
     "2017": {
-      "coreHa": 2634.3,
+      "coreHa": 2714.1,
       "inRangeHa": 32176.6,
       "bins": {
-        "subFunctional": 474.9,
-        "small": 424.3,
-        "moderate": 518.3,
+        "subFunctional": 643.0,
+        "small": 387.3,
+        "moderate": 519.8,
         "large": 0.0,
-        "veryLarge": 1216.8
+        "veryLarge": 1164.0
       },
       "ranges": [
         "kesagami"
       ]
     },
     "2018": {
-      "coreHa": 2632.8,
+      "coreHa": 2672.3,
       "inRangeHa": 32176.6,
       "bins": {
-        "subFunctional": 473.4,
-        "small": 424.3,
-        "moderate": 518.3,
+        "subFunctional": 601.2,
+        "small": 387.3,
+        "moderate": 519.8,
         "large": 0.0,
-        "veryLarge": 1216.8
+        "veryLarge": 1164.0
       },
       "ranges": [
         "kesagami"
       ]
     },
     "2019": {
-      "coreHa": 2632.8,
+      "coreHa": 2671.7,
       "inRangeHa": 32176.6,
       "bins": {
-        "subFunctional": 473.4,
-        "small": 424.3,
-        "moderate": 518.3,
+        "subFunctional": 600.6,
+        "small": 387.3,
+        "moderate": 519.8,
         "large": 0.0,
-        "veryLarge": 1216.8
+        "veryLarge": 1164.0
       },
       "ranges": [
         "kesagami"
       ]
     },
     "2020": {
-      "coreHa": 2632.8,
+      "coreHa": 2671.7,
       "inRangeHa": 32176.6,
       "bins": {
-        "subFunctional": 473.4,
-        "small": 424.3,
-        "moderate": 518.3,
+        "subFunctional": 600.6,
+        "small": 387.3,
+        "moderate": 519.8,
         "large": 0.0,
-        "veryLarge": 1216.8
+        "veryLarge": 1164.0
       },
       "ranges": [
         "kesagami"
       ]
     },
     "2021": {
-      "coreHa": 2632.8,
+      "coreHa": 2671.7,
       "inRangeHa": 32176.6,
       "bins": {
-        "subFunctional": 473.4,
-        "small": 424.3,
-        "moderate": 518.3,
+        "subFunctional": 600.6,
+        "small": 387.3,
+        "moderate": 519.8,
         "large": 0.0,
-        "veryLarge": 1216.8
+        "veryLarge": 1164.0
       },
       "ranges": [
         "kesagami"
       ]
     },
     "2022": {
-      "coreHa": 2620.0,
+      "coreHa": 2618.9,
       "inRangeHa": 32176.6,
       "bins": {
-        "subFunctional": 460.6,
-        "small": 424.3,
-        "moderate": 518.3,
+        "subFunctional": 547.8,
+        "small": 387.3,
+        "moderate": 519.8,
         "large": 0.0,
-        "veryLarge": 1216.8
+        "veryLarge": 1164.0
       },
       "ranges": [
         "kesagami"
       ]
     },
     "2023": {
-      "coreHa": 2573.9,
+      "coreHa": 2630.3,
       "inRangeHa": 32176.6,
       "bins": {
-        "subFunctional": 468.6,
-        "small": 888.5,
-        "moderate": 0.0,
+        "subFunctional": 559.3,
+        "small": 387.3,
+        "moderate": 519.8,
         "large": 0.0,
-        "veryLarge": 1216.8
+        "veryLarge": 1164.0
       },
       "ranges": [
         "kesagami"
       ]
     },
     "2024": {
-      "coreHa": 2573.9,
+      "coreHa": 2630.3,
       "inRangeHa": 32176.6,
       "bins": {
-        "subFunctional": 468.6,
-        "small": 888.5,
-        "moderate": 0.0,
+        "subFunctional": 559.3,
+        "small": 387.3,
+        "moderate": 519.8,
         "large": 0.0,
-        "veryLarge": 1216.8
+        "veryLarge": 1164.0
       },
       "ranges": [
         "kesagami"
       ]
     },
     "2025": {
-      "coreHa": 2573.9,
+      "coreHa": 2632.4,
       "inRangeHa": 32176.6,
       "bins": {
-        "subFunctional": 468.6,
-        "small": 888.5,
-        "moderate": 0.0,
+        "subFunctional": 561.3,
+        "small": 387.3,
+        "moderate": 519.8,
         "large": 0.0,
-        "veryLarge": 1216.8
+        "veryLarge": 1164.0
       },
       "ranges": [
         "kesagami"
@@ -3075,14 +3075,14 @@
   },
   "troutlake": {
     "2015": {
-      "coreHa": 120424.7,
+      "coreHa": 108021.9,
       "inRangeHa": 1016893.3,
       "bins": {
-        "subFunctional": 44051.3,
-        "small": 28880.3,
-        "moderate": 11856.3,
-        "large": 24529.3,
-        "veryLarge": 11107.4
+        "subFunctional": 39588.6,
+        "small": 27372.6,
+        "moderate": 8438.2,
+        "large": 21604.3,
+        "veryLarge": 11018.2
       },
       "ranges": [
         "berens",
@@ -3091,14 +3091,14 @@
       ]
     },
     "2016": {
-      "coreHa": 120016.2,
+      "coreHa": 107449.4,
       "inRangeHa": 1016893.3,
       "bins": {
-        "subFunctional": 43861.8,
-        "small": 28770.2,
-        "moderate": 11764.0,
-        "large": 24512.8,
-        "veryLarge": 11107.4
+        "subFunctional": 39338.4,
+        "small": 27125.0,
+        "moderate": 8434.2,
+        "large": 21570.6,
+        "veryLarge": 10981.3
       },
       "ranges": [
         "berens",
@@ -3107,14 +3107,14 @@
       ]
     },
     "2017": {
-      "coreHa": 120554.4,
+      "coreHa": 107475.8,
       "inRangeHa": 1016893.3,
       "bins": {
-        "subFunctional": 44253.0,
-        "small": 28283.5,
-        "moderate": 12397.8,
-        "large": 24512.7,
-        "veryLarge": 11107.4
+        "subFunctional": 39215.3,
+        "small": 27365.2,
+        "moderate": 8403.2,
+        "large": 21510.7,
+        "veryLarge": 10981.3
       },
       "ranges": [
         "berens",
@@ -3123,14 +3123,14 @@
       ]
     },
     "2018": {
-      "coreHa": 120437.0,
+      "coreHa": 106504.7,
       "inRangeHa": 1016893.3,
       "bins": {
-        "subFunctional": 44203.9,
-        "small": 28219.4,
-        "moderate": 12397.8,
-        "large": 24508.4,
-        "veryLarge": 11107.4
+        "subFunctional": 38632.9,
+        "small": 27134.8,
+        "moderate": 8393.6,
+        "large": 21362.1,
+        "veryLarge": 10981.3
       },
       "ranges": [
         "berens",
@@ -3139,14 +3139,14 @@
       ]
     },
     "2019": {
-      "coreHa": 120039.6,
+      "coreHa": 104231.6,
       "inRangeHa": 1016893.3,
       "bins": {
-        "subFunctional": 43915.1,
-        "small": 28206.9,
-        "moderate": 12397.8,
-        "large": 24412.3,
-        "veryLarge": 11107.4
+        "subFunctional": 37210.9,
+        "small": 26281.1,
+        "moderate": 8393.2,
+        "large": 21330.5,
+        "veryLarge": 11015.8
       },
       "ranges": [
         "berens",
@@ -3155,14 +3155,14 @@
       ]
     },
     "2020": {
-      "coreHa": 119486.4,
+      "coreHa": 103287.0,
       "inRangeHa": 1016893.3,
       "bins": {
-        "subFunctional": 43437.4,
-        "small": 28131.5,
-        "moderate": 12397.8,
-        "large": 24412.3,
-        "veryLarge": 11107.4
+        "subFunctional": 36832.2,
+        "small": 25826.0,
+        "moderate": 8381.2,
+        "large": 21230.4,
+        "veryLarge": 11017.2
       },
       "ranges": [
         "berens",
@@ -3171,14 +3171,14 @@
       ]
     },
     "2021": {
-      "coreHa": 116973.0,
+      "coreHa": 100855.9,
       "inRangeHa": 1016893.3,
       "bins": {
-        "subFunctional": 42579.2,
-        "small": 27255.5,
-        "moderate": 11799.4,
-        "large": 24231.5,
-        "veryLarge": 11107.4
+        "subFunctional": 36054.0,
+        "small": 24819.9,
+        "moderate": 7740.3,
+        "large": 21224.5,
+        "veryLarge": 11017.2
       },
       "ranges": [
         "berens",
@@ -3187,14 +3187,14 @@
       ]
     },
     "2022": {
-      "coreHa": 114253.8,
+      "coreHa": 98150.1,
       "inRangeHa": 1016893.3,
       "bins": {
-        "subFunctional": 41974.1,
-        "small": 25143.3,
-        "moderate": 11797.5,
-        "large": 24231.5,
-        "veryLarge": 11107.4
+        "subFunctional": 35645.3,
+        "small": 23242.0,
+        "moderate": 7021.2,
+        "large": 21224.5,
+        "veryLarge": 11017.2
       },
       "ranges": [
         "berens",
@@ -3203,14 +3203,14 @@
       ]
     },
     "2023": {
-      "coreHa": 104022.1,
+      "coreHa": 87831.7,
       "inRangeHa": 1016893.3,
       "bins": {
-        "subFunctional": 41234.9,
-        "small": 24886.8,
-        "moderate": 13250.2,
-        "large": 13542.7,
-        "veryLarge": 11107.4
+        "subFunctional": 34553.5,
+        "small": 23790.1,
+        "moderate": 7824.6,
+        "large": 10646.4,
+        "veryLarge": 11017.2
       },
       "ranges": [
         "berens",
@@ -3219,14 +3219,14 @@
       ]
     },
     "2024": {
-      "coreHa": 103977.6,
+      "coreHa": 87911.8,
       "inRangeHa": 1016893.3,
       "bins": {
-        "subFunctional": 41315.0,
-        "small": 24762.2,
-        "moderate": 13250.2,
-        "large": 13542.7,
-        "veryLarge": 11107.4
+        "subFunctional": 34615.7,
+        "small": 23808.0,
+        "moderate": 7824.6,
+        "large": 10646.4,
+        "veryLarge": 11017.2
       },
       "ranges": [
         "berens",
@@ -3235,14 +3235,14 @@
       ]
     },
     "2025": {
-      "coreHa": 103995.4,
+      "coreHa": 87943.8,
       "inRangeHa": 1016893.3,
       "bins": {
-        "subFunctional": 41332.9,
-        "small": 24762.2,
-        "moderate": 13250.2,
-        "large": 13542.7,
-        "veryLarge": 11107.4
+        "subFunctional": 34640.2,
+        "small": 23808.0,
+        "moderate": 7824.6,
+        "large": 10651.9,
+        "veryLarge": 11019.1
       },
       "ranges": [
         "berens",
@@ -3253,14 +3253,14 @@
   },
   "wabakimi_provincial_park": {
     "2015": {
-      "coreHa": 173681.7,
+      "coreHa": 151832.9,
       "inRangeHa": 880363.8,
       "bins": {
-        "subFunctional": 78142.9,
-        "small": 34817.8,
-        "moderate": 14418.2,
-        "large": 44493.1,
-        "veryLarge": 1809.7
+        "subFunctional": 64079.3,
+        "small": 29964.3,
+        "moderate": 14674.7,
+        "large": 41310.4,
+        "veryLarge": 1804.1
       },
       "ranges": [
         "brightsand",
@@ -3268,14 +3268,14 @@
       ]
     },
     "2016": {
-      "coreHa": 173647.4,
+      "coreHa": 151798.9,
       "inRangeHa": 880363.8,
       "bins": {
-        "subFunctional": 78128.2,
-        "small": 34798.1,
-        "moderate": 14418.2,
-        "large": 44493.1,
-        "veryLarge": 1809.7
+        "subFunctional": 64066.6,
+        "small": 29964.3,
+        "moderate": 14674.7,
+        "large": 41289.1,
+        "veryLarge": 1804.1
       },
       "ranges": [
         "brightsand",
@@ -3283,14 +3283,14 @@
       ]
     },
     "2017": {
-      "coreHa": 174994.6,
+      "coreHa": 151694.7,
       "inRangeHa": 880363.8,
       "bins": {
-        "subFunctional": 79444.3,
-        "small": 34999.2,
-        "moderate": 14413.8,
-        "large": 44327.6,
-        "veryLarge": 1809.7
+        "subFunctional": 64062.4,
+        "small": 30279.3,
+        "moderate": 14674.7,
+        "large": 40874.1,
+        "veryLarge": 1804.1
       },
       "ranges": [
         "brightsand",
@@ -3298,14 +3298,14 @@
       ]
     },
     "2018": {
-      "coreHa": 174942.0,
+      "coreHa": 151327.5,
       "inRangeHa": 880363.8,
       "bins": {
-        "subFunctional": 79489.2,
-        "small": 34999.2,
-        "moderate": 14413.8,
-        "large": 44230.1,
-        "veryLarge": 1809.7
+        "subFunctional": 63913.3,
+        "small": 30179.0,
+        "moderate": 14674.7,
+        "large": 40756.4,
+        "veryLarge": 1804.1
       },
       "ranges": [
         "brightsand",
@@ -3313,14 +3313,14 @@
       ]
     },
     "2019": {
-      "coreHa": 174944.5,
+      "coreHa": 151225.8,
       "inRangeHa": 880363.8,
       "bins": {
-        "subFunctional": 79483.3,
-        "small": 34999.2,
-        "moderate": 14429.1,
-        "large": 44223.2,
-        "veryLarge": 1809.7
+        "subFunctional": 63984.3,
+        "small": 30013.2,
+        "moderate": 14667.8,
+        "large": 40756.4,
+        "veryLarge": 1804.1
       },
       "ranges": [
         "brightsand",
@@ -3328,14 +3328,14 @@
       ]
     },
     "2020": {
-      "coreHa": 174839.3,
+      "coreHa": 151178.5,
       "inRangeHa": 880363.8,
       "bins": {
-        "subFunctional": 79400.8,
-        "small": 34976.6,
-        "moderate": 14429.0,
-        "large": 44223.2,
-        "veryLarge": 1809.7
+        "subFunctional": 63938.1,
+        "small": 30012.1,
+        "moderate": 14667.8,
+        "large": 40756.4,
+        "veryLarge": 1804.1
       },
       "ranges": [
         "brightsand",
@@ -3343,14 +3343,14 @@
       ]
     },
     "2021": {
-      "coreHa": 174818.9,
+      "coreHa": 151178.7,
       "inRangeHa": 880363.8,
       "bins": {
-        "subFunctional": 79380.4,
-        "small": 34976.6,
-        "moderate": 14429.0,
-        "large": 44223.2,
-        "veryLarge": 1809.7
+        "subFunctional": 63938.2,
+        "small": 30012.1,
+        "moderate": 14667.8,
+        "large": 40756.4,
+        "veryLarge": 1804.1
       },
       "ranges": [
         "brightsand",
@@ -3358,14 +3358,14 @@
       ]
     },
     "2022": {
-      "coreHa": 174877.2,
+      "coreHa": 151641.7,
       "inRangeHa": 880363.8,
       "bins": {
-        "subFunctional": 79406.0,
-        "small": 35009.3,
-        "moderate": 14429.0,
-        "large": 44223.2,
-        "veryLarge": 1809.7
+        "subFunctional": 64178.6,
+        "small": 29673.8,
+        "moderate": 14667.8,
+        "large": 41317.4,
+        "veryLarge": 1804.1
       },
       "ranges": [
         "brightsand",
@@ -3373,14 +3373,14 @@
       ]
     },
     "2023": {
-      "coreHa": 147328.8,
+      "coreHa": 123546.1,
       "inRangeHa": 880363.8,
       "bins": {
-        "subFunctional": 71628.8,
-        "small": 30358.0,
-        "moderate": 12433.6,
-        "large": 31098.8,
-        "veryLarge": 1809.7
+        "subFunctional": 56584.0,
+        "small": 24924.1,
+        "moderate": 13405.0,
+        "large": 26828.8,
+        "veryLarge": 1804.1
       },
       "ranges": [
         "brightsand",
@@ -3388,14 +3388,14 @@
       ]
     },
     "2024": {
-      "coreHa": 147328.8,
+      "coreHa": 123546.2,
       "inRangeHa": 880363.8,
       "bins": {
-        "subFunctional": 71628.8,
-        "small": 30358.0,
-        "moderate": 12433.6,
-        "large": 31098.8,
-        "veryLarge": 1809.7
+        "subFunctional": 56584.2,
+        "small": 24924.1,
+        "moderate": 13405.0,
+        "large": 26828.8,
+        "veryLarge": 1804.1
       },
       "ranges": [
         "brightsand",
@@ -3403,14 +3403,14 @@
       ]
     },
     "2025": {
-      "coreHa": 147339.8,
+      "coreHa": 123546.2,
       "inRangeHa": 880363.8,
       "bins": {
-        "subFunctional": 71628.8,
-        "small": 30358.0,
-        "moderate": 12433.6,
-        "large": 31109.8,
-        "veryLarge": 1809.7
+        "subFunctional": 56584.2,
+        "small": 24924.1,
+        "moderate": 13405.0,
+        "large": 26828.8,
+        "veryLarge": 1804.1
       },
       "ranges": [
         "brightsand",
@@ -3420,10 +3420,10 @@
   },
   "wabigoon": {
     "2015": {
-      "coreHa": 383.1,
+      "coreHa": 304.7,
       "inRangeHa": 20109.5,
       "bins": {
-        "subFunctional": 383.1,
+        "subFunctional": 304.7,
         "small": 0.0,
         "moderate": 0.0,
         "large": 0.0,
@@ -3434,10 +3434,10 @@
       ]
     },
     "2016": {
-      "coreHa": 383.1,
+      "coreHa": 299.9,
       "inRangeHa": 20109.5,
       "bins": {
-        "subFunctional": 383.1,
+        "subFunctional": 299.9,
         "small": 0.0,
         "moderate": 0.0,
         "large": 0.0,
@@ -3448,10 +3448,10 @@
       ]
     },
     "2017": {
-      "coreHa": 383.5,
+      "coreHa": 299.8,
       "inRangeHa": 20109.5,
       "bins": {
-        "subFunctional": 383.5,
+        "subFunctional": 299.8,
         "small": 0.0,
         "moderate": 0.0,
         "large": 0.0,
@@ -3462,10 +3462,10 @@
       ]
     },
     "2018": {
-      "coreHa": 383.5,
+      "coreHa": 299.8,
       "inRangeHa": 20109.5,
       "bins": {
-        "subFunctional": 383.5,
+        "subFunctional": 299.8,
         "small": 0.0,
         "moderate": 0.0,
         "large": 0.0,
@@ -3476,10 +3476,10 @@
       ]
     },
     "2019": {
-      "coreHa": 383.5,
+      "coreHa": 299.6,
       "inRangeHa": 20109.5,
       "bins": {
-        "subFunctional": 383.5,
+        "subFunctional": 299.6,
         "small": 0.0,
         "moderate": 0.0,
         "large": 0.0,
@@ -3490,10 +3490,10 @@
       ]
     },
     "2020": {
-      "coreHa": 383.5,
+      "coreHa": 299.6,
       "inRangeHa": 20109.5,
       "bins": {
-        "subFunctional": 383.5,
+        "subFunctional": 299.6,
         "small": 0.0,
         "moderate": 0.0,
         "large": 0.0,
@@ -3504,10 +3504,10 @@
       ]
     },
     "2021": {
-      "coreHa": 383.5,
+      "coreHa": 299.6,
       "inRangeHa": 20109.5,
       "bins": {
-        "subFunctional": 383.5,
+        "subFunctional": 299.6,
         "small": 0.0,
         "moderate": 0.0,
         "large": 0.0,
@@ -3518,10 +3518,10 @@
       ]
     },
     "2022": {
-      "coreHa": 382.9,
+      "coreHa": 299.6,
       "inRangeHa": 20109.5,
       "bins": {
-        "subFunctional": 382.9,
+        "subFunctional": 299.6,
         "small": 0.0,
         "moderate": 0.0,
         "large": 0.0,
@@ -3532,10 +3532,10 @@
       ]
     },
     "2023": {
-      "coreHa": 382.9,
+      "coreHa": 299.6,
       "inRangeHa": 20109.5,
       "bins": {
-        "subFunctional": 382.9,
+        "subFunctional": 299.6,
         "small": 0.0,
         "moderate": 0.0,
         "large": 0.0,
@@ -3546,10 +3546,10 @@
       ]
     },
     "2024": {
-      "coreHa": 382.9,
+      "coreHa": 299.6,
       "inRangeHa": 20109.5,
       "bins": {
-        "subFunctional": 382.9,
+        "subFunctional": 299.6,
         "small": 0.0,
         "moderate": 0.0,
         "large": 0.0,
@@ -3560,10 +3560,10 @@
       ]
     },
     "2025": {
-      "coreHa": 382.9,
+      "coreHa": 299.6,
       "inRangeHa": 20109.5,
       "bins": {
-        "subFunctional": 382.9,
+        "subFunctional": 299.6,
         "small": 0.0,
         "moderate": 0.0,
         "large": 0.0,
@@ -3576,12 +3576,12 @@
   },
   "whiskeyjack": {
     "2015": {
-      "coreHa": 3969.4,
+      "coreHa": 3696.2,
       "inRangeHa": 249857.5,
       "bins": {
-        "subFunctional": 2137.6,
-        "small": 1065.1,
-        "moderate": 766.7,
+        "subFunctional": 1987.0,
+        "small": 1021.3,
+        "moderate": 687.9,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -3592,12 +3592,12 @@
       ]
     },
     "2016": {
-      "coreHa": 3968.5,
+      "coreHa": 3696.2,
       "inRangeHa": 249857.5,
       "bins": {
-        "subFunctional": 2136.7,
-        "small": 1065.1,
-        "moderate": 766.7,
+        "subFunctional": 1987.0,
+        "small": 1021.3,
+        "moderate": 687.9,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -3608,12 +3608,12 @@
       ]
     },
     "2017": {
-      "coreHa": 4192.2,
+      "coreHa": 3909.6,
       "inRangeHa": 249857.5,
       "bins": {
-        "subFunctional": 2354.9,
-        "small": 1065.1,
-        "moderate": 772.2,
+        "subFunctional": 2200.4,
+        "small": 1021.3,
+        "moderate": 687.9,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -3624,12 +3624,12 @@
       ]
     },
     "2018": {
-      "coreHa": 4191.8,
+      "coreHa": 3909.7,
       "inRangeHa": 249857.5,
       "bins": {
-        "subFunctional": 2354.6,
-        "small": 1065.1,
-        "moderate": 772.2,
+        "subFunctional": 2200.5,
+        "small": 1021.3,
+        "moderate": 687.9,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -3640,12 +3640,12 @@
       ]
     },
     "2019": {
-      "coreHa": 4191.6,
+      "coreHa": 3909.6,
       "inRangeHa": 249857.5,
       "bins": {
-        "subFunctional": 2354.3,
-        "small": 1065.1,
-        "moderate": 772.2,
+        "subFunctional": 2200.4,
+        "small": 1021.3,
+        "moderate": 687.9,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -3656,12 +3656,12 @@
       ]
     },
     "2020": {
-      "coreHa": 4190.7,
+      "coreHa": 3921.6,
       "inRangeHa": 249857.5,
       "bins": {
-        "subFunctional": 2353.4,
-        "small": 1065.1,
-        "moderate": 772.2,
+        "subFunctional": 2212.4,
+        "small": 1021.3,
+        "moderate": 687.9,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -3672,12 +3672,12 @@
       ]
     },
     "2021": {
-      "coreHa": 4532.3,
+      "coreHa": 4299.8,
       "inRangeHa": 249857.5,
       "bins": {
-        "subFunctional": 2695.0,
-        "small": 1065.1,
-        "moderate": 772.2,
+        "subFunctional": 2590.6,
+        "small": 1021.3,
+        "moderate": 687.9,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -3688,12 +3688,12 @@
       ]
     },
     "2022": {
-      "coreHa": 4527.9,
+      "coreHa": 4301.6,
       "inRangeHa": 249857.5,
       "bins": {
-        "subFunctional": 2690.6,
-        "small": 1065.1,
-        "moderate": 772.2,
+        "subFunctional": 2592.4,
+        "small": 1021.3,
+        "moderate": 687.9,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -3704,12 +3704,12 @@
       ]
     },
     "2023": {
-      "coreHa": 4527.9,
+      "coreHa": 4301.9,
       "inRangeHa": 249857.5,
       "bins": {
-        "subFunctional": 2690.6,
-        "small": 1065.1,
-        "moderate": 772.2,
+        "subFunctional": 2592.7,
+        "small": 1021.3,
+        "moderate": 687.9,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -3720,12 +3720,12 @@
       ]
     },
     "2024": {
-      "coreHa": 4775.0,
+      "coreHa": 7185.7,
       "inRangeHa": 249857.5,
       "bins": {
-        "subFunctional": 2937.8,
-        "small": 1065.1,
-        "moderate": 772.2,
+        "subFunctional": 5056.5,
+        "small": 1441.3,
+        "moderate": 687.9,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -3736,12 +3736,12 @@
       ]
     },
     "2025": {
-      "coreHa": 4775.0,
+      "coreHa": 7188.0,
       "inRangeHa": 249857.5,
       "bins": {
-        "subFunctional": 2937.8,
-        "small": 1065.1,
-        "moderate": 772.2,
+        "subFunctional": 5058.8,
+        "small": 1441.3,
+        "moderate": 687.9,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -3754,13 +3754,13 @@
   },
   "whitefeather": {
     "2015": {
-      "coreHa": 118838.0,
+      "coreHa": 103351.0,
       "inRangeHa": 1154922.5,
       "bins": {
-        "subFunctional": 82603.8,
-        "small": 29670.4,
-        "moderate": 4447.7,
-        "large": 2116.1,
+        "subFunctional": 73726.2,
+        "small": 24324.8,
+        "moderate": 4241.8,
+        "large": 1058.1,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -3769,13 +3769,13 @@
       ]
     },
     "2016": {
-      "coreHa": 118753.6,
+      "coreHa": 103286.1,
       "inRangeHa": 1154922.5,
       "bins": {
-        "subFunctional": 82521.4,
-        "small": 29668.4,
-        "moderate": 4447.7,
-        "large": 2116.1,
+        "subFunctional": 73684.1,
+        "small": 24302.1,
+        "moderate": 4241.8,
+        "large": 1058.1,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -3784,13 +3784,13 @@
       ]
     },
     "2017": {
-      "coreHa": 120262.1,
+      "coreHa": 103760.7,
       "inRangeHa": 1154922.5,
       "bins": {
-        "subFunctional": 83988.4,
-        "small": 29689.5,
-        "moderate": 4468.1,
-        "large": 2116.1,
+        "subFunctional": 73899.7,
+        "small": 24561.1,
+        "moderate": 4241.8,
+        "large": 1058.1,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -3799,13 +3799,13 @@
       ]
     },
     "2018": {
-      "coreHa": 120296.3,
+      "coreHa": 103494.7,
       "inRangeHa": 1154922.5,
       "bins": {
-        "subFunctional": 84022.9,
-        "small": 29689.2,
-        "moderate": 4468.1,
-        "large": 2116.1,
+        "subFunctional": 73649.4,
+        "small": 24545.3,
+        "moderate": 4241.8,
+        "large": 1058.1,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -3814,13 +3814,13 @@
       ]
     },
     "2019": {
-      "coreHa": 120092.4,
+      "coreHa": 101307.1,
       "inRangeHa": 1154922.5,
       "bins": {
-        "subFunctional": 83820.2,
-        "small": 29687.9,
-        "moderate": 4468.1,
-        "large": 2116.1,
+        "subFunctional": 71468.5,
+        "small": 24538.7,
+        "moderate": 4241.8,
+        "large": 1058.1,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -3829,13 +3829,13 @@
       ]
     },
     "2020": {
-      "coreHa": 119907.6,
+      "coreHa": 101276.8,
       "inRangeHa": 1154922.5,
       "bins": {
-        "subFunctional": 83646.9,
-        "small": 29676.5,
-        "moderate": 4468.1,
-        "large": 2116.1,
+        "subFunctional": 71449.3,
+        "small": 24527.6,
+        "moderate": 4241.8,
+        "large": 1058.1,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -3844,13 +3844,13 @@
       ]
     },
     "2021": {
-      "coreHa": 103800.5,
+      "coreHa": 86505.8,
       "inRangeHa": 1154922.5,
       "bins": {
-        "subFunctional": 72840.4,
-        "small": 25752.4,
-        "moderate": 3091.6,
-        "large": 2116.1,
+        "subFunctional": 61419.5,
+        "small": 21019.8,
+        "moderate": 3008.4,
+        "large": 1058.1,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -3859,13 +3859,13 @@
       ]
     },
     "2022": {
-      "coreHa": 103280.7,
+      "coreHa": 86519.3,
       "inRangeHa": 1154922.5,
       "bins": {
-        "subFunctional": 73010.0,
-        "small": 25063.0,
-        "moderate": 3091.6,
-        "large": 2116.1,
+        "subFunctional": 61433.0,
+        "small": 21019.8,
+        "moderate": 3008.4,
+        "large": 1058.1,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -3874,13 +3874,13 @@
       ]
     },
     "2023": {
-      "coreHa": 103273.7,
+      "coreHa": 86519.3,
       "inRangeHa": 1154922.5,
       "bins": {
-        "subFunctional": 73003.1,
-        "small": 25063.0,
-        "moderate": 3091.6,
-        "large": 2116.1,
+        "subFunctional": 61433.0,
+        "small": 21019.8,
+        "moderate": 3008.4,
+        "large": 1058.1,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -3889,13 +3889,13 @@
       ]
     },
     "2024": {
-      "coreHa": 103385.8,
+      "coreHa": 86531.1,
       "inRangeHa": 1154922.5,
       "bins": {
-        "subFunctional": 73115.1,
-        "small": 25063.0,
-        "moderate": 3091.6,
-        "large": 2116.1,
+        "subFunctional": 61444.8,
+        "small": 21019.8,
+        "moderate": 3008.4,
+        "large": 1058.1,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -3904,13 +3904,13 @@
       ]
     },
     "2025": {
-      "coreHa": 103385.8,
+      "coreHa": 77609.2,
       "inRangeHa": 1154922.5,
       "bins": {
-        "subFunctional": 73115.1,
-        "small": 25063.0,
-        "moderate": 3091.6,
-        "large": 2116.1,
+        "subFunctional": 54846.3,
+        "small": 18696.4,
+        "moderate": 3008.4,
+        "large": 1058.1,
         "veryLarge": 0.0
       },
       "ranges": [
@@ -3921,12 +3921,12 @@
   },
   "woodland_caribou_provincial_park": {
     "2015": {
-      "coreHa": 15627.4,
+      "coreHa": 15314.8,
       "inRangeHa": 463752.9,
       "bins": {
-        "subFunctional": 12741.9,
-        "small": 1951.7,
-        "moderate": 933.8,
+        "subFunctional": 12444.3,
+        "small": 1936.8,
+        "moderate": 933.7,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -3936,12 +3936,12 @@
       ]
     },
     "2016": {
-      "coreHa": 15625.2,
+      "coreHa": 15206.4,
       "inRangeHa": 463752.9,
       "bins": {
-        "subFunctional": 12739.7,
-        "small": 1951.7,
-        "moderate": 933.8,
+        "subFunctional": 12340.4,
+        "small": 1932.9,
+        "moderate": 933.0,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -3951,12 +3951,12 @@
       ]
     },
     "2017": {
-      "coreHa": 15612.4,
+      "coreHa": 15190.3,
       "inRangeHa": 463752.9,
       "bins": {
-        "subFunctional": 12728.9,
-        "small": 1951.7,
-        "moderate": 931.8,
+        "subFunctional": 12325.8,
+        "small": 1932.9,
+        "moderate": 931.6,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -3966,12 +3966,12 @@
       ]
     },
     "2018": {
-      "coreHa": 15611.7,
+      "coreHa": 15100.1,
       "inRangeHa": 463752.9,
       "bins": {
-        "subFunctional": 12728.2,
-        "small": 1951.7,
-        "moderate": 931.8,
+        "subFunctional": 12235.8,
+        "small": 1932.8,
+        "moderate": 931.6,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -3981,12 +3981,12 @@
       ]
     },
     "2019": {
-      "coreHa": 15602.3,
+      "coreHa": 15075.4,
       "inRangeHa": 463752.9,
       "bins": {
-        "subFunctional": 12719.2,
-        "small": 1951.7,
-        "moderate": 931.4,
+        "subFunctional": 12211.1,
+        "small": 1932.8,
+        "moderate": 931.5,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -3996,12 +3996,12 @@
       ]
     },
     "2020": {
-      "coreHa": 15596.1,
+      "coreHa": 15075.4,
       "inRangeHa": 463752.9,
       "bins": {
-        "subFunctional": 12712.9,
-        "small": 1951.7,
-        "moderate": 931.4,
+        "subFunctional": 12211.1,
+        "small": 1932.8,
+        "moderate": 931.5,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -4011,12 +4011,12 @@
       ]
     },
     "2021": {
-      "coreHa": 5559.6,
+      "coreHa": 5189.7,
       "inRangeHa": 463752.9,
       "bins": {
-        "subFunctional": 3651.8,
-        "small": 976.4,
-        "moderate": 931.4,
+        "subFunctional": 3286.0,
+        "small": 972.2,
+        "moderate": 931.5,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -4026,12 +4026,12 @@
       ]
     },
     "2022": {
-      "coreHa": 5559.6,
+      "coreHa": 5189.7,
       "inRangeHa": 463752.9,
       "bins": {
-        "subFunctional": 3651.8,
-        "small": 976.4,
-        "moderate": 931.4,
+        "subFunctional": 3286.0,
+        "small": 972.2,
+        "moderate": 931.5,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -4041,12 +4041,12 @@
       ]
     },
     "2023": {
-      "coreHa": 5559.6,
+      "coreHa": 5189.7,
       "inRangeHa": 463752.9,
       "bins": {
-        "subFunctional": 3651.8,
-        "small": 976.4,
-        "moderate": 931.4,
+        "subFunctional": 3286.0,
+        "small": 972.2,
+        "moderate": 931.5,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -4056,12 +4056,12 @@
       ]
     },
     "2024": {
-      "coreHa": 5588.3,
+      "coreHa": 5206.1,
       "inRangeHa": 463752.9,
       "bins": {
-        "subFunctional": 3680.5,
-        "small": 976.4,
-        "moderate": 931.4,
+        "subFunctional": 3302.5,
+        "small": 972.2,
+        "moderate": 931.5,
         "large": 0.0,
         "veryLarge": 0.0
       },
@@ -4071,12 +4071,12 @@
       ]
     },
     "2025": {
-      "coreHa": 5588.3,
+      "coreHa": 5143.5,
       "inRangeHa": 463752.9,
       "bins": {
-        "subFunctional": 3680.5,
-        "small": 976.4,
-        "moderate": 931.4,
+        "subFunctional": 3239.8,
+        "small": 972.2,
+        "moderate": 931.5,
         "large": 0.0,
         "veryLarge": 0.0
       },
