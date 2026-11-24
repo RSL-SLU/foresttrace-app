@@ -1158,6 +1158,51 @@ function App() {
     setSelectedModuleId('alerts');
   }, []);
 
+  // Links in alert emails (api/_alertNotify.js): ?alert=<id> opens that
+  // alert; ?alerts=open the module, ?alerts=watch its email settings. Read
+  // once, then dropped from the address bar so a reload doesn't repeat it.
+  const [alertLink] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      return { alertId: p.get('alert'), view: p.get('alerts') };
+    } catch {
+      return {};
+    }
+  });
+  const pendingAlertRef = useRef(alertLink.alertId || null);
+  const [focusWatches] = useState(alertLink.view === 'watch');
+
+  useEffect(() => {
+    if (!alertLink.alertId && !alertLink.view) return;
+    setShowApp(true);
+    setSelectedModuleId('alerts');
+    try { window.history.replaceState(null, '', window.location.pathname); } catch { /* sandboxed */ }
+  }, [alertLink]);
+
+  useEffect(() => {
+    if ((alertLink.alertId || alertLink.view) && !loading && !isAuthenticated) openAuthModal('login');
+    // Only on the first settled auth state; later sign-outs aren't this link's business.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
+  // Once alerts and the map are in, select the linked alert, adding its FMU
+  // to the selection (the list only shows alerts in selected FMUs).
+  useEffect(() => {
+    const id = pendingAlertRef.current;
+    if (!id || !alertsData?.features || !mapReady) return;
+    pendingAlertRef.current = null;
+    const feature = alertsData.features.find((f) => f.properties.id === id);
+    if (!feature) return;
+    const { region } = feature.properties;
+    setSelectedFMUs((prev) => (prev.includes(region) ? prev : [...prev, region]));
+    setSelectedAlertId(id);
+    if (!alertsLayerOn) handleLayerToggle('alerts', 'disturbance-alerts');
+    zoomToAlert(feature);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alertsData, mapReady]);
+
+  const zoomToGeometry = useCallback((geometry) => zoomToAlert({ geometry }), [zoomToAlert]);
+
   // Safety net: if a layer unmounts mid-load (year change, layer toggle)
   // without firing its `load` event, the spinner would stay forever.
   // Auto-dismiss after 12 s as a fallback.
@@ -1907,6 +1952,11 @@ function App() {
       triage: handleAlertTriage,
       layerOn: alertsLayerOn,
       showLayer: () => handleLayerToggle('alerts', 'disturbance-alerts'),
+      // Email notifications (components/AlertWatches.jsx)
+      drawnFeatures,
+      selectedFMUs,
+      zoomToGeometry,
+      focusWatches,
     },
   };
 

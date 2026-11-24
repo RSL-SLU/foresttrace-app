@@ -3,12 +3,34 @@
   "buildCommand": "cd client && npm install && npm run build",
   "outputDirectory": "client/build",
   "rewrites": [
-    { "source": "/stories/:username/:slug/preview.jpg", "destination": "/api/storymaps?action=og&username=:username&slug=:slug" },
-    { "source": "/stories/:username/:slug", "destination": "/api/storymaps?action=view&username=:username&slug=:slug" },
-    { "source": "/api/(.*)", "destination": "/api/$1" }
+    {
+      "source": "/stories/:username/:slug/preview.jpg",
+      "destination": "/api/storymaps?action=og&username=:username&slug=:slug"
+    },
+    {
+      "source": "/stories/:username/:slug",
+      "destination": "/api/storymaps?action=view&username=:username&slug=:slug"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    }
   ],
   "functions": {
-    "api/storymaps.js": { "maxDuration": 300 },
-    "api/uploads.js": { "maxDuration": 60 }
-  }
+    "api/storymaps.js": {
+      "maxDuration": 300
+    },
+    "api/uploads.js": {
+      "maxDuration": 60
+    },
+    "api/alerts.js": {
+      "maxDuration": 60
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/alerts?action=notify",
+      "schedule": "0 13 * * *"
+    }
+  ]
 }

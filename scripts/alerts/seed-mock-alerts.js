@@ -123,6 +123,9 @@ function buildAlerts(now) {
       imagery: { beforeYear: 2020 },
       triage,
       createdAt: new Date(now),
+      // Seeded history, not news: marked as already notified so re-seeding never
+      // emails watchers (scripts/alerts/add-test-alert.js makes alerts that do).
+      notifiedAt: new Date(now),
     };
   });
 }

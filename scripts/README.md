@@ -10,7 +10,7 @@ Run them from anywhere — paths resolve from the repo root — e.g.
 | `stats/` | Precomputed chart statistics in `client/public/data/`. `refresh-stats.js` runs the right generator for a module. |
 | `data/` | FMU boundary download (`pull_ontario_fmu_boundaries.py`) and simplification. |
 | `admin/` | Account maintenance: `reset-password.js` (any account, including the admin). |
-| `alerts/` | Disturbance Alerts data. `seed-mock-alerts.js --db <name>` loads demo alerts (DIST-ALERT-shaped, flagged `mock: true`) into `disturbance_alerts`; `--remove` deletes only the mock ones. |
+| `alerts/` | Disturbance Alerts data. `seed-mock-alerts.js --db <name>` loads demo alerts (DIST-ALERT-shaped, flagged `mock: true`) into `disturbance_alerts`; `--remove` deletes only the mock ones (seeded alerts never trigger emails). `add-test-alert.js --db <name> --email <you> --notify` adds one fresh alert inside your first saved area and runs the email notifier; `--dry-run` reports who would be emailed without sending, `--remove` deletes test alerts. |
 | `legacy/` | The earlier PNG-tile pipeline, kept for reference. Not part of the current workflow. |
 
 ## Before uploading COGs

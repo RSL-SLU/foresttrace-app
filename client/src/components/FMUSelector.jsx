@@ -1,50 +1,12 @@
 import React, { useState } from 'react';
+// Shared with the API (alert emails name FMUs), hence JSON rather than inline.
+import ONTARIO_FMUS from '../data/ontarioFmus.json';
 
 const PROVINCE_GROUPS = [
   {
     id: 'ontario',
     label: 'Ontario',
-    units: [
-      { value: 'abitibiriver', label: 'Abitibi River Forest' },
-      { value: 'algoma', label: 'Algoma Forest' },
-      { value: 'algonquinpark', label: 'Algonquin Park Forest' },
-      { value: 'bancroftminden', label: 'Bancroft-Minden Forest' },
-      { value: 'blackspruce', label: 'Black Spruce Forest' },
-      { value: 'boundarywaters', label: 'Boundary Waters Forest' },
-      { value: 'caribou', label: 'Caribou Forest' },
-      { value: 'dogrivermatawin', label: 'Dog River-Matawin Forest' },
-      { value: 'dryden', label: 'Dryden Forest' },
-      { value: 'englishriver', label: 'English River Forest' },
-      { value: 'frenchsevern', label: 'French-Severn Forest' },
-      { value: 'gordoncosens', label: 'Gordon Cosens Forest' },
-      { value: 'hearst', label: 'Hearst Forest' },
-      { value: 'kenogami', label: 'Kenogami Forest' },
-      { value: 'kenora', label: 'Kenora Forest' },
-      { value: 'lacseul', label: 'Lac Seul Forest' },
-      { value: 'lakehead', label: 'Lakehead Forest' },
-      { value: 'lakenipigon', label: 'Lake Nipigon Forest' },
-      { value: 'mazinawlanark', label: 'Mazinaw-Lanark Forest' },
-      { value: 'missinaibi', label: 'Missinaibi Forest' },
-      { value: 'nagagami', label: 'Nagagami Forest' },
-      { value: 'nipissing', label: 'Nipissing Forest' },
-      { value: 'northshore', label: 'Northshore Forest' },
-      { value: 'ogoki', label: 'Ogoki Forest' },
-      { value: 'ottawavalley', label: 'Ottawa Valley Forest' },
-      { value: 'pic', label: 'Pic Forest' },
-      { value: 'pineland', label: 'Pineland Forest' },
-      { value: 'redlake', label: 'Red Lake Forest' },
-      { value: 'romeomalette', label: 'Romeo Malette Forest' },
-      { value: 'spanish', label: 'Spanish Forest' },
-      { value: 'sudbury', label: 'Sudbury Forest' },
-      { value: 'temagami', label: 'Temagami Forest' },
-      { value: 'timiskaming', label: 'Timiskaming Forest' },
-      { value: 'troutlake', label: 'Trout Lake Forest' },
-      { value: 'wabadowgangnoopming', label: 'Wabadowgang Noopming Forest' },
-      { value: 'wabigoon', label: 'Wabigoon Forest' },
-      { value: 'whiskeyjack', label: 'Whiskey Jack Forest' },
-      { value: 'whitefeather', label: 'Whitefeather Forest' },
-      { value: 'whiteriver', label: 'White River Forest' },
-    ],
+    units: ONTARIO_FMUS,
   },
   { id: 'quebec', label: 'Quebec', units: [], mocked: true },
   { id: 'britishcolumbia', label: 'British Columbia', units: [], mocked: true },
@@ -53,6 +15,9 @@ const PROVINCE_GROUPS = [
   { id: 'manitoba', label: 'Manitoba', units: [], mocked: true },
   { id: 'atlanticcanada', label: 'Atlantic Canada', units: [], mocked: true },
 ];
+
+/** FMU id -> display name, e.g. wabigoon -> "Wabigoon Forest". */
+export const FMU_LABELS = Object.fromEntries(ONTARIO_FMUS.map((u) => [u.value, u.label]));
 
 export const ALL_FMU_VALUES = Array.from(new Set(PROVINCE_GROUPS.flatMap((group) => group.units.map((unit) => unit.value))));
 

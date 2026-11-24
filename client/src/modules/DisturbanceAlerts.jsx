@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import AlertImagery from '../components/AlertImagery';
+import AlertWatches from '../components/AlertWatches';
 import {
   TRIAGE_LABELS, formatDate, relativeDays,
 } from '../utils/alerts';
@@ -255,6 +256,13 @@ function DisturbanceAlerts({ data }) {
           </button>
         )}
       </div>
+
+      <AlertWatches
+        drawnFeatures={alerts.drawnFeatures}
+        selectedFMUs={alerts.selectedFMUs}
+        zoomToGeometry={alerts.zoomToGeometry}
+        focus={alerts.focusWatches}
+      />
     </div>
   );
 }

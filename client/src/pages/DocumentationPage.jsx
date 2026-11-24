@@ -96,7 +96,8 @@ function DocumentationPage({ onBack }) {
               ['2015 baseline',     'Landsat 8 OLI only, 30 m; single-sensor, not directly comparable to HLS years.'],
               ['Temporal range',    '2010–2025 (annual). 2010 (Landsat 5 TM) and 2015 (Landsat 8 only) predate the full HLS record and are labelled in the in-app timeline accordingly. AI status layers start in 2015; 2010 shows official harvest records only.'],
               ['Output',            'Binary clearcut mask per year, stored as PNG tiles (XYZ scheme, zoom 6–14), clipped to FMU boundaries.'],
-              ['Accuracy',          'Per-year precision, recall, F1, and IoU are stored alongside area values. Typical F1: 0.77–0.89 across HLS years (2016–2024). Uncertainty bars in the timeline are asymmetric: lower bound from precision, upper from recall.'],
+              ['Model (Wabigoon)',  'Since November 2026, Wabigoon 2019–2025 uses a two-date U-Net: each year Y is compared with the composite three years earlier (Y−3), after radiometric normalization of both composites onto the training years\' levels. One model, trained once on 2022 imagery, is applied to every year. 2015–2018 (no earlier composite to pair with) and the other FMUs still use the single-date model.'],
+              ['Accuracy',          'Per-year precision, recall, F1, and IoU are stored alongside area values, scored on spatially held-out test blocks against official harvest records (a clearcut in year Y = a harvest recorded in Y−2…Y). Wabigoon F1 for 2019–2025 ranges from 0.36 to 0.92: highest in 2022 (the training year) and 2019, lowest in 2021, 2024 and 2025, where most false alarms are harvests from the comparison year (Y−3) that still look freshly cut. Scores count only labelled pixels, so they flatter precision. Uncertainty bars in the timeline are asymmetric: lower bound from precision, upper from recall.'],
             ]} />
 
             <p className="docs-subsection-title">Annual vs accumulated</p>

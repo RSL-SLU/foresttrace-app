@@ -79,3 +79,45 @@ export async function triageAlert(token, id, label, note = '') {
   if (!res.ok) throw new Error(data.error || `Triage failed (HTTP ${res.status})`);
   return data.feature;
 }
+
+// ---- Email notifications (api/alerts.js, api/_alertNotify.js) -------------
+
+async function alertsApi(token, action, { method = 'GET', body } = {}) {
+  const res = await fetch(`/api/alerts?action=${action}`, {
+    method,
+    headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...authHeaders(token) },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Request failed (HTTP ${res.status})`);
+  return data;
+}
+
+/** { watches, email, emailsEnabled, mailerConfigured } for the signed-in user. */
+export const fetchWatches = (token) => alertsApi(token, 'watches');
+export const watchArea = (token, name, geometry) => alertsApi(token, 'watch-area', { method: 'POST', body: { name, geometry } });
+/** Replaces the watched FMU list; [] stops watching FMUs. */
+export const watchFmus = (token, fmus) => alertsApi(token, 'watch-fmus', { method: 'POST', body: { fmus } });
+export const unwatch = (token, id) => alertsApi(token, 'unwatch', { method: 'POST', body: { id } });
+export const setAlertEmails = (token, enabled) => alertsApi(token, 'email-prefs', { method: 'POST', body: { enabled } });
+export const sendTestEmail = (token) => alertsApi(token, 'test-email', { method: 'POST', body: {} });
+/** Admin: email watchers about alerts not yet notified. */
+export const runNotifications = (token, dryRun = false) => alertsApi(token, `notify${dryRun ? '&dryRun=1' : ''}`, { method: 'POST', body: {} });
+
+/**
+ * The user's drawn shapes as one watchable geometry: polygons only (points
+ * and lines can't contain an alert), merged into a MultiPolygon when there
+ * are several. Null when nothing usable is drawn.
+ */
+export function drawnAreaGeometry(features = []) {
+  const polygons = features.flatMap((f) => {
+    const g = f?.geometry;
+    if (g?.type === 'Polygon') return [g.coordinates];
+    if (g?.type === 'MultiPolygon') return g.coordinates;
+    return [];
+  });
+  if (!polygons.length) return null;
+  return polygons.length === 1
+    ? { type: 'Polygon', coordinates: polygons[0] }
+    : { type: 'MultiPolygon', coordinates: polygons };
+}

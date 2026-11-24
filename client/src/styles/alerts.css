@@ -297,3 +297,107 @@ body.dark-mode .alert-error { color: #f87171; }
 .alert-legend-line--dashed {
   border-top-style: dashed;
 }
+
+/* Email notifications (components/AlertWatches.jsx) */
+.alert-watches .alert-triage-title { margin-top: 14px; }
+
+.alert-watch-email {
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.alert-watch-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+
+.alert-watch-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px solid rgba(127, 127, 127, 0.2);
+  font-size: 13px;
+}
+
+.alert-watch-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alert-watch-save {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.alert-watch-save .alert-button { flex: none; }
+
+.alert-watch-input {
+  flex: 1;
+  min-width: 120px;
+  margin-top: 10px;
+  padding: 6px 8px;
+  border: 1px solid rgba(127, 127, 127, 0.45);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.alert-watch-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.alert-watch-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 10px;
+  border-radius: 999px;
+  background: rgba(124, 58, 237, 0.12);
+  font-size: 12px;
+}
+
+.alert-watch-chip button {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.alert-watch-chip button:hover { opacity: 1; background: rgba(127, 127, 127, 0.2); }
+
+.alert-watch-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.alert-link:disabled,
+.alert-button:disabled { opacity: 0.6; cursor: default; }
+
+.alert-notice {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #2f8f5b;
+}
+
+body.dark-mode .alert-notice { color: #9fdcb9; }

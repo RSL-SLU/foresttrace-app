@@ -100,6 +100,18 @@ function verifyToken(token) {
   }
 }
 
+// HMAC of a short string, for links that must outlive a session token (an
+// email's unsubscribe link). Compare with safeEqual, not ===.
+function signValue(value) {
+  return crypto.createHmac('sha256', AUTH_SECRET).update(String(value)).digest('base64url');
+}
+
+function safeEqual(a, b) {
+  const x = Buffer.from(String(a || ''));
+  const y = Buffer.from(String(b || ''));
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
+}
+
 function getUserFromRequest(req) {
   const authHeader = req.headers.authorization || req.headers.Authorization || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : req.headers['x-auth-token'];
@@ -116,5 +128,7 @@ module.exports = {
   verifyToken,
   getUserFromRequest,
   getMongoUri,
+  signValue,
+  safeEqual,
 };
 
