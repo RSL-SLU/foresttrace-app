@@ -150,4 +150,60 @@ function renderTestEmail({ name, appUrl }) {
   };
 }
 
-module.exports = { sendEmail, isConfigured, renderAlertDigest, renderTestEmail, escapeHtml };
+/**
+ * Invitation for an account an administrator created (create-user.js --invite).
+ *   fmuLabels: names of the FMUs the account watches, if any
+ *   googleEnabled: whether "Continue with Google" is offered on the site
+ */
+function renderInvite({ name, email, role, setPasswordUrl, expiresAt, appUrl, fmuLabels = [], googleEnabled = false }) {
+  const subject = 'Your ForestTrace account is ready';
+  const roleLine = role && role !== 'user'
+    ? ` with <strong>${escapeHtml(role)}</strong> access`
+    : '';
+  const fmuHtml = fmuLabels.length
+    ? `<p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#334155;">You'll get an email when new disturbance alerts are detected in
+       ${fmuLabels.map((l) => `<strong>${escapeHtml(l)}</strong>`).join(', ')}. You can change this, or draw your own areas to watch, under Disturbance Alerts.</p>`
+    : '';
+  const googleHtml = googleEnabled
+    ? `<p style="margin:16px 0 0;font-size:13px;line-height:1.6;color:#475569;">If ${escapeHtml(email)} is a Google account, you can skip the password and use <strong>Continue with Google</strong> on the sign-in screen instead.</p>`
+    : '';
+
+  const bodyHtml = `
+    <h1 style="margin:0 0 8px;font-size:18px;color:#0f172a;">${subject}</h1>
+    <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#334155;">
+      ${name ? `Hello ${escapeHtml(name)}, ` : 'Hello, '}an administrator created a ForestTrace account for you${roleLine}.
+      Your sign-in email is <strong>${escapeHtml(email)}</strong>.
+    </p>
+    ${fmuHtml}
+    <p style="margin:20px 0 0;"><a href="${escapeHtml(setPasswordUrl)}" style="display:inline-block;background:#2f8f5b;color:#ffffff;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;">Choose your password</a></p>
+    <p style="margin:12px 0 0;font-size:12px;color:#64748b;line-height:1.5;">
+      The link works once and expires on ${escapeHtml(fmtDate(expiresAt))}. Afterwards, sign in at
+      <a href="${escapeHtml(appUrl)}" style="color:#2f8f5b;">${escapeHtml(appUrl.replace(/^https?:\/\//, ''))}</a>.
+    </p>
+    ${googleHtml}`;
+
+  const text = [
+    subject,
+    '',
+    `An administrator created a ForestTrace account for you${role && role !== 'user' ? ` (${role})` : ''}. Sign-in email: ${email}`,
+    fmuLabels.length ? `You'll be emailed about new disturbance alerts in: ${fmuLabels.join(', ')}.` : '',
+    '',
+    `Choose your password (works once, expires ${fmtDate(expiresAt)}):`,
+    setPasswordUrl,
+    googleEnabled ? `\nIf this is a Google account, you can use "Continue with Google" instead.` : '',
+    '',
+    `ForestTrace: ${appUrl}`,
+  ].join('\n').replace(/\n{3,}/g, '\n\n');
+
+  return {
+    subject,
+    html: layout({
+      title: subject,
+      bodyHtml,
+      footerHtml: 'You get this because an administrator added your email to ForestTrace. If you weren’t expecting it, you can ignore it: the account stays unused without a password.',
+    }),
+    text,
+  };
+}
+
+module.exports = { sendEmail, isConfigured, renderAlertDigest, renderTestEmail, renderInvite, escapeHtml };

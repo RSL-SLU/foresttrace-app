@@ -6,8 +6,9 @@ const {
   signValue,
   safeEqual,
 } = require('./_db');
-const { sendEmail, isConfigured: mailerConfigured, renderTestEmail, escapeHtml } = require('./_mailer');
+const { sendEmail, isConfigured: mailerConfigured, renderTestEmail } = require('./_mailer');
 const { runAlertNotifications, ensureWatchIndexes, FMU_LABELS } = require('./_alertNotify');
+const { simplePage } = require('./_pages');
 
 /**
  * Disturbance Alerts (OPERA DIST-ALERT-HLS shaped documents in
@@ -79,12 +80,7 @@ const watchToJson = (w) => ({
 });
 
 function unsubscribePage({ title, message, form }) {
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(title)}</title>
-<style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f1f5f9;color:#1e293b}
-main{max-width:440px;margin:15vh auto;padding:28px 24px;background:#fff;border:1px solid #e2e8f0;border-radius:12px}
-h1{font-size:18px;margin:0 0 10px}p{font-size:14px;line-height:1.6;margin:0 0 16px}
-button{background:#7c3aed;color:#fff;border:0;border-radius:8px;padding:10px 18px;font-size:14px;font-weight:600;cursor:pointer}</style></head>
-<body><main><h1>${escapeHtml(title)}</h1><p>${message}</p>${form || ''}</main></body></html>`;
+  return simplePage({ title, bodyHtml: `<p>${message}</p>${form || ''}` });
 }
 
 function toFeature(doc, isStaff) {
