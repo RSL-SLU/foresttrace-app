@@ -157,6 +157,7 @@ function renderTestEmail({ name, appUrl }) {
  */
 function renderInvite({ name, email, role, setPasswordUrl, expiresAt, appUrl, fmuLabels = [], googleEnabled = false }) {
   const subject = 'Your ForestTrace account is ready';
+  const guideUrl = `${appUrl}/?docs=alerts`;
   const roleLine = role && role !== 'user'
     ? ` with <strong>${escapeHtml(role)}</strong> access`
     : '';
@@ -180,7 +181,8 @@ function renderInvite({ name, email, role, setPasswordUrl, expiresAt, appUrl, fm
       The link works once and expires on ${escapeHtml(fmtDate(expiresAt))}. Afterwards, sign in at
       <a href="${escapeHtml(appUrl)}" style="color:#2f8f5b;">${escapeHtml(appUrl.replace(/^https?:\/\//, ''))}</a>.
     </p>
-    ${googleHtml}`;
+    ${googleHtml}
+    <p style="margin:16px 0 0;font-size:13px;line-height:1.6;color:#475569;">New to ForestTrace? The <a href="${escapeHtml(guideUrl)}" style="color:#2f8f5b;">guide to Disturbance Alerts and email notifications</a> walks through the new features.</p>`;
 
   const text = [
     subject,
@@ -192,6 +194,7 @@ function renderInvite({ name, email, role, setPasswordUrl, expiresAt, appUrl, fm
     setPasswordUrl,
     googleEnabled ? `\nIf this is a Google account, you can use "Continue with Google" instead.` : '',
     '',
+    `Guide to Disturbance Alerts and email notifications: ${guideUrl}`,
     `ForestTrace: ${appUrl}`,
   ].join('\n').replace(/\n{3,}/g, '\n\n');
 

@@ -750,10 +750,28 @@ function App() {
   const [activePage, setActivePage] = useState(null);
   // Post the News page opens straight into (from a landing-page card); null = list
   const [newsSlug, setNewsSlug] = useState(null);
+  // Documentation section to open at, from a shared link: ?docs=<section id>
+  // (e.g. ?docs=alerts, linked from account invitations). Used once.
+  const [docsSection, setDocsSection] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('docs');
+    } catch {
+      return null;
+    }
+  });
+  useEffect(() => {
+    if (!docsSection) return;
+    setShowApp(true);
+    setActivePage('documentation');
+    try { window.history.replaceState(null, '', window.location.pathname); } catch { /* sandboxed */ }
+    // Only for the link the page was opened with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Top-menu navigation: a page opened from the menu starts at its top level,
   // so News shows the list rather than whichever post was last open.
   const navigateToPage = useCallback((page) => {
     setNewsSlug(null);
+    setDocsSection(null);
     setActivePage(page);
   }, []);
   const mapRef = useRef(null);
@@ -2101,6 +2119,7 @@ function App() {
           <PageComponent
             onBack={() => setActivePage(null)}
             {...(activePage === 'news' ? { initialSlug: newsSlug } : {})}
+            {...(activePage === 'documentation' ? { initialSection: docsSection } : {})}
           />
         )}
         <AuthModal />

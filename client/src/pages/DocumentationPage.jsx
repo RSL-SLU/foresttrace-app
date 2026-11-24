@@ -3,6 +3,7 @@ import '../styles/infopage.css';
 
 const NAV_ITEMS = [
   { id: 'clearcut',  label: 'Clearcut Detection' },
+  { id: 'alerts',    label: 'Disturbance Alerts' },
   { id: 'imagery',   label: 'Satellite Imagery' },
   { id: 'training',  label: 'Training Data' },
   { id: 'model',     label: 'Model Architecture' },
@@ -30,8 +31,9 @@ function DefTable({ rows }) {
   );
 }
 
-function DocumentationPage({ onBack }) {
-  const [active, setActive] = useState('clearcut');
+// initialSection: a section id to open at, from a link such as ?docs=alerts
+function DocumentationPage({ onBack, initialSection = null }) {
+  const [active, setActive] = useState(initialSection || 'clearcut');
   const refs   = useRef({});
   const box    = useRef(null);
 
@@ -50,6 +52,10 @@ function DocumentationPage({ onBack }) {
 
   const s = (id) => (el) => { refs.current[id] = el; };
   const go = (id) => refs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  useEffect(() => {
+    if (initialSection) refs.current[initialSection]?.scrollIntoView({ block: 'start' });
+  }, [initialSection]);
 
   return (
     <div className="infopage" ref={box}>
@@ -145,6 +151,84 @@ function DocumentationPage({ onBack }) {
               later years and are excluded from the trend fit. 2015 additionally serves as the
               baseline of the accumulated series, and 2010 has no adjacent year in the record
               (2011–2014 do not exist), so it can never be corroborated and stands alone.
+            </p>
+          </div>
+
+          <hr className="infopage-divider" />
+
+          {/* ── Disturbance Alerts & email notifications ──
+              Linked from account invitations as ?docs=alerts, so written for
+              someone opening ForestTrace for the first time. */}
+          <div id="alerts" ref={s('alerts')} className="infopage-section">
+            <h2>Disturbance Alerts &amp; Email Notifications</h2>
+            <p>
+              Disturbance Alerts flag places where forest cover has dropped recently, within days of a
+              satellite seeing it rather than at the end of the year. You can watch any Forest
+              Management Unit (FMU) or an area you draw yourself, and ForestTrace emails you when a new
+              alert falls inside it.
+            </p>
+
+            <div className="infopage-callout">
+              <p>
+                <strong>Current status:</strong> the alerts in the app are demonstration data, marked{' '}
+                <em>Demo data</em>, drawn from real 2025 clearcut outlines in the Wabigoon Forest with
+                synthetic dates. Alert emails work end to end today; they will carry real detections once
+                the live feeds described below are connected.
+              </p>
+            </div>
+
+            <p className="docs-subsection-title">Getting started</p>
+            <ol>
+              <li>Sign in. Disturbance Alerts are available to signed-in users.</li>
+              <li>In the left panel, open <strong>Modules</strong> and choose <strong>Disturbance Alerts</strong>.
+                Alerts appear on the map, coloured by age, and in the list on the right.</li>
+              <li>Click an alert to see when it was first detected, how much vegetation was lost, and
+                before/after satellite images.</li>
+              <li>
+                To get emails, use the <strong>Email notifications</strong> section near the top of the
+                right-hand panel:
+                <ul>
+                  <li><strong>Watch FMUs:</strong> select one or more FMUs in the province selector over
+                    the map, then click <em>Watch …</em>.</li>
+                  <li><strong>Watch your own area:</strong> draw a polygon or rectangle with the drawing
+                    tools at the bottom left of the map and click <em>Get alerts</em> next to them. Name
+                    the area and save it.</li>
+                </ul>
+              </li>
+              <li>Use <em>Send me a test email</em> to see what a notification looks like.</li>
+            </ol>
+
+            <p className="docs-subsection-title">How notifications work</p>
+            <DefTable rows={[
+              ['When',        'New alerts are checked once a day. If any fall in what you watch, you get one email listing them all, never one email per alert.'],
+              ['What',        'Each entry gives the area, FMU, first detection date, status and vegetation loss, and links straight to the alert on the map.'],
+              ['Matching',    'An alert counts when its outline touches a saved area, or when it lies in a watched FMU.'],
+              ['Stopping',    'Untick “Email me” in the Email notifications section, or use the link at the bottom of any alert email. Your saved areas and FMUs are kept.'],
+              ['Limits',      'Up to 20 saved areas per account. Circles drawn on the map can’t be saved as areas yet; use a polygon or rectangle.'],
+            ]} />
+
+            <p className="docs-subsection-title">Reading an alert</p>
+            <DefTable rows={[
+              ['Source (now)', 'Alerts follow the NASA OPERA DIST-ALERT-HLS product: vegetation-cover loss detected in Harmonized Landsat and Sentinel-2 (HLS) imagery at 30 m, compared with each pixel’s recent history. Combined, Landsat 8/9 and Sentinel-2 pass every 2–3 days, though clouds and snow can delay a detection.'],
+              ['Status',       'Provisional: loss seen on one or two passes, which can still change or be withdrawn. Confirmed: loss seen repeatedly. On the map, confirmed alerts have solid outlines and provisional ones dashed.'],
+              ['Confidence',   'High when the maximum vegetation-cover loss is 50% or more, low otherwise.'],
+              ['Age colours',  'Pink: last 7 days. Magenta: 8–30 days. Violet: 31–90 days. Grey: older.'],
+              ['Review',       'Analysts can label an alert as clearcut, fire, natural disturbance or false positive. Everyone sees the label. Alerts inside known fire perimeters are flagged, and can be hidden with the filters.'],
+            ]} />
+
+            <p className="docs-subsection-title">Coming next: radar alerts from NISAR</p>
+            <p>
+              Optical satellites can’t see through cloud and smoke, and boreal summers are cloudy, so
+              a cut can go unseen for weeks. The next source of alerts is NISAR, the NASA–ISRO Synthetic
+              Aperture Radar mission launched in July 2025. Its L-band radar works day and night through
+              cloud and smoke, and its long wavelength responds to woody forest structure, the trunks and
+              branches that a harvest removes. NISAR images almost all of Earth’s land every 12 days.
+            </p>
+            <p>
+              The team is developing radar-based change detection for the boreal FMUs. Once it has been
+              validated against official harvest records, NISAR alerts will appear alongside the optical
+              ones, in the same panel and the same emails, labelled with their source. Nothing will change
+              in how you watch areas or FMUs.
             </p>
           </div>
 
@@ -306,7 +390,7 @@ function DocumentationPage({ onBack }) {
               oversight to facilitate research collaborations while maintaining system security.
             </p>
             <DefTable rows={[
-              ['Authentication',   'Email and password registration and sign-in.'],
+              ['Authentication',   'Email and password, or Sign in with Google. Accounts can also be created by an administrator, who sends an invitation email with a one-time link (valid 7 days) to choose a password; following it confirms the email address.'],
               ['Role hierarchy',   'Admin (full user administration, role assignment, and platform statistics), Analyst (extended analytical tools and layer access), and Standard User (interactive maps and AI assistant).'],
               ['Admin bootstrap',  'When connecting to an empty database (such as a new deployment or dev instance), the platform provides a guided first-run setup wizard to initialize the first Administrator account.'],
               ['Session tokens',   'Signed JSON Web Tokens (JWT) with secure expiration policies, stored client-side for authenticated API requests.'],
