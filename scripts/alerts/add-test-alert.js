@@ -20,7 +20,8 @@
  *   --region <fmu>    FMU the alert belongs to (default wabigoon); FMU watches match on this
  *   --notify          run the notifier right after inserting
  *   --dry-run         with --notify: report who would be emailed, send nothing
- *   --app-url <url>   origin for links in the email (default APP_URL or http://localhost:3000)
+ *   --app-url <url>   origin for links in the email (default http://localhost:3000 for
+ *                   foresttrace_dev, else APP_URL)
  *
  * Emails go through Resend when RESEND_API_KEY is set, otherwise they are
  * printed here. Credentials: VERCEL_MONGODB_URI or MONGODB_URI from .env.
@@ -135,7 +136,8 @@ function pointInside(geometry) {
   console.log(`Added test alert ${doc.alertId} at ${where}, FMU ${doc.region}.`);
 
   if (args.includes('--notify')) {
-    const appUrl = (opt('--app-url') || process.env.APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
+    // The dev database is only read by a local server, so its links go there, not to APP_URL.
+    const appUrl = (opt('--app-url') || (dbName === 'foresttrace_dev' ? null : process.env.APP_URL) || 'http://localhost:3000').replace(/\/+$/, '');
     const summary = await runAlertNotifications({ appUrl, dryRun: args.includes('--dry-run') });
     console.log(JSON.stringify(summary, null, 2));
   } else {

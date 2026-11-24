@@ -22,11 +22,31 @@ const COORD_DP = 5;
 
 const round = (n) => Number(n.toFixed(COORD_DP));
 
+// A drawn shape's outline. Drawing tools make single polygons, so the first
+// part is the shape; FMU boundaries go through outerRings() instead.
 function outerRing(geom) {
   if (!geom) return null;
   if (geom.type === 'Polygon') return geom.coordinates[0];
   if (geom.type === 'MultiPolygon') return geom.coordinates[0]?.[0];
   return null;
+}
+
+/**
+ * Every part's outer ring, each with its bbox. FMU boundaries are
+ * MultiPolygons of many parts -- Wabigoon has 26, and its northern half is
+ * part 1 -- so testing only the first part put shapes drawn well inside an
+ * FMU "outside" it. Cached per geometry: boundaries are large and stable.
+ */
+const ringCache = new WeakMap();
+function outerRings(geom) {
+  if (!geom) return [];
+  if (ringCache.has(geom)) return ringCache.get(geom);
+  let rings = [];
+  if (geom.type === 'Polygon') rings = [geom.coordinates[0]];
+  else if (geom.type === 'MultiPolygon') rings = geom.coordinates.map((part) => part[0]);
+  const result = rings.filter((r) => r?.length >= 3).map((ring) => ({ ring, bbox: bboxOf(ring) }));
+  ringCache.set(geom, result);
+  return result;
 }
 
 function pointCoord(geom) {
@@ -85,14 +105,14 @@ function regionsTouched(shapeBbox, shapeCentroid, regionsData) {
   const containing = [];
 
   for (const feature of regionsData?.features ?? []) {
-    const ring = outerRing(feature.geometry);
-    if (!ring) continue;
     const id = feature.properties?.id || feature.properties?.name;
     if (!id) continue;
 
-    if (!bboxesOverlap(shapeBbox, bboxOf(ring))) continue;
-    if (!candidates.includes(id)) candidates.push(id);
-    if (pointInRing(shapeCentroid, ring) && !containing.includes(id)) containing.push(id);
+    for (const { ring, bbox } of outerRings(feature.geometry)) {
+      if (!bboxesOverlap(shapeBbox, bbox)) continue;
+      if (!candidates.includes(id)) candidates.push(id);
+      if (pointInRing(shapeCentroid, ring) && !containing.includes(id)) containing.push(id);
+    }
   }
   return { candidates, containing };
 }

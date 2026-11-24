@@ -62,9 +62,12 @@ const { createPasswordToken } = require('../../api/_passwordTokens');
 const { sendEmail, renderInvite, isConfigured: mailerConfigured } = require('../../api/_mailer');
 const { googleClientId } = require('../../api/_google');
 
-// Where invitation links point. Guessing localhost for a production account
-// would send a link that works for nobody.
-const appUrl = (opt('--app-url') || process.env.APP_URL || (dbName === 'foresttrace_dev' ? 'http://localhost:3000' : '')).replace(/\/+$/, '');
+// Where invitation links point: a site that reads the database the token went
+// into. The dev database is only read by a local server, so it ignores APP_URL
+// (usually the production site); for the others, guessing localhost would
+// send a link that works for nobody.
+const appUrl = (opt('--app-url')
+  || (dbName === 'foresttrace_dev' ? 'http://localhost:3000' : process.env.APP_URL || '')).replace(/\/+$/, '');
 if (invite && !appUrl) {
   console.error(`--invite on "${dbName}" needs the site's address: pass --app-url https://... or set APP_URL in .env.`);
   process.exit(1);
