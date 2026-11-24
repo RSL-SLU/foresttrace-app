@@ -68,6 +68,9 @@ function AlertWatches({ drawnFeatures = [], selectedFMUs = [], zoomToGeometry, f
     setNotice(null);
     try {
       const result = await fn();
+      // Stay open while being edited: saving a first watch would otherwise
+      // collapse the section under the user's cursor.
+      setOpenChoice((c) => c ?? true);
       if (done) setNotice(typeof done === 'function' ? done(result) : done);
       await load();
       return true;
