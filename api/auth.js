@@ -15,6 +15,7 @@ const { findPasswordToken, consumePasswordToken } = require('./_passwordTokens')
 const { simplePage, sendPage } = require('./_pages');
 const { escapeHtml } = require('./_mailer');
 const { ObjectId } = require('./_db');
+const { checkSignup, signupRateLimited, recordSignup, clientIp, turnstileSiteKey } = require('./_botGuard');
 
 let googleIndexReady = null;
 
@@ -64,6 +65,8 @@ module.exports = async function handler(req, res) {
         // Public by design (it is in every page that shows the button); null
         // hides "Sign in with Google".
         googleClientId: googleClientId(),
+        // Cloudflare Turnstile on the sign-up form (api/_botGuard.js); null = off
+        turnstileSiteKey: turnstileSiteKey(),
       });
     }
 
@@ -209,6 +212,8 @@ module.exports = async function handler(req, res) {
     // 4. REGISTER: Email + password sign-up. The email is the login name only;
     // it is not verified (no mail provider is configured).
     if (action === 'register') {
+      const blocked = await checkSignup(req);
+      if (blocked) return res.status(blocked.status).json({ error: blocked.error });
       if (!normalizedEmail || !password || password.length < 6) {
         return res.status(400).json({ error: 'Valid email and password (minimum 6 characters) required.' });
       }
@@ -242,6 +247,7 @@ module.exports = async function handler(req, res) {
       };
 
       const result = await users.insertOne(newUser);
+      await recordSignup(clientIp(req));
       const userPayload = {
         id: result.insertedId.toString(),
         email: normalizedEmail,
@@ -281,6 +287,11 @@ module.exports = async function handler(req, res) {
         || await users.findOne({ email: googleEmail });
 
       if (!userDoc) {
+        // A Google account is a real hurdle for bots, but not a quota: new
+        // accounts from one network are capped the same as email sign-ups.
+        if (await signupRateLimited(clientIp(req))) {
+          return res.status(429).json({ error: 'Too many accounts have been created from your network recently. Please try again later.' });
+        }
         const newUser = {
           email: googleEmail,
           name: String(claims.name || '').trim() || googleEmail.split('@')[0],
@@ -291,6 +302,7 @@ module.exports = async function handler(req, res) {
           lastActiveAt: new Date(),
         };
         const { insertedId } = await users.insertOne(newUser);
+        await recordSignup(clientIp(req));
         userDoc = { ...newUser, _id: insertedId };
       } else {
         const set = { lastActiveAt: new Date(), emailVerified: true };

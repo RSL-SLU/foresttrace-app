@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import GoogleSignInButton from './GoogleSignInButton';
+import TurnstileWidget from './TurnstileWidget';
 import '../styles/auth.css';
 
 function AuthModal() {
@@ -13,6 +14,7 @@ function AuthModal() {
     login,
     loginWithGoogle,
     googleClientId,
+    turnstileSiteKey,
     register,
     bootstrapAdmin,
   } = useAuth();
@@ -24,6 +26,12 @@ function AuthModal() {
 
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Sign-up bot checks (api/_botGuard.js): the Turnstile token, and a
+  // honeypot field that people never see or fill.
+  const [turnstileToken, setTurnstileToken] = useState(null);
+  const [honeypot, setHoneypot] = useState('');
+  const turnstileRef = useRef(null);
 
   // If the database has no admin user, default to bootstrap mode
   const isBootstrap = !isInitialized || authModalMode === 'bootstrap';
@@ -45,7 +53,7 @@ function AuthModal() {
       if (isBootstrap) {
         await bootstrapAdmin(email, password, name);
       } else if (isRegister) {
-        await register(email, password, name, username);
+        await register(email, password, name, username, { turnstileToken, website: honeypot });
       } else {
         await login(email, password);
       }
@@ -55,6 +63,8 @@ function AuthModal() {
       setUsername('');
     } catch (err) {
       setError(err.message || 'Operation failed');
+      // A Turnstile token works once; get a fresh one for the retry.
+      if (isRegister) turnstileRef.current?.reset();
     } finally {
       setSubmitting(false);
     }
@@ -224,7 +234,36 @@ function AuthModal() {
             />
           </div>
 
-          <button className="auth-submit-btn" type="submit" disabled={submitting}>
+          {isRegister && (
+            <>
+              {/* Honeypot: off-screen and skipped by keyboard and autofill, so
+                  only bots fill it. Named like a real field to tempt them. */}
+              <div className="auth-hp" aria-hidden="true">
+                <label htmlFor="auth-website">Website</label>
+                <input
+                  id="auth-website"
+                  name="website"
+                  type="text"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={honeypot}
+                  onChange={(e) => setHoneypot(e.target.value)}
+                />
+              </div>
+              <TurnstileWidget
+                ref={turnstileRef}
+                siteKey={turnstileSiteKey}
+                onToken={setTurnstileToken}
+                onError={(err) => setError(err.message)}
+              />
+            </>
+          )}
+
+          <button
+            className="auth-submit-btn"
+            type="submit"
+            disabled={submitting || (isRegister && Boolean(turnstileSiteKey) && !turnstileToken)}
+          >
             {submitting
               ? 'Please wait…'
               : isBootstrap

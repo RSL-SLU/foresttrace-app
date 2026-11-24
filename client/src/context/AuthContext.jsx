@@ -23,6 +23,8 @@ export function AuthProvider({ children }) {
   // OAuth client ID for the Google button, from the server (api/auth.js status);
   // null hides the button.
   const [googleClientId, setGoogleClientId] = useState(process.env.REACT_APP_GOOGLE_CLIENT_ID || null);
+  // Cloudflare Turnstile site key for the sign-up form (api/_botGuard.js); null = off
+  const [turnstileSiteKey, setTurnstileSiteKey] = useState(null);
 
   // Persist session to localStorage
   const saveSession = useCallback((newToken, newUser) => {
@@ -56,6 +58,7 @@ export function AuthProvider({ children }) {
 
       setIsInitialized(data.initialized !== false);
       if (data.googleClientId) setGoogleClientId(data.googleClientId);
+      setTurnstileSiteKey(data.turnstileSiteKey || null);
 
       if (data.authenticated && data.user) {
         saveSession(currentToken, data.user);
@@ -111,11 +114,12 @@ export function AuthProvider({ children }) {
   };
 
   // Register handler (standard user)
-  const register = async (email, password, name, username) => {
+  // botCheck: { turnstileToken, website } -- see api/_botGuard.js
+  const register = async (email, password, name, username, botCheck = {}) => {
     const res = await fetch('/api/auth?action=register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, name, username }),
+      body: JSON.stringify({ email, password, name, username, ...botCheck }),
     });
 
     const data = await res.json();
@@ -177,6 +181,7 @@ export function AuthProvider({ children }) {
     login,
     loginWithGoogle,
     googleClientId,
+    turnstileSiteKey,
     register,
     bootstrapAdmin,
     logout,

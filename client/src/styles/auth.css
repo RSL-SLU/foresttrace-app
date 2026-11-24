@@ -572,3 +572,18 @@ body.dark-mode .user-dropdown-divider {
   background: currentColor;
   opacity: 0.35;
 }
+
+/* Sign-up bot checks (components/AuthModal.jsx, api/_botGuard.js) */
+.auth-hp {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.auth-turnstile {
+  display: flex;
+  justify-content: center;
+  min-height: 65px;
+}
