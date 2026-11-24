@@ -1733,3 +1733,21 @@ body.dark-mode .map-legend .legend-color:not(.status-outline) {
 .site-photo-close:hover { background: rgba(0, 0, 0, 0.85); }
 .site-photo-close:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
 body.dark-mode .field-site-photo-btn { background: #1f2937; border-color: #374151; color: #93c5fd; }
+
+/* "Get alerts": the Ask button's sibling, in the alerts' violet so the two
+   don't read as one action (utils/alerts.js age colours). */
+.map-draw-btn--watch {
+  background: #7c3aed;
+  border-color: #7c3aed;
+}
+
+.map-draw-btn--watch:hover {
+  background: #6d28d9;
+  border-color: #6d28d9;
+  box-shadow: 0 2px 10px rgba(124, 58, 237, 0.5);
+}
+
+body.dark-mode .map-draw-btn--watch {
+  background: #7c3aed;
+  border-color: #a78bfa;
+}

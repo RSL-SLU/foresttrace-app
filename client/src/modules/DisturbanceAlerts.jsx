@@ -180,6 +180,14 @@ function DisturbanceAlerts({ data }) {
         {alerts.loading && <p className="stat-sub">Loading alerts…</p>}
       </div>
 
+      {/* Near the top so it is found: it was easy to miss below a long list */}
+      <AlertWatches
+        drawnFeatures={alerts.drawnFeatures}
+        selectedFMUs={alerts.selectedFMUs}
+        zoomToGeometry={alerts.zoomToGeometry}
+        focus={alerts.focusWatches}
+      />
+
       {selected && <AlertDetail key={selected.properties.id} feature={selected} alerts={alerts} />}
 
       <div className="module-section">
@@ -256,13 +264,6 @@ function DisturbanceAlerts({ data }) {
           </button>
         )}
       </div>
-
-      <AlertWatches
-        drawnFeatures={alerts.drawnFeatures}
-        selectedFMUs={alerts.selectedFMUs}
-        zoomToGeometry={alerts.zoomToGeometry}
-        focus={alerts.focusWatches}
-      />
     </div>
   );
 }

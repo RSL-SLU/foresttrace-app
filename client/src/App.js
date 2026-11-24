@@ -1170,7 +1170,9 @@ function App() {
     }
   });
   const pendingAlertRef = useRef(alertLink.alertId || null);
-  const [focusWatches] = useState(alertLink.view === 'watch');
+  // Bumped to bring Disturbance Alerts > Email notifications into view (an
+  // email's 'manage' link, or 'Get alerts' on a drawn shape); 0 = don't.
+  const [watchesFocus, setWatchesFocus] = useState(alertLink.view === 'watch' ? 1 : 0);
 
   useEffect(() => {
     if (!alertLink.alertId && !alertLink.view) return;
@@ -1367,6 +1369,18 @@ function App() {
   // Which panel tab is showing. Lifted out of <ModuleSelector> so the map's
   // "Ask AI" button can bring the agent forward.
   const [panelTab, setPanelTab] = useState('modules');
+
+  // 'Get alerts' on a drawn shape: open Disturbance Alerts at its Email
+  // notifications section, where the shape is ready to save as a watch.
+  const watchDrawnArea = useCallback(() => {
+    if (!isAuthenticated) {
+      openAuthModal('login');
+      return;
+    }
+    setPanelTab('modules');
+    setSelectedModuleId('alerts');
+    setWatchesFocus((n) => n + 1);
+  }, [isAuthenticated, openAuthModal]);
   const [pendingPrompt, setPendingPrompt] = useState(null);
   // Geometry the assistant proposed. Kept apart from drawnFeatures so a
   // proposal never feeds back into the context as something the user drew.
@@ -1956,7 +1970,7 @@ function App() {
       drawnFeatures,
       selectedFMUs,
       zoomToGeometry,
-      focusWatches,
+      focusWatches: watchesFocus,
     },
   };
 
@@ -2298,6 +2312,7 @@ function App() {
                 onMapContextMenu={openMapPointMenu}
                 onDrawChange={setDrawnFeatures}
                 onAskAboutDrawing={askAboutDrawing}
+                onWatchDrawing={watchDrawnArea}
                 onLoadingChange={handleLoadingChange}
                 proposedFeatures={proposedFeatures}
                 drawingEnabled

@@ -86,6 +86,9 @@ test('adds only selected FMUs not already watched, and removes one', async () =>
   const calls = mockServer([{ id: 'f', kind: 'fmus', fmus: ['wabigoon'] }]);
   render(<AlertWatches drawnFeatures={[]} selectedFMUs={['wabigoon', 'dryden']} />);
 
+  // Already watching something: starts collapsed to a summary
+  expect(await screen.findByText(/Watching Wabigoon Forest · emails on/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Manage' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Watch Dryden Forest' }));
   await screen.findByRole('button', { name: 'Stop watching Dryden Forest' });
   expect(calls.find((c) => c.action === 'watch-fmus').body).toEqual({ fmus: ['wabigoon', 'dryden'] });
@@ -112,4 +115,15 @@ test('reports where the test email went', async () => {
   render(<AlertWatches />);
   fireEvent.click(await screen.findByRole('button', { name: 'Send me a test email' }));
   expect(await screen.findByRole('status')).toHaveTextContent('Test email sent to me@example.org.');
+});
+
+test('"Get alerts" opens a collapsed section and puts the cursor in the area name', async () => {
+  mockServer([{ id: '1', kind: 'area', name: 'North block', geometry: square(-92).geometry }]);
+  const { rerender } = render(<AlertWatches drawnFeatures={[square(-91)]} focus={0} />);
+  await screen.findByText(/Watching 1 area · emails on/);
+  expect(screen.queryByLabelText('Name for the drawn area')).not.toBeInTheDocument();
+
+  rerender(<AlertWatches drawnFeatures={[square(-91)]} focus={1} />);
+  const input = await screen.findByLabelText('Name for the drawn area');
+  await waitFor(() => expect(input).toHaveFocus());
 });

@@ -233,7 +233,7 @@ const DRAW_MODES = [
   { id: 'circle', glyph: '\u25EF', label: 'Circle' },
 ];
 
-function DrawingTools({ onCreate, onChange, onAsk, onClear, proposedFeatures, enabled, modeRef }) {
+function DrawingTools({ onCreate, onChange, onAsk, onWatch, onClear, proposedFeatures, enabled, modeRef }) {
   const { current: mapRef } = useMap();
   const drawRef = useRef(null);
   const onCreateRef = useRef(onCreate);
@@ -460,6 +460,19 @@ function DrawingTools({ onCreate, onChange, onAsk, onClear, proposedFeatures, en
         >
           <span className="map-draw-glyph" aria-hidden="true">{'\u2728'}</span>
           <span className="map-draw-label">Ask AI</span>
+        </button>
+      )}
+      {/* Same rule: only once there is an area to watch. Opens Disturbance
+          Alerts > Email notifications with the shape ready to save. */}
+      {shapeCount > 0 && onWatch && (
+        <button
+          type="button"
+          className="map-draw-btn map-draw-btn--ask map-draw-btn--watch map-draw-btn--wide"
+          title="Get an email when a new disturbance alert falls in this area"
+          onClick={onWatch}
+        >
+          <span className="map-draw-glyph" aria-hidden="true">{'\u{1F514}'}</span>
+          <span className="map-draw-label">Get alerts</span>
         </button>
       )}
     </div>
@@ -816,6 +829,8 @@ function MapLibreMap({
   onShapeCreate = null,
   onDrawChange = null,
   onAskAboutDrawing = null,
+  // "Get alerts" on a drawn shape (Disturbance Alerts email watches)
+  onWatchDrawing = null,
   onLoadingChange = null,
   proposedFeatures = null,
   drawingEnabled = false,
@@ -1398,6 +1413,7 @@ function MapLibreMap({
         onCreate={onShapeCreate}
         onChange={onDrawChange}
         onAsk={onAskAboutDrawing}
+        onWatch={onWatchDrawing}
         onClear={clearHighlights}
         proposedFeatures={proposedFeatures}
         enabled={drawingEnabled}

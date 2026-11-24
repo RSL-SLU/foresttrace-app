@@ -401,3 +401,12 @@ body.dark-mode .alert-error { color: #f87171; }
 }
 
 body.dark-mode .alert-notice { color: #9fdcb9; }
+
+.alert-watch-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.alert-watch-head h3 { margin-bottom: 4px; }

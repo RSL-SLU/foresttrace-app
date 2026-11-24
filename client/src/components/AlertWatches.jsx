@@ -22,6 +22,7 @@ function AlertWatches({ drawnFeatures = [], selectedFMUs = [], zoomToGeometry, f
   const [busy, setBusy] = useState(null);         // name of the running action
   const [areaName, setAreaName] = useState('');
   const sectionRef = useRef(null);
+  const nameRef = useRef(null);
 
   const load = useCallback(async () => {
     try {
@@ -34,10 +35,25 @@ function AlertWatches({ drawnFeatures = [], selectedFMUs = [], zoomToGeometry, f
 
   useEffect(() => { if (token) load(); }, [token, load]);
 
-  // Opened from "Manage what you watch" in an alert email
+  // Open/closed. Unset means automatic: open until the user watches
+  // something, then a one-line summary so the alert detail and list below
+  // stay in reach.
+  const [openChoice, setOpenChoice] = useState(null);
+
+  // Brought forward by "Manage what you watch" in an alert email or "Get
+  // alerts" on the map: `focus` changes on each request. Opens the section;
+  // with a shape drawn, the cursor goes to its name so saving is type-and-Enter.
+  const loaded = Boolean(state);
+  const handledFocus = useRef(0);
   useEffect(() => {
-    if (focus && state) sectionRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
-  }, [focus, state]);
+    if (focus) setOpenChoice(true);
+  }, [focus]);
+  useEffect(() => {
+    if (!focus || !loaded || openChoice !== true || handledFocus.current === focus) return;
+    handledFocus.current = focus;
+    sectionRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+    nameRef.current?.focus({ preventScroll: true });
+  }, [focus, loaded, openChoice]);
 
   const drawnGeometry = useMemo(() => drawnAreaGeometry(drawnFeatures), [drawnFeatures]);
   const areas = (state?.watches || []).filter((w) => w.kind === 'area');
@@ -74,10 +90,42 @@ function AlertWatches({ drawnFeatures = [], selectedFMUs = [], zoomToGeometry, f
 
   const enabled = state.emailsEnabled;
   const watchingAnything = areas.length > 0 || watchedFmus.length > 0;
+  const open = openChoice ?? !watchingAnything;
+
+  const watching = [
+    areas.length ? `${areas.length} area${areas.length === 1 ? '' : 's'}` : null,
+    watchedFmus.length > 2 ? `${watchedFmus.length} FMUs` : (watchedFmus.map(fmuName).join(' and ') || null),
+  ].filter(Boolean).join(' and ');
+
+  const header = (
+    <div className="alert-watch-head">
+      <h3>Email notifications</h3>
+      <button
+        type="button"
+        className="alert-link"
+        aria-expanded={open}
+        onClick={() => setOpenChoice(!open)}
+      >
+        {open ? 'Hide' : 'Manage'}
+      </button>
+    </div>
+  );
+
+  if (!open) {
+    return (
+      <div className="module-section alert-watches" ref={sectionRef}>
+        {header}
+        <p className="stat-sub">
+          {watchingAnything ? `Watching ${watching}` : 'Not watching any areas or FMUs'}
+          {' · '}{enabled ? 'emails on' : 'emails off'}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="module-section alert-watches" ref={sectionRef}>
-      <h3>Email notifications</h3>
+      {header}
       <p className="stat-sub">
         Get an email when a new alert is detected in an area you drew or an FMU you chose.
         New alerts are checked once a day.
@@ -128,6 +176,7 @@ function AlertWatches({ drawnFeatures = [], selectedFMUs = [], zoomToGeometry, f
           }}
         >
           <input
+            ref={nameRef}
             type="text"
             className="alert-watch-input"
             placeholder={`Name, e.g. Area ${areas.length + 1}`}
@@ -142,7 +191,8 @@ function AlertWatches({ drawnFeatures = [], selectedFMUs = [], zoomToGeometry, f
         </form>
       ) : (
         <p className="stat-sub">
-          Draw a polygon or rectangle with the map’s drawing tools, then save it here.
+          Draw a polygon or rectangle with the drawing tools at the bottom left of the map,
+          then save it here.
         </p>
       )}
 
