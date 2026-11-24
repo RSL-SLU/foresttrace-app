@@ -209,4 +209,53 @@ function renderInvite({ name, email, role, setPasswordUrl, expiresAt, appUrl, fm
   };
 }
 
-module.exports = { sendEmail, isConfigured, renderAlertDigest, renderTestEmail, renderInvite, escapeHtml };
+/** One-off "what's new" message to registered users (scripts/admin/announce-features.js). */
+function renderFeatureAnnouncement({ name, appUrl, googleEnabled = false }) {
+  const subject = 'New in ForestTrace: disturbance alerts by email';
+  const guideUrl = `${appUrl}/?docs=alerts`;
+  const li = 'margin:0 0 10px;font-size:14px;line-height:1.6;color:#334155;';
+  const bodyHtml = `
+    <h1 style="margin:0 0 8px;font-size:18px;color:#0f172a;">${subject}</h1>
+    <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#334155;">
+      ${name ? `Hello ${escapeHtml(name)}, ` : 'Hello, '}here’s what’s new in ForestTrace.
+    </p>
+    <ul style="margin:0 0 8px;padding-left:20px;">
+      <li style="${li}"><strong>Disturbance Alerts:</strong> recent vegetation loss detected from Landsat and Sentinel-2, on the map within days of a satellite seeing it, with before/after images.</li>
+      <li style="${li}"><strong>Email notifications:</strong> watch any Forest Management Unit, or draw your own area and click <em>Get alerts</em>. You’ll get one email a day when new alerts fall inside, and nothing when there are none.</li>
+      ${googleEnabled ? `<li style="${li}"><strong>Sign in with Google:</strong> use <em>Continue with Google</em> instead of a password.</li>` : ''}
+      <li style="${li}"><strong>Coming next:</strong> radar alerts from NASA–ISRO’s NISAR satellite, which sees through cloud and smoke, once validated.</li>
+    </ul>
+    <p style="margin:0 0 16px;font-size:13px;line-height:1.6;color:#475569;">The alerts shown today are demonstration data while the live satellite feeds are being connected.</p>
+    <p style="margin:20px 0 0;"><a href="${escapeHtml(guideUrl)}" style="display:inline-block;background:#2f8f5b;color:#ffffff;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;">Read the 2-minute guide</a></p>
+    <p style="margin:12px 0 0;font-size:13px;color:#64748b;">Or go straight to <a href="${escapeHtml(appUrl)}" style="color:#2f8f5b;">${escapeHtml(appUrl.replace(/^https?:\/\//, ''))}</a>.</p>`;
+
+  const text = [
+    subject,
+    '',
+    `${name ? `Hello ${name}, ` : 'Hello, '}here's what's new in ForestTrace:`,
+    '',
+    '- Disturbance Alerts: recent vegetation loss from Landsat and Sentinel-2, on the map within days, with before/after images.',
+    '- Email notifications: watch an FMU or draw your own area and click "Get alerts". One email a day when new alerts fall inside.',
+    googleEnabled ? '- Sign in with Google: use "Continue with Google" instead of a password.' : null,
+    "- Coming next: radar alerts from NASA-ISRO's NISAR satellite, which sees through cloud and smoke.",
+    '',
+    'The alerts shown today are demonstration data while the live satellite feeds are being connected.',
+    '',
+    `Guide: ${guideUrl}`,
+    `ForestTrace: ${appUrl}`,
+  ].filter((l) => l !== null).join('\n');
+
+  return {
+    subject,
+    html: layout({
+      title: subject,
+      bodyHtml,
+      footerHtml: 'You get this one-time update because you have a ForestTrace account. We only email about alerts you ask for, and occasional major updates like this one.',
+    }),
+    text,
+  };
+}
+
+module.exports = {
+  sendEmail, isConfigured, renderAlertDigest, renderTestEmail, renderInvite, renderFeatureAnnouncement, escapeHtml,
+};
