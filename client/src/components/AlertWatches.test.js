@@ -64,22 +64,24 @@ test('saves the drawn area under the typed name and lists it', async () => {
   const calls = mockServer();
   render(<AlertWatches drawnFeatures={[square(-92)]} selectedFMUs={[]} />);
 
-  await screen.findByText('me@example.org');
+  await screen.findByText('to me@example.org');
   fireEvent.change(screen.getByLabelText('Name for the drawn area'), { target: { value: 'North block' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Watch drawn area' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Save area' }));
 
   expect(await screen.findByText('North block')).toBeInTheDocument();
   const save = calls.find((c) => c.action === 'watch-area');
   expect(save.body).toEqual({ name: 'North block', geometry: square(-92).geometry });
   expect(save.headers.Authorization).toBe('Bearer t0k');
-  await waitFor(() => expect(screen.getByLabelText('Name for the drawn area')).toHaveValue(''));
+  // The saved drawing isn't offered again
+  expect(await screen.findByText(/Your drawing is saved as “North block”/)).toBeInTheDocument();
+  expect(screen.queryByLabelText('Name for the drawn area')).not.toBeInTheDocument();
 });
 
 test('asks for a drawing when nothing is drawn', async () => {
   mockServer();
   render(<AlertWatches drawnFeatures={[]} selectedFMUs={[]} />);
-  expect(await screen.findByText(/Draw a polygon or rectangle/)).toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: /Watch drawn area/ })).not.toBeInTheDocument();
+  expect(await screen.findByText(/draw a polygon or rectangle/i)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Save area' })).not.toBeInTheDocument();
 });
 
 test('adds only selected FMUs not already watched, and removes one', async () => {
@@ -89,7 +91,7 @@ test('adds only selected FMUs not already watched, and removes one', async () =>
   // Already watching something: starts collapsed to a summary
   expect(await screen.findByText(/Watching Wabigoon Forest · emails on/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Manage' }));
-  fireEvent.click(await screen.findByRole('button', { name: 'Watch Dryden Forest' }));
+  fireEvent.click(await screen.findByRole('button', { name: /Watch Dryden Forest/ }));
   await screen.findByRole('button', { name: 'Stop watching Dryden Forest' });
   expect(calls.find((c) => c.action === 'watch-fmus').body).toEqual({ fmus: ['wabigoon', 'dryden'] });
 
@@ -101,13 +103,13 @@ test('adds only selected FMUs not already watched, and removes one', async () =>
 test('only admins get the manual notification check', async () => {
   mockServer();
   const { unmount } = render(<AlertWatches />);
-  await screen.findByText('me@example.org');
-  expect(screen.queryByRole('button', { name: 'Check for new alerts now' })).not.toBeInTheDocument();
+  await screen.findByText('to me@example.org');
+  expect(screen.queryByRole('button', { name: 'Run the daily check now' })).not.toBeInTheDocument();
   unmount();
 
   mockRole = 'admin';
   render(<AlertWatches />);
-  expect(await screen.findByRole('button', { name: 'Check for new alerts now' })).toBeInTheDocument();
+  expect(await screen.findByRole('button', { name: 'Run the daily check now' })).toBeInTheDocument();
 });
 
 test('reports where the test email went', async () => {
