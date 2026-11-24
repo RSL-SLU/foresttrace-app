@@ -20,6 +20,9 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login'); // 'login' | 'register' | 'bootstrap'
+  // OAuth client ID for the Google button, from the server (api/auth.js status);
+  // null hides the button.
+  const [googleClientId, setGoogleClientId] = useState(process.env.REACT_APP_GOOGLE_CLIENT_ID || null);
 
   // Persist session to localStorage
   const saveSession = useCallback((newToken, newUser) => {
@@ -52,6 +55,7 @@ export function AuthProvider({ children }) {
       const data = await res.json();
 
       setIsInitialized(data.initialized !== false);
+      if (data.googleClientId) setGoogleClientId(data.googleClientId);
 
       if (data.authenticated && data.user) {
         saveSession(currentToken, data.user);
@@ -81,6 +85,24 @@ export function AuthProvider({ children }) {
     const data = await res.json();
     if (!res.ok) {
       throw new Error(data.error || 'Login failed');
+    }
+
+    saveSession(data.token, data.user);
+    setAuthModalOpen(false);
+    return data.user;
+  };
+
+  // Google sign-in/sign-up: `credential` is the ID token from the Google button
+  const loginWithGoogle = async (credential) => {
+    const res = await fetch('/api/auth?action=google', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || 'Google sign-in failed');
     }
 
     saveSession(data.token, data.user);
@@ -153,6 +175,8 @@ export function AuthProvider({ children }) {
     closeAuthModal,
     setAuthModalMode,
     login,
+    loginWithGoogle,
+    googleClientId,
     register,
     bootstrapAdmin,
     logout,

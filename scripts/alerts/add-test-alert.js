@@ -37,7 +37,7 @@ if (!dbName) {
   process.exit(1);
 }
 process.env.MONGODB_DB_NAME = dbName;
-const { getCollection, getMongoUri } = require(path.join(ROOT, 'api', '_db'));
+const { getCollection, getMongoUri, closeDb } = require(path.join(ROOT, 'api', '_db'));
 const { runAlertNotifications } = require(path.join(ROOT, 'api', '_alertNotify'));
 
 const TEST_PREFIX = 'DIST-TEST-';
@@ -87,7 +87,8 @@ function pointInside(geometry) {
   if (args.includes('--remove')) {
     const { deletedCount } = await alerts.deleteMany({ alertId: { $regex: `^${TEST_PREFIX}` }, mock: true });
     console.log(`Removed ${deletedCount} test alert(s) from "${dbName}".`);
-    process.exit(0);
+    await closeDb();
+    return;
   }
 
   let point = WABIGOON_POINT;
@@ -140,7 +141,7 @@ function pointInside(geometry) {
   } else {
     console.log('Not notified yet: run with --notify, use "Check for new alerts now" in the app (admins), or wait for the daily cron.');
   }
-  process.exit(0);
+  await closeDb();
 })().catch((err) => {
   console.error(err);
   process.exit(1);

@@ -535,3 +535,40 @@ body.dark-mode .user-dropdown-divider {
   font-size: 11px;
   opacity: 0.7;
 }
+
+/* Sign in with Google (components/GoogleSignInButton.jsx). Google renders
+   the button itself, in an iframe; this only centres it. */
+.auth-google {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 44px;
+}
+
+.auth-google-button {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.auth-google--disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  opacity: 0.65;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.35;
+}

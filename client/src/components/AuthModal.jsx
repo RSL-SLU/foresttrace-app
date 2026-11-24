@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import GoogleSignInButton from './GoogleSignInButton';
 import '../styles/auth.css';
 
 function AuthModal() {
@@ -10,6 +11,8 @@ function AuthModal() {
     setAuthModalMode,
     isInitialized,
     login,
+    loginWithGoogle,
+    googleClientId,
     register,
     bootstrapAdmin,
   } = useAuth();
@@ -52,6 +55,18 @@ function AuthModal() {
       setUsername('');
     } catch (err) {
       setError(err.message || 'Operation failed');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleGoogleCredential(credential) {
+    setError(null);
+    setSubmitting(true);
+    try {
+      await loginWithGoogle(credential);
+    } catch (err) {
+      setError(err.message || 'Google sign-in failed');
     } finally {
       setSubmitting(false);
     }
@@ -120,6 +135,21 @@ function AuthModal() {
 
         <form className="auth-form" onSubmit={handleSubmit}>
           {error && <div className="auth-error-box">{error}</div>}
+
+          {/* Google first, then the email form (not for the first-admin setup,
+              which must have a password) */}
+          {!isBootstrap && googleClientId && (
+            <>
+              <GoogleSignInButton
+                clientId={googleClientId}
+                text={isRegister ? 'signup_with' : 'continue_with'}
+                disabled={submitting}
+                onCredential={handleGoogleCredential}
+              />
+              <div className="auth-divider" role="separator"><span>or with email</span></div>
+            </>
+          )}
+
 
           {/* Name Field (Sign Up & Bootstrap) */}
           {(isBootstrap || isRegister) && (

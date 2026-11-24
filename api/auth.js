@@ -10,6 +10,9 @@ const {
   normalizeUsername, validateUsername, ensureUsername, ensureIndex,
 } = require('./_usernames');
 const { allowedPrefixesFor } = require('./_uploadTargets');
+const { verifyGoogleIdToken, googleClientId } = require('./_google');
+
+let googleIndexReady = null;
 
 module.exports = async function handler(req, res) {
   // Check database configuration
@@ -54,6 +57,9 @@ module.exports = async function handler(req, res) {
         initialized: adminCount > 0,
         authenticated: Boolean(userDetails),
         user: userDetails,
+        // Public by design (it is in every page that shows the button); null
+        // hides "Sign in with Google".
+        googleClientId: googleClientId(),
       });
     }
 
@@ -185,7 +191,73 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    // 5. LOGIN: Email + password
+    // 5. GOOGLE: sign in or sign up with a Google ID token ({ credential }
+    // from the Google Identity Services button; see api/_google.js).
+    if (action === 'google') {
+      let claims;
+      try {
+        claims = await verifyGoogleIdToken(req.body?.credential, googleClientId());
+      } catch (err) {
+        return res.status(401).json({ error: err.message });
+      }
+      const googleEmail = String(claims.email || '').trim().toLowerCase();
+      if (!googleEmail || claims.email_verified !== true) {
+        return res.status(401).json({ error: 'Your Google account has no verified email address.' });
+      }
+      googleIndexReady ??= users.createIndex({ googleSub: 1 }, { unique: true, sparse: true }).catch(() => {});
+      await googleIndexReady;
+      if (!await users.findOne({ role: 'admin' }, { projection: { _id: 1 } })) {
+        return res.status(409).json({ error: 'Finish the initial administrator setup before signing in with Google.' });
+      }
+
+      let userDoc = await users.findOne({ googleSub: claims.sub })
+        || await users.findOne({ email: googleEmail });
+
+      if (!userDoc) {
+        const newUser = {
+          email: googleEmail,
+          name: String(claims.name || '').trim() || googleEmail.split('@')[0],
+          googleSub: claims.sub,
+          emailVerified: true,
+          role: 'user',
+          createdAt: new Date(),
+          lastActiveAt: new Date(),
+        };
+        const { insertedId } = await users.insertOne(newUser);
+        userDoc = { ...newUser, _id: insertedId };
+      } else {
+        const set = { lastActiveAt: new Date(), emailVerified: true };
+        const unset = {};
+        if (!userDoc.googleSub) {
+          set.googleSub = claims.sub;
+          set.googleLinkedAt = new Date();
+          // Sign-up never verified emails, so anyone could have registered
+          // this address with a password before its owner arrived. Google has
+          // now proven ownership; a password set by a stranger must not keep
+          // working (the same rule Firebase applies). Accounts an admin made
+          // (create-user.js) and admin accounts keep their password.
+          if (userDoc.passwordHash && !userDoc.createdBy && userDoc.role !== 'admin') {
+            unset.passwordHash = '';
+          }
+        }
+        await users.updateOne({ _id: userDoc._id }, { $set: set, ...(Object.keys(unset).length ? { $unset: unset } : {}) });
+      }
+
+      const userPayload = {
+        id: userDoc._id.toString(),
+        email: userDoc.email,
+        username: await ensureUsername(users, userDoc),
+        name: userDoc.name || userDoc.email.split('@')[0],
+        role: userDoc.role || 'user',
+      };
+      return res.status(200).json({
+        success: true,
+        user: { ...userPayload, canUpload: allowedPrefixesFor(userDoc).length > 0 },
+        token: createToken(userPayload),
+      });
+    }
+
+    // 6. LOGIN: Email + password
     if (action === 'login') {
       if (!normalizedEmail || !password) {
         return res.status(400).json({ error: 'Email and password are required.' });
@@ -193,6 +265,9 @@ module.exports = async function handler(req, res) {
 
       const userDoc = await users.findOne({ email: normalizedEmail });
 
+      if (userDoc && !userDoc.passwordHash && userDoc.googleSub) {
+        return res.status(401).json({ error: 'This account signs in with Google. Use “Continue with Google” above.' });
+      }
       if (!userDoc || !userDoc.passwordHash || !verifyPassword(password, userDoc.passwordHash)) {
         return res.status(401).json({ error: 'Invalid email or password.' });
       }

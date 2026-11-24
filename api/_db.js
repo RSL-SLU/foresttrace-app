@@ -53,6 +53,15 @@ async function getDb() {
   return _client.db(dbName);
 }
 
+// For scripts: lets Node exit on its own. process.exit() right after a fetch
+// can trip a libuv assertion on Windows ("UV_HANDLE_CLOSING").
+async function closeDb() {
+  if (_client) {
+    await _client.close();
+    _client = null;
+  }
+}
+
 async function getCollection(name) {
   const db = await getDb();
   return db.collection(name);
@@ -121,6 +130,7 @@ function getUserFromRequest(req) {
 module.exports = {
   getDb,
   getCollection,
+  closeDb,
   ObjectId,
   hashPassword,
   verifyPassword,

@@ -7,7 +7,7 @@
  *   EMAIL_FROM      sender; must be on the domain verified in Resend
  */
 
-const EMAIL_FROM = process.env.EMAIL_FROM || 'ForestTrace <notifications@foresttrace.remotesensinglab.org>';
+const EMAIL_FROM = process.env.EMAIL_FROM || 'ForestTrace <notifications@remotesensinglab.org>';
 
 const escapeHtml = (s) => String(s ?? '')
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
